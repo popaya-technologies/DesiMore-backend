@@ -5,6 +5,7 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 const isProduction = process.env.NODE_ENV === "production";
+const sslEnabled = process.env.DB_SSL === "true";
 
 export const AppDataSource = new DataSource({
   type: "postgres",
@@ -21,7 +22,7 @@ export const AppDataSource = new DataSource({
         database: process.env.DB_NAME,
       }),
 
-  ssl: isProduction
+  ssl: sslEnabled
     ? {
         rejectUnauthorized: false,
       }
