@@ -14,6 +14,7 @@ import { Cart, CartType } from "../entities/cart.entity";
 import { CartItem } from "../entities/cart-item.entity";
 import { Product } from "../entities/product.entity";
 import { OrderItem } from "../entities/order-item.entity";
+import { generateOrderNumber } from "../utils/reference-number.util";
 
 const orderRepository = AppDataSource.getRepository(Order);
 const paymentRepository = AppDataSource.getRepository(Payment);
@@ -177,10 +178,8 @@ export const PaymentController = {
         return;
       }
 
-      // Generate an invoice number (reuse Order.generateOrderNumber logic)
-      const tempOrderForNumber = new Order();
-      tempOrderForNumber.generateOrderNumber();
-      const invoiceNumber = tempOrderForNumber.orderNumber;
+      // Generate an invoice number with year + sequence
+      const invoiceNumber = await generateOrderNumber();
 
       // Charge via Authorize.Net without a saved order
       const chargeResult = await AuthorizeNetService.createTransactionForCheckout({

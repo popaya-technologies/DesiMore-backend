@@ -12,6 +12,7 @@ import {
 } from "../dto/order.dto";
 import { validate } from "class-validator";
 import { plainToInstance } from "class-transformer";
+import { generateOrderNumber } from "../utils/reference-number.util";
 
 const orderRepository = AppDataSource.getRepository(Order);
 const orderItemRepository = AppDataSource.getRepository(OrderItem);
@@ -55,7 +56,7 @@ export const OrderController = {
       // Create order
       const order = new Order();
       order.userId = userId;
-      order.generateOrderNumber();
+      order.orderNumber = await generateOrderNumber();
       order.shippingAddress = createOrderDto.shippingAddress;
       order.billingAddress =
         createOrderDto.billingAddress || createOrderDto.shippingAddress;

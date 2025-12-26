@@ -101,14 +101,4 @@ export class Order {
 
   @UpdateDateColumn()
   updatedAt: Date;
-
-  // Helper method to generate order number
-  generateOrderNumber(): void {
-    // Authorize.Net requires invoiceNumber to be max 20 characters
-    const timestamp = Date.now().toString().slice(-8); // Last 8 digits of timestamp
-    const random = Math.floor(Math.random() * 1000)
-      .toString()
-      .padStart(3, "0");
-    this.orderNumber = `ORD${timestamp}${random}`; // Format: ORD + 8 digits + 3 digits = 14 chars
-  }
 }

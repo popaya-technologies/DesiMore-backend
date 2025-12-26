@@ -75,12 +75,4 @@ export class WholesaleOrderRequest {
 
   @UpdateDateColumn()
   updatedAt: Date;
-
-  generateRequestNumber(): void {
-    const timestamp = Date.now().toString().slice(-8);
-    const random = Math.floor(Math.random() * 1000)
-      .toString()
-      .padStart(3, "0");
-    this.requestNumber = `WS${timestamp}${random}`;
-  }
 }

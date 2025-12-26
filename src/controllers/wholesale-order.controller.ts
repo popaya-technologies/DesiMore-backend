@@ -7,6 +7,7 @@ import { WholesaleOrderItem } from "../entities/wholesale-order-item.entity";
 import { Cart, CartType } from "../entities/cart.entity";
 import { CartItem } from "../entities/cart-item.entity";
 import { CreateWholesaleOrderRequestDto, UpdateWholesaleOrderRequestStatusDto } from "../dto/wholesale-order.dto";
+import { generateWholesaleRequestNumber } from "../utils/reference-number.util";
 
 const wholesaleOrderRequestRepository = AppDataSource.getRepository(WholesaleOrderRequest);
 const cartRepository = AppDataSource.getRepository(Cart);
@@ -125,7 +126,7 @@ export const WholesaleOrderController = {
 
       const request = new WholesaleOrderRequest();
       request.userId = userId;
-      request.generateRequestNumber();
+      request.requestNumber = await generateWholesaleRequestNumber();
       request.shippingAddress = createDto.shippingAddress;
       request.billingAddress =
         createDto.billingAddress || createDto.shippingAddress;
