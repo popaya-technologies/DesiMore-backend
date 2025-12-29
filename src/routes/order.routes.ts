@@ -12,6 +12,12 @@ router.get(
   checkPermission("order", "read"),
   OrderController.adminGetAllOrders
 );
+router.get(
+  "/admin/:id",
+  authenticate,
+  checkPermission("order", "read"),
+  OrderController.adminGetOrderById
+);
 
 router.post("/", authenticate, OrderController.createOrder);
 router.get("/", authenticate, OrderController.getUserOrders);

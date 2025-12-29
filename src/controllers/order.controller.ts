@@ -191,6 +191,28 @@ export const OrderController = {
     }
   },
 
+  // Admin: Get a single order by ID (with items and user)
+  adminGetOrderById: async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+
+      const order = await orderRepository.findOne({
+        where: { id },
+        relations: ["items", "user"],
+      });
+
+      if (!order) {
+        res.status(404).json({ message: "Order not found" });
+        return;
+      }
+
+      res.status(200).json(order);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
   // Get user's orders
   getUserOrders: async (req: Request, res: Response) => {
     try {
