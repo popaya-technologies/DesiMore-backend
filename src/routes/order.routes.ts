@@ -33,6 +33,12 @@ router.put(
   authenticate,
   OrderController.updatePaymentStatus
 );
+router.put(
+  "/:id/tracking",
+  authenticate,
+  checkPermission("order", "update"),
+  OrderController.updateOrderTracking
+);
 router.post("/:id/cancel", authenticate, OrderController.cancelOrder);
 
 export default router;

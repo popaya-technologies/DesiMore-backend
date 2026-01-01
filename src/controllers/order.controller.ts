@@ -9,6 +9,7 @@ import {
   CreateOrderDto,
   UpdateOrderStatusDto,
   UpdatePaymentStatusDto,
+  UpdateOrderTrackingDto,
 } from "../dto/order.dto";
 import { validate } from "class-validator";
 import { plainToInstance } from "class-transformer";
@@ -205,6 +206,45 @@ export const OrderController = {
         res.status(404).json({ message: "Order not found" });
         return;
       }
+
+      res.status(200).json(order);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  // Update tracking info (Admin only)
+  updateOrderTracking: async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const updateDto = plainToInstance(UpdateOrderTrackingDto, req.body);
+
+      const errors = await validate(updateDto, {
+        whitelist: true,
+        forbidUnknownValues: true,
+        validationError: { target: false },
+      });
+      if (errors.length > 0) {
+        res.status(400).json({ errors });
+        return;
+      }
+
+      const order = await orderRepository.findOne({
+        where: { id },
+      });
+
+      if (!order) {
+        res.status(404).json({ message: "Order not found" });
+        return;
+      }
+
+      order.tracking = {
+        carrier: updateDto.carrier,
+        trackingNumber: updateDto.trackingNumber,
+      };
+
+      await orderRepository.save(order);
 
       res.status(200).json(order);
     } catch (error) {

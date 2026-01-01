@@ -79,3 +79,11 @@ export class UpdatePaymentStatusDto {
   @IsOptional()
   transactionId?: string;
 }
+
+export class UpdateOrderTrackingDto {
+  @IsString()
+  carrier: string;
+
+  @IsString()
+  trackingNumber: string;
+}

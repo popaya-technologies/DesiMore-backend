@@ -96,6 +96,12 @@ export class Order {
   @Column({ type: "text", nullable: true })
   notes: string;
 
+  @Column({ type: "jsonb", nullable: true })
+  tracking: {
+    carrier: string;
+    trackingNumber: string;
+  } | null;
+
   @CreateDateColumn()
   createdAt: Date;
 
