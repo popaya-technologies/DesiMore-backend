@@ -15,6 +15,7 @@ export enum WholesaleOrderRequestStatus {
   PENDING = "pending",
   APPROVED = "approved",
   REJECTED = "rejected",
+  DELIVERED = "delivered",
 }
 
 @Entity("wholesale_order_requests")

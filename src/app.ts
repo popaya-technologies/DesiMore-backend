@@ -12,9 +12,12 @@ import paymentRoutes from "./routes/payment.routes";
 import wishlistRoutes from "./routes/wishlist.routes";
 import wholesaleOrderRoutes from "./routes/wholesale-order.routes";
 import parentCategoryRoutes from "./routes/parent-category.routes";
+import uploadRoutes from "./routes/upload.routes";
+import messageRoutes from "./routes/message.routes";
 import { authenticate } from "./middlewares/auth.middleware";
 import { checkPermission } from "./middlewares/rbac.middleware";
 import cors from "cors";
+import { ensureUploadDir, UPLOAD_DIR } from "./utils/upload-config";
 
 const app = express();
 
@@ -28,6 +31,10 @@ app.use(
   })
 );
 
+// Ensure uploads directory exists and serve it publicly
+ensureUploadDir();
+app.use("/uploads", express.static(UPLOAD_DIR));
+
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/rbac", rbacRoutes);
@@ -40,6 +47,8 @@ app.use("/api/wishlist", wishlistRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/wholesale-orders", wholesaleOrderRoutes);
+app.use("/api/uploads", uploadRoutes);
+app.use("/api/messages", messageRoutes);
 
 // Protected route example
 app.get("/api/auth/me", authenticate, (req, res) => {

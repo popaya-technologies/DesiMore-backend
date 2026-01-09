@@ -19,6 +19,7 @@ router.get(
   ProductController.getProductsByCategory
 );
 router.get("/categories/id/:id", ProductController.getProductsByCategoryId);
+router.get("/:id/related", ProductController.getRelatedProducts);
 router.get("/:id", ProductController.getProductById);
 
 router.patch(

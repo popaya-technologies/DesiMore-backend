@@ -167,8 +167,14 @@ export const WholesaleOrderController = {
 
   getMyRequests: async (req: Request, res: Response) => {
     try {
+      const { status } = req.query;
+      const where: any = { userId: req.user.id };
+      if (status) {
+        where.status = status as any;
+      }
+
       const requests = await wholesaleOrderRequestRepository.find({
-        where: { userId: req.user.id },
+        where,
         relations: ["items"],
         order: { createdAt: "DESC" },
       });
@@ -182,9 +188,16 @@ export const WholesaleOrderController = {
     }
   },
 
-  getAllRequests: async (_req: Request, res: Response) => {
+  getAllRequests: async (req: Request, res: Response) => {
     try {
+      const { status } = req.query;
+      const where: any = {};
+      if (status) {
+        where.status = status as any;
+      }
+
       const requests = await wholesaleOrderRequestRepository.find({
+        where,
         relations: ["items", "user"],
         order: { createdAt: "DESC" },
       });

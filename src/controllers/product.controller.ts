@@ -3,7 +3,7 @@ import { AppDataSource } from "../data-source";
 import { Product } from "../entities/product.entity";
 import { CreateProductDto, UpdateProductDto } from "../dto/product.dto";
 import { validate } from "class-validator";
-import { In } from "typeorm";
+import { Brackets, In } from "typeorm";
 import { Category } from "../entities/category.entity";
 import { Brand } from "../entities/brand.entity";
 
@@ -169,6 +169,57 @@ export const ProductController = {
       }
 
       res.status(200).json(formatProductResponse(product));
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  },
+
+  // Related products (by shared categories or brand)
+  getRelatedProducts: async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const limitParam = req.query.limit as string | undefined;
+      const take = limitParam ? parseInt(limitParam, 10) : 10;
+
+      const product = await productRepository.findOne({
+        where: { id },
+        relations: ["categories", "brand"],
+      });
+
+      if (!product) {
+        res.status(404).json({ message: "Product not found" });
+        return;
+      }
+
+      const categoryIds = (product.categories || []).map((c) => c.id);
+      const brandId = product.brand?.id;
+
+      const qb = productRepository
+        .createQueryBuilder("product")
+        .leftJoinAndSelect("product.categories", "category")
+        .leftJoinAndSelect("product.brand", "brand")
+        .where("product.id != :id", { id })
+        .andWhere("product.isActive = :active", { active: true })
+        .andWhere(
+          new Brackets((qb) => {
+            if (categoryIds.length > 0) {
+              qb.orWhere("category.id IN (:...categoryIds)", { categoryIds });
+            }
+            if (brandId) {
+              qb.orWhere("brand.id = :brandId", { brandId });
+            }
+          })
+        )
+        .distinct(true)
+        .orderBy("product.createdAt", "DESC");
+
+      if (take && !isNaN(take) && take > 0) {
+        qb.take(take);
+      }
+
+      const related = await qb.getMany();
+      res.status(200).json(related.map((p) => formatProductResponse(p)));
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: "Internal Server Error" });
