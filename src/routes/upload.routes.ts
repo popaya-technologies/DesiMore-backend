@@ -4,6 +4,14 @@ import path from "path";
 import { authenticate } from "../middlewares/auth.middleware";
 import { ensureUploadDir, UPLOAD_DIR } from "../utils/upload-config";
 
+type UploadedRequest = Request & {
+  file?: {
+    filename: string;
+    size: number;
+    mimetype: string;
+  };
+};
+
 ensureUploadDir();
 
 const storage = multer.diskStorage({
@@ -37,7 +45,7 @@ router.post(
   "/image",
   authenticate,
   upload.single("file"),
-  (req: Request, res: Response) => {
+  (req: UploadedRequest, res: Response) => {
     if (!req.file) {
       res.status(400).json({ message: "No file uploaded" });
       return;

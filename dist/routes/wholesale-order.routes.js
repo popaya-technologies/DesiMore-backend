@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const auth_middleware_1 = require("../middlewares/auth.middleware");
+const rbac_middleware_1 = require("../middlewares/rbac.middleware");
+const wholesale_order_controller_1 = require("../controllers/wholesale-order.controller");
+const router = (0, express_1.Router)();
+router.post("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("wholesale-order-request", "create"), wholesale_order_controller_1.WholesaleOrderController.createWholesaleOrderRequest);
+router.get("/mine", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("wholesale-order-request", "read"), wholesale_order_controller_1.WholesaleOrderController.getMyRequests);
+router.get("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("wholesale-order-request", "read-all"), wholesale_order_controller_1.WholesaleOrderController.getAllRequests);
+router.get("/:id", auth_middleware_1.authenticate, wholesale_order_controller_1.WholesaleOrderController.getRequestById);
+router.patch("/:id/status", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("wholesale-order-request", "update"), wholesale_order_controller_1.WholesaleOrderController.updateRequestStatus);
+exports.default = router;

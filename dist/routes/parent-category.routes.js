@@ -1,0 +1,14 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const parent_category_controller_1 = require("../controllers/parent-category.controller");
+const auth_middleware_1 = require("../middlewares/auth.middleware");
+const rbac_middleware_1 = require("../middlewares/rbac.middleware");
+const router = (0, express_1.Router)();
+router.post("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("parent-category", "create"), parent_category_controller_1.ParentCategoryController.createParentCategory);
+router.get("/", parent_category_controller_1.ParentCategoryController.getParentCategories);
+router.get("/:id/categories", parent_category_controller_1.ParentCategoryController.getCategoriesByParent);
+router.get("/:id", parent_category_controller_1.ParentCategoryController.getParentCategoryById);
+router.put("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("parent-category", "update"), parent_category_controller_1.ParentCategoryController.updateParentCategory);
+router.delete("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("parent-category", "delete"), parent_category_controller_1.ParentCategoryController.deleteParentCategory);
+exports.default = router;
