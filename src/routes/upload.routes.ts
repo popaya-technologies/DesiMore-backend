@@ -63,4 +63,33 @@ router.post(
   }
 );
 
+router.post(
+  "/images",
+  authenticate,
+  upload.array("files", 10), // max 10 files per request
+  (req: UploadedRequest, res: Response) => {
+    const files = (req as any).files as
+      | Array<{
+          filename: string;
+          size: number;
+          mimetype: string;
+        }>
+      | undefined;
+
+    if (!files || files.length === 0) {
+      res.status(400).json({ message: "No files uploaded" });
+      return;
+    }
+
+    const result = files.map((file) => ({
+      filename: file.filename,
+      url: `/uploads/${file.filename}`,
+      size: file.size,
+      mimetype: file.mimetype,
+    }));
+
+    res.status(201).json(result);
+  }
+);
+
 export default router;
