@@ -16,6 +16,7 @@ const upload = (0, multer_1.default)({
 });
 router.post("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("category", "create"), category_controller_1.CategoryController.createCategory);
 router.get("/", category_controller_1.CategoryController.getCategories);
+router.get("/names", category_controller_1.CategoryController.getCategoryNames);
 // Batch import categories via XLSX/CSV, parentCategoryId provided separately (query or body)
 router.post("/imports", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("category", "create"), upload.single("file"), category_controller_1.CategoryController.importCategories);
 router.get("/:id", category_controller_1.CategoryController.getCategoryById);
