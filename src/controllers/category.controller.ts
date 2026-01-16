@@ -241,7 +241,9 @@ export const CategoryController = {
         (req.query.parentCategoryId as string | undefined) ||
         null;
 
-      if (!req.file || !req.file.buffer) {
+      const uploadedFile = (req as any).file as { buffer: Buffer } | undefined;
+
+      if (!uploadedFile || !uploadedFile.buffer) {
         res.status(400).json({ message: "No file uploaded" });
         return;
       }
@@ -257,7 +259,7 @@ export const CategoryController = {
         }
       }
 
-      const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
+      const workbook = XLSX.read(uploadedFile.buffer, { type: "buffer" });
       const firstSheetName = workbook.SheetNames[0];
       const sheet = workbook.Sheets[firstSheetName];
       const rows: CategoryRow[] = XLSX.utils.sheet_to_json(sheet, {

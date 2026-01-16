@@ -23,8 +23,8 @@ const cartItemRepository = AppDataSource.getRepository(CartItem);
 const productRepository = AppDataSource.getRepository(Product);
 
 const buildDateRange = (
-  from?: string | string[] | undefined | null,
-  to?: string | string[] | undefined | null
+  from?: any,
+  to?: any
 ) => {
   if (!from && !to) return undefined;
   const fromStr = Array.isArray(from) ? from[0] : from;
