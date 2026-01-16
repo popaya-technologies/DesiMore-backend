@@ -22,6 +22,29 @@ const cartRepository = AppDataSource.getRepository(Cart);
 const cartItemRepository = AppDataSource.getRepository(CartItem);
 const productRepository = AppDataSource.getRepository(Product);
 
+const buildDateRange = (from?: string | string[], to?: string | string[]) => {
+  if (!from && !to) return undefined;
+  const fromStr = Array.isArray(from) ? from[0] : from;
+  const toStr = Array.isArray(to) ? to[0] : to;
+
+  let fromDate = fromStr ? new Date(fromStr) : undefined;
+  let toDate = toStr ? new Date(toStr) : undefined;
+
+  if (fromDate && isNaN(fromDate.getTime())) fromDate = undefined;
+  if (toDate && isNaN(toDate.getTime())) toDate = undefined;
+
+  if (!fromDate && !toDate) return undefined;
+
+  if (fromDate) {
+    fromDate.setHours(0, 0, 0, 0);
+  }
+  if (toDate) {
+    toDate.setHours(23, 59, 59, 999);
+  }
+
+  return Between(fromDate ?? new Date(0), toDate ?? new Date());
+};
+
 export const OrderController = {
   // Create order from cart
   createOrder: async (req: Request, res: Response) => {
@@ -169,10 +192,9 @@ export const OrderController = {
       if (status) {
         where.status = status;
       }
-      if (from || to) {
-        const fromDate = from ? new Date(from as string) : new Date(0);
-        const toDate = to ? new Date(to as string) : new Date();
-        where.createdAt = Between(fromDate, toDate);
+      const dateRange = buildDateRange(from, to);
+      if (dateRange) {
+        where.createdAt = dateRange;
       }
 
       const [orders, total] = await orderRepository.findAndCount({
@@ -271,10 +293,9 @@ export const OrderController = {
       if (status) {
         where.status = status;
       }
-      if (from || to) {
-        const fromDate = from ? new Date(from as string) : new Date(0);
-        const toDate = to ? new Date(to as string) : new Date();
-        where.createdAt = Between(fromDate, toDate);
+      const dateRange = buildDateRange(from, to);
+      if (dateRange) {
+        where.createdAt = dateRange;
       }
 
       const [orders, total] = await orderRepository.findAndCount({
