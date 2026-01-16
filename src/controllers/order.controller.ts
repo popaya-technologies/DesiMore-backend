@@ -13,6 +13,7 @@ import {
 } from "../dto/order.dto";
 import { validate } from "class-validator";
 import { plainToInstance } from "class-transformer";
+import { Between } from "typeorm";
 import { generateOrderNumber } from "../utils/reference-number.util";
 
 const orderRepository = AppDataSource.getRepository(Order);
@@ -161,12 +162,17 @@ export const OrderController = {
   // Admin: Get all users' orders
   adminGetAllOrders: async (req: Request, res: Response) => {
     try {
-      const { page = 1, limit = 10, status } = req.query;
+      const { page = 1, limit = 10, status, from, to } = req.query;
 
       const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
       const where: any = {};
       if (status) {
         where.status = status;
+      }
+      if (from || to) {
+        const fromDate = from ? new Date(from as string) : new Date(0);
+        const toDate = to ? new Date(to as string) : new Date();
+        where.createdAt = Between(fromDate, toDate);
       }
 
       const [orders, total] = await orderRepository.findAndCount({
@@ -257,13 +263,18 @@ export const OrderController = {
   getUserOrders: async (req: Request, res: Response) => {
     try {
       const userId = req.user.id;
-      const { page = 1, limit = 10, status } = req.query;
+      const { page = 1, limit = 10, status, from, to } = req.query;
 
       const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
       const where: any = { userId };
 
       if (status) {
         where.status = status;
+      }
+      if (from || to) {
+        const fromDate = from ? new Date(from as string) : new Date(0);
+        const toDate = to ? new Date(to as string) : new Date();
+        where.createdAt = Between(fromDate, toDate);
       }
 
       const [orders, total] = await orderRepository.findAndCount({

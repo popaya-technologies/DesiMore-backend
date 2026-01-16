@@ -7,6 +7,7 @@ import { WholesaleOrderItem } from "../entities/wholesale-order-item.entity";
 import { Cart, CartType } from "../entities/cart.entity";
 import { CartItem } from "../entities/cart-item.entity";
 import { CreateWholesaleOrderRequestDto, UpdateWholesaleOrderRequestStatusDto } from "../dto/wholesale-order.dto";
+import { Between } from "typeorm";
 import { generateWholesaleRequestNumber } from "../utils/reference-number.util";
 
 const wholesaleOrderRequestRepository = AppDataSource.getRepository(WholesaleOrderRequest);
@@ -167,10 +168,15 @@ export const WholesaleOrderController = {
 
   getMyRequests: async (req: Request, res: Response) => {
     try {
-      const { status } = req.query;
+      const { status, from, to } = req.query;
       const where: any = { userId: req.user.id };
       if (status) {
         where.status = status as any;
+      }
+      if (from || to) {
+        const fromDate = from ? new Date(from as string) : new Date(0);
+        const toDate = to ? new Date(to as string) : new Date();
+        where.createdAt = Between(fromDate, toDate);
       }
 
       const requests = await wholesaleOrderRequestRepository.find({
@@ -190,10 +196,15 @@ export const WholesaleOrderController = {
 
   getAllRequests: async (req: Request, res: Response) => {
     try {
-      const { status } = req.query;
+      const { status, from, to } = req.query;
       const where: any = {};
       if (status) {
         where.status = status as any;
+      }
+      if (from || to) {
+        const fromDate = from ? new Date(from as string) : new Date(0);
+        const toDate = to ? new Date(to as string) : new Date();
+        where.createdAt = Between(fromDate, toDate);
       }
 
       const requests = await wholesaleOrderRequestRepository.find({
