@@ -53,6 +53,18 @@ __decorate([
     __metadata("design:type", Number)
 ], Category.prototype, "displayOrder", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: "varchar", length: 255, nullable: true }),
+    __metadata("design:type", String)
+], Category.prototype, "metaTitle", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "varchar", length: 255, nullable: true }),
+    __metadata("design:type", String)
+], Category.prototype, "metaDescription", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "varchar", length: 255, nullable: true }),
+    __metadata("design:type", String)
+], Category.prototype, "metaKeyword", void 0);
+__decorate([
     (0, typeorm_1.ManyToMany)(() => product_entity_1.Product, (product) => product.categories),
     __metadata("design:type", Array)
 ], Category.prototype, "products", void 0);

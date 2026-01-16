@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -15,8 +48,27 @@ const category_entity_1 = require("../entities/category.entity");
 const parent_category_entity_1 = require("../entities/parent-category.entity");
 const category_dto_1 = require("../dto/category.dto");
 const class_validator_1 = require("class-validator");
+const XLSX = __importStar(require("xlsx"));
 const categoryRepository = data_source_1.AppDataSource.getRepository(category_entity_1.Category);
 const parentCategoryRepository = data_source_1.AppDataSource.getRepository(parent_category_entity_1.ParentCategory);
+const toBool = (val) => {
+    if (val === undefined || val === null || val === "")
+        return undefined;
+    if (typeof val === "boolean")
+        return val;
+    const normalized = String(val).trim().toLowerCase();
+    if (["1", "true", "yes", "y"].includes(normalized))
+        return true;
+    if (["0", "false", "no", "n"].includes(normalized))
+        return false;
+    return undefined;
+};
+const toInt = (val) => {
+    if (val === undefined || val === null || val === "")
+        return undefined;
+    const n = Number(val);
+    return Number.isFinite(n) ? n : undefined;
+};
 exports.CategoryController = {
     //Create Category (Admin only)
     createCategory: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -185,6 +237,101 @@ exports.CategoryController = {
         }
         catch (error) {
             console.error(error);
+            res.status(500).json({ message: "Internal server error" });
+        }
+    }),
+    // Import categories from uploaded XLSX/CSV; parentCategoryId supplied separately
+    importCategories: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+        var _a, _b;
+        try {
+            const parentCategoryId = req.body.parentCategoryId ||
+                req.query.parentCategoryId ||
+                null;
+            const uploadedFile = req.file;
+            if (!uploadedFile || !uploadedFile.buffer) {
+                res.status(400).json({ message: "No file uploaded" });
+                return;
+            }
+            let parentCategory = null;
+            if (parentCategoryId) {
+                parentCategory = yield parentCategoryRepository.findOne({
+                    where: { id: parentCategoryId },
+                });
+                if (!parentCategory) {
+                    res.status(400).json({ message: "Invalid parentCategoryId" });
+                    return;
+                }
+            }
+            const workbook = XLSX.read(uploadedFile.buffer, { type: "buffer" });
+            const firstSheetName = workbook.SheetNames[0];
+            const sheet = workbook.Sheets[firstSheetName];
+            const rows = XLSX.utils.sheet_to_json(sheet, {
+                defval: "",
+                raw: false,
+                blankrows: false,
+            });
+            if (!rows || rows.length === 0) {
+                res.status(400).json({ message: "No data found in file" });
+                return;
+            }
+            let created = 0;
+            let updated = 0;
+            const errors = [];
+            const createdCategories = [];
+            const updatedCategories = [];
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                const name = (_a = row.name) === null || _a === void 0 ? void 0 : _a.toString().trim();
+                if (!name) {
+                    errors.push({ row: i + 2, error: "Missing name" }); // +2 accounts for header row
+                    continue;
+                }
+                const slug = ((_b = row.slug) === null || _b === void 0 ? void 0 : _b.toString().trim()) ||
+                    name
+                        .toLowerCase()
+                        .replace(/[^a-z0-9]+/g, "-")
+                        .replace(/(^-|-$)/g, "");
+                const isActive = toBool(row.isActive);
+                const displayOrder = toInt(row.displayOrder);
+                const baseData = {
+                    name,
+                    slug,
+                    description: row.description || null,
+                    image: row.image || null,
+                    isActive: isActive !== undefined ? isActive : true,
+                    displayOrder: displayOrder !== null && displayOrder !== void 0 ? displayOrder : 0,
+                    metaTitle: row.metaTitle || null,
+                    metaDescription: row.metaDescription || null,
+                    metaKeyword: row.metaKeyword || null,
+                };
+                const existing = yield categoryRepository.findOne({
+                    where: [{ slug }, { name }],
+                });
+                if (existing) {
+                    Object.assign(existing, baseData);
+                    existing.parentCategory = parentCategory;
+                    yield categoryRepository.save(existing);
+                    updated += 1;
+                    updatedCategories.push({ name: existing.name, id: existing.id });
+                }
+                else {
+                    const newCategory = categoryRepository.create(Object.assign(Object.assign({}, baseData), { parentCategory }));
+                    yield categoryRepository.save(newCategory);
+                    created += 1;
+                    createdCategories.push({ name: newCategory.name, id: newCategory.id });
+                }
+            }
+            res.status(200).json({
+                message: "Import completed",
+                created,
+                updated,
+                errors,
+                createdCategories,
+                updatedCategories,
+            });
+        }
+        catch (error) {
+            console.error("Category import error:", error);
             res.status(500).json({ message: "Internal server error" });
         }
     }),
