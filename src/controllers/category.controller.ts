@@ -100,6 +100,20 @@ export const CategoryController = {
     }
   },
 
+  // Get all category names with ids (public)
+  getCategoryNames: async (_req: Request, res: Response) => {
+    try {
+      const categories = await categoryRepository.find({
+        select: ["id", "name"],
+        order: { name: "ASC" },
+      });
+      res.status(200).json(categories);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
   // Get Single Category with Products (Public)
   getCategoryBySlug: async (req: Request, res: Response) => {
     try {
