@@ -34,6 +34,18 @@ export class CreateCategoryDto {
   @IsUUID()
   @IsOptional()
   parentCategoryId?: string;
+
+  @IsString()
+  @IsOptional()
+  metaTitle?: string;
+
+  @IsString()
+  @IsOptional()
+  metaDescription?: string;
+
+  @IsString()
+  @IsOptional()
+  metaKeyword?: string;
 }
 
 export class UpdateCategoryDto {
@@ -64,4 +76,16 @@ export class UpdateCategoryDto {
   @IsUUID()
   @IsOptional()
   parentCategoryId?: string;
+
+  @IsString()
+  @IsOptional()
+  metaTitle?: string;
+
+  @IsString()
+  @IsOptional()
+  metaDescription?: string;
+
+  @IsString()
+  @IsOptional()
+  metaKeyword?: string;
 }

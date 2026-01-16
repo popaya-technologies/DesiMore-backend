@@ -29,10 +29,30 @@ const wholesale_order_item_entity_1 = require("../entities/wholesale-order-item.
 const cart_entity_1 = require("../entities/cart.entity");
 const cart_item_entity_1 = require("../entities/cart-item.entity");
 const wholesale_order_dto_1 = require("../dto/wholesale-order.dto");
+const typeorm_1 = require("typeorm");
 const reference_number_util_1 = require("../utils/reference-number.util");
 const wholesaleOrderRequestRepository = data_source_1.AppDataSource.getRepository(wholesale_order_request_entity_1.WholesaleOrderRequest);
 const cartRepository = data_source_1.AppDataSource.getRepository(cart_entity_1.Cart);
 const cartItemRepository = data_source_1.AppDataSource.getRepository(cart_item_entity_1.CartItem);
+const buildDateRange = (from, to) => {
+    if (!from && !to)
+        return undefined;
+    const fromStr = Array.isArray(from) ? from[0] : from;
+    const toStr = Array.isArray(to) ? to[0] : to;
+    let fromDate = fromStr ? new Date(fromStr) : undefined;
+    let toDate = toStr ? new Date(toStr) : undefined;
+    if (fromDate && isNaN(fromDate.getTime()))
+        fromDate = undefined;
+    if (toDate && isNaN(toDate.getTime()))
+        toDate = undefined;
+    if (!fromDate && !toDate)
+        return undefined;
+    if (fromDate)
+        fromDate.setHours(0, 0, 0, 0);
+    if (toDate)
+        toDate.setHours(23, 59, 59, 999);
+    return (0, typeorm_1.Between)(fromDate !== null && fromDate !== void 0 ? fromDate : new Date(0), toDate !== null && toDate !== void 0 ? toDate : new Date());
+};
 const toNumber = (value) => {
     if (value === null || value === undefined) {
         return null;
@@ -138,10 +158,14 @@ exports.WholesaleOrderController = {
     }),
     getMyRequests: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         try {
-            const { status } = req.query;
+            const { status, from, to } = req.query;
             const where = { userId: req.user.id };
             if (status) {
                 where.status = status;
+            }
+            const dateRange = buildDateRange(from, to);
+            if (dateRange) {
+                where.createdAt = dateRange;
             }
             const requests = yield wholesaleOrderRequestRepository.find({
                 where,
@@ -159,10 +183,14 @@ exports.WholesaleOrderController = {
     }),
     getAllRequests: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         try {
-            const { status } = req.query;
+            const { status, from, to } = req.query;
             const where = {};
             if (status) {
                 where.status = status;
+            }
+            const dateRange = buildDateRange(from, to);
+            if (dateRange) {
+                where.createdAt = dateRange;
             }
             const requests = yield wholesaleOrderRequestRepository.find({
                 where,

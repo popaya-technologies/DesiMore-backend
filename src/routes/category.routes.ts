@@ -3,14 +3,25 @@ import { Router } from "express";
 import { CategoryController } from "../controllers/category.controller";
 import { authenticate } from "../middlewares/auth.middleware";
 import { checkPermission } from "../middlewares/rbac.middleware";
+import multer from "multer";
 
 const router = Router();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 router.post(
   "/",
   authenticate,
   checkPermission("category", "create"),
   CategoryController.createCategory
+);
+
+// Batch import categories via XLSX/CSV, parentCategoryId provided separately (query or body)
+router.post(
+  "/import",
+  authenticate,
+  checkPermission("category", "create"),
+  upload.single("file"),
+  CategoryController.importCategories
 );
 
 router.get("/", CategoryController.getCategories);

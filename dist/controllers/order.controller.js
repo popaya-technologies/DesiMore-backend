@@ -19,12 +19,34 @@ const product_entity_1 = require("../entities/product.entity");
 const order_dto_1 = require("../dto/order.dto");
 const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
+const typeorm_1 = require("typeorm");
 const reference_number_util_1 = require("../utils/reference-number.util");
 const orderRepository = data_source_1.AppDataSource.getRepository(order_entity_1.Order);
 const orderItemRepository = data_source_1.AppDataSource.getRepository(order_item_entity_1.OrderItem);
 const cartRepository = data_source_1.AppDataSource.getRepository(cart_entity_1.Cart);
 const cartItemRepository = data_source_1.AppDataSource.getRepository(cart_item_entity_1.CartItem);
 const productRepository = data_source_1.AppDataSource.getRepository(product_entity_1.Product);
+const buildDateRange = (from, to) => {
+    if (!from && !to)
+        return undefined;
+    const fromStr = Array.isArray(from) ? from[0] : from;
+    const toStr = Array.isArray(to) ? to[0] : to;
+    let fromDate = fromStr ? new Date(fromStr) : undefined;
+    let toDate = toStr ? new Date(toStr) : undefined;
+    if (fromDate && isNaN(fromDate.getTime()))
+        fromDate = undefined;
+    if (toDate && isNaN(toDate.getTime()))
+        toDate = undefined;
+    if (!fromDate && !toDate)
+        return undefined;
+    if (fromDate) {
+        fromDate.setHours(0, 0, 0, 0);
+    }
+    if (toDate) {
+        toDate.setHours(23, 59, 59, 999);
+    }
+    return (0, typeorm_1.Between)(fromDate !== null && fromDate !== void 0 ? fromDate : new Date(0), toDate !== null && toDate !== void 0 ? toDate : new Date());
+};
 exports.OrderController = {
     // Create order from cart
     createOrder: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -127,11 +149,15 @@ exports.OrderController = {
     // Admin: Get all users' orders
     adminGetAllOrders: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         try {
-            const { page = 1, limit = 10, status } = req.query;
+            const { page = 1, limit = 10, status, from, to } = req.query;
             const skip = (parseInt(page) - 1) * parseInt(limit);
             const where = {};
             if (status) {
                 where.status = status;
+            }
+            const dateRange = buildDateRange(from, to);
+            if (dateRange) {
+                where.createdAt = dateRange;
             }
             const [orders, total] = yield orderRepository.findAndCount({
                 where,
@@ -211,11 +237,15 @@ exports.OrderController = {
     getUserOrders: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         try {
             const userId = req.user.id;
-            const { page = 1, limit = 10, status } = req.query;
+            const { page = 1, limit = 10, status, from, to } = req.query;
             const skip = (parseInt(page) - 1) * parseInt(limit);
             const where = { userId };
             if (status) {
                 where.status = status;
+            }
+            const dateRange = buildDateRange(from, to);
+            if (dateRange) {
+                where.createdAt = dateRange;
             }
             const [orders, total] = yield orderRepository.findAndCount({
                 where,

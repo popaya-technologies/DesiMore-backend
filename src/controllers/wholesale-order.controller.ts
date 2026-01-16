@@ -14,7 +14,10 @@ const wholesaleOrderRequestRepository = AppDataSource.getRepository(WholesaleOrd
 const cartRepository = AppDataSource.getRepository(Cart);
 const cartItemRepository = AppDataSource.getRepository(CartItem);
 
-const buildDateRange = (from?: string | string[], to?: string | string[]) => {
+const buildDateRange = (
+  from?: string | string[] | undefined | null,
+  to?: string | string[] | undefined | null
+) => {
   if (!from && !to) return undefined;
   const fromStr = Array.isArray(from) ? from[0] : from;
   const toStr = Array.isArray(to) ? to[0] : to;

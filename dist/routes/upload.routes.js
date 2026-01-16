@@ -45,4 +45,19 @@ router.post("/image", auth_middleware_1.authenticate, upload.single("file"), (re
         mimetype: file.mimetype,
     });
 });
+router.post("/images", auth_middleware_1.authenticate, upload.array("files", 10), // max 10 files per request
+(req, res) => {
+    const files = req.files;
+    if (!files || files.length === 0) {
+        res.status(400).json({ message: "No files uploaded" });
+        return;
+    }
+    const result = files.map((file) => ({
+        filename: file.filename,
+        url: `/uploads/${file.filename}`,
+        size: file.size,
+        mimetype: file.mimetype,
+    }));
+    res.status(201).json(result);
+});
 exports.default = router;
