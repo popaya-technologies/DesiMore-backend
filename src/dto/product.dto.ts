@@ -77,10 +77,9 @@ export class CreateProductDto {
   @IsOptional()
   brandId?: string;
 
-  @IsArray()
-  @IsString({ each: true })
+  @IsString()
   @IsOptional()
-  tags?: string[];
+  tag?: string;
 
   @IsString()
   @IsOptional()
@@ -166,10 +165,9 @@ export class UpdateProductDto {
   @IsOptional()
   brandId?: string;
 
-  @IsArray()
-  @IsString({ each: true })
+  @IsString()
   @IsOptional()
-  tags?: string[];
+  tag?: string;
 
   @IsString()
   @IsOptional()

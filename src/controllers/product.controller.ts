@@ -44,15 +44,6 @@ const splitIds = (val: any): string[] => {
     .filter(Boolean);
 };
 
-const splitTags = (val: any): string[] => {
-  if (!val) return [];
-  return val
-    .toString()
-    .split(",")
-    .map((s: string) => s.trim())
-    .filter(Boolean);
-};
-
 const formatProductResponse = (product: Product) => {
   if (!product) {
     return null;
@@ -62,7 +53,7 @@ const formatProductResponse = (product: Product) => {
   const normalizedProduct = {
     ...productData,
     discountPrice: productData.discountPrice ?? productData.price,
-    tags: productData.tags ?? [],
+    tag: productData.tag ?? null,
   };
 
   return {
@@ -132,7 +123,7 @@ export const ProductController = {
         height: productData.height ?? null,
         inStock: productData.inStock ?? true,
         isActive: productData.isActive ?? true,
-        tags: productData.tags ?? [],
+        tag: productData.tag ?? null,
         metaTitle: productData.metaTitle ?? null,
         metaDescription: productData.metaDescription ?? null,
         metaKeyword: productData.metaKeyword ?? null,
@@ -333,8 +324,6 @@ export const ProductController = {
           }
         }
 
-        const tags = splitTags(row.tag);
-
         const weight = toNum(row.weight);
         const length = toNum(row.length);
         const width = toNum(row.width);
@@ -362,7 +351,7 @@ export const ProductController = {
           height,
           inStock: true,
           isActive: true,
-          tags,
+          tag: row.tag ? row.tag.toString().trim() : null,
           metaTitle: row.metaTitle || null,
           metaDescription: row.metaDescription || null,
           metaKeyword: row.metaKeyword || null,
@@ -458,9 +447,6 @@ export const ProductController = {
       const { categoryIds, brandId, ...rest } = updateData;
       Object.assign(product, rest);
       product.discountPrice = product.discountPrice ?? product.price;
-      if (updateData.tags) {
-        product.tags = updateData.tags;
-      }
 
       await productRepository.save(product);
 

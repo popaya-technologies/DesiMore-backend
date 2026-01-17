@@ -65,8 +65,8 @@ export class Product {
   @Column({ type: "boolean", default: true })
   isActive: boolean;
 
-  @Column("text", { array: true, default: [] })
-  tags: string[];
+  @Column({ type: "text", nullable: true })
+  tag: string | null;
 
   @Column({ type: "varchar", length: 255, nullable: true })
   metaTitle: string | null;

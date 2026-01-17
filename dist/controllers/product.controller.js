@@ -80,22 +80,13 @@ const splitIds = (val) => {
         .map((s) => s.trim())
         .filter(Boolean);
 };
-const splitTags = (val) => {
-    if (!val)
-        return [];
-    return val
-        .toString()
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
-};
 const formatProductResponse = (product) => {
     var _a, _b;
     if (!product) {
         return null;
     }
     const { categories = [], brand } = product, productData = __rest(product, ["categories", "brand"]);
-    const normalizedProduct = Object.assign(Object.assign({}, productData), { discountPrice: (_a = productData.discountPrice) !== null && _a !== void 0 ? _a : productData.price, tags: (_b = productData.tags) !== null && _b !== void 0 ? _b : [] });
+    const normalizedProduct = Object.assign(Object.assign({}, productData), { discountPrice: (_a = productData.discountPrice) !== null && _a !== void 0 ? _a : productData.price, tag: (_b = productData.tag) !== null && _b !== void 0 ? _b : null });
     return Object.assign(Object.assign({}, normalizedProduct), { categoryIds: categories.map((c) => c.id), brandId: brand ? brand.id : null });
 };
 exports.ProductController = {
@@ -151,7 +142,7 @@ exports.ProductController = {
                 height: (_j = productData.height) !== null && _j !== void 0 ? _j : null,
                 inStock: (_k = productData.inStock) !== null && _k !== void 0 ? _k : true,
                 isActive: (_l = productData.isActive) !== null && _l !== void 0 ? _l : true,
-                tags: (_m = productData.tags) !== null && _m !== void 0 ? _m : [],
+                tag: (_m = productData.tag) !== null && _m !== void 0 ? _m : null,
                 metaTitle: (_o = productData.metaTitle) !== null && _o !== void 0 ? _o : null,
                 metaDescription: (_p = productData.metaDescription) !== null && _p !== void 0 ? _p : null,
                 metaKeyword: (_q = productData.metaKeyword) !== null && _q !== void 0 ? _q : null,
@@ -325,7 +316,6 @@ exports.ProductController = {
                         continue;
                     }
                 }
-                const tags = splitTags(row.tag);
                 const weight = toNum(row.weight);
                 const length = toNum(row.length);
                 const width = toNum(row.width);
@@ -351,7 +341,7 @@ exports.ProductController = {
                     height,
                     inStock: true,
                     isActive: true,
-                    tags,
+                    tag: row.tag ? row.tag.toString().trim() : null,
                     metaTitle: row.metaTitle || null,
                     metaDescription: row.metaDescription || null,
                     metaKeyword: row.metaKeyword || null,
@@ -433,9 +423,6 @@ exports.ProductController = {
             const { categoryIds, brandId } = updateData, rest = __rest(updateData, ["categoryIds", "brandId"]);
             Object.assign(product, rest);
             product.discountPrice = (_a = product.discountPrice) !== null && _a !== void 0 ? _a : product.price;
-            if (updateData.tags) {
-                product.tags = updateData.tags;
-            }
             yield productRepository.save(product);
             // Return the updated product with categories
             const updatedProduct = yield productRepository.findOne({

@@ -85,9 +85,9 @@ __decorate([
     __metadata("design:type", Boolean)
 ], Product.prototype, "isActive", void 0);
 __decorate([
-    (0, typeorm_1.Column)("text", { array: true, default: [] }),
-    __metadata("design:type", Array)
-], Product.prototype, "tags", void 0);
+    (0, typeorm_1.Column)({ type: "text", nullable: true }),
+    __metadata("design:type", String)
+], Product.prototype, "tag", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: "varchar", length: 255, nullable: true }),
     __metadata("design:type", String)

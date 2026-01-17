@@ -102,11 +102,10 @@ __decorate([
     __metadata("design:type", String)
 ], CreateProductDto.prototype, "brandId", void 0);
 __decorate([
-    (0, class_validator_1.IsArray)(),
-    (0, class_validator_1.IsString)({ each: true }),
+    (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
-    __metadata("design:type", Array)
-], CreateProductDto.prototype, "tags", void 0);
+    __metadata("design:type", String)
+], CreateProductDto.prototype, "tag", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
@@ -213,11 +212,10 @@ __decorate([
     __metadata("design:type", String)
 ], UpdateProductDto.prototype, "brandId", void 0);
 __decorate([
-    (0, class_validator_1.IsArray)(),
-    (0, class_validator_1.IsString)({ each: true }),
+    (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
-    __metadata("design:type", Array)
-], UpdateProductDto.prototype, "tags", void 0);
+    __metadata("design:type", String)
+], UpdateProductDto.prototype, "tag", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
