@@ -78,7 +78,9 @@ const splitIds = (val) => {
         .toString()
         .split(",")
         .map((s) => s.trim())
-        .filter(Boolean);
+        .filter((s) => s &&
+        s.toLowerCase() !== "null" &&
+        s.toLowerCase() !== "undefined");
 };
 const formatProductResponse = (product) => {
     var _a, _b;
