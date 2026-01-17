@@ -158,30 +158,44 @@ export const ProductController = {
 
   getProducts: async (req: Request, res: Response) => {
     try {
-      const { category, active } = req.query;
+      const { category, active, page = "1", limit = "10" } = req.query;
+      const take = Math.max(parseInt(limit as string, 10) || 10, 1);
+      const skip = (Math.max(parseInt(page as string, 10) || 1, 1) - 1) * take;
 
       // 1. First get the product IDs that match our filters
-      const productIdsQuery = productRepository
+      const baseQuery = productRepository
         .createQueryBuilder("product")
         .select("product.id", "id");
 
       if (category) {
-        productIdsQuery
+        baseQuery
           .innerJoin("product.categories", "category")
           .andWhere("category.id = :categoryId", { categoryId: category });
       }
 
       if (active === "true") {
-        productIdsQuery.andWhere("product.isActive = :isActive", {
+        baseQuery.andWhere("product.isActive = :isActive", {
           isActive: true,
         });
       }
 
-      const productIds = (await productIdsQuery.getRawMany()).map((p) => p.id);
+      const total = await baseQuery.getCount();
+
+      const productIds = (await baseQuery.clone().offset(skip).limit(take).getRawMany()).map(
+        (p) => p.id
+      );
 
       // 2. If no products found, return empty array
       if (productIds.length === 0) {
-        res.status(200).json([]);
+        res.status(200).json({
+          data: [],
+          meta: {
+            total,
+            page: Math.max(parseInt(page as string, 10) || 1, 1),
+            limit: take,
+            totalPages: Math.ceil(total / take),
+          },
+        });
         return;
       }
 
@@ -196,7 +210,15 @@ export const ProductController = {
       // 4. Transform response to include only categoryIds
       const response = products.map((product) => formatProductResponse(product));
 
-      res.status(200).json(response);
+      res.status(200).json({
+        data: response,
+        meta: {
+          total,
+          page: Math.max(parseInt(page as string, 10) || 1, 1),
+          limit: take,
+          totalPages: Math.ceil(total / take),
+        },
+      });
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: "Internal Server Error" });
