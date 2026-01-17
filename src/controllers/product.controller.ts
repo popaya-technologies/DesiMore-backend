@@ -41,7 +41,12 @@ const splitIds = (val: any): string[] => {
     .toString()
     .split(",")
     .map((s: string) => s.trim())
-    .filter(Boolean);
+    .filter(
+      (s: string) =>
+        s &&
+        s.toLowerCase() !== "null" &&
+        s.toLowerCase() !== "undefined"
+    );
 };
 
 const formatProductResponse = (product: Product) => {
