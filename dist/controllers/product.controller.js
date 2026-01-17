@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -28,22 +61,47 @@ const class_validator_1 = require("class-validator");
 const typeorm_1 = require("typeorm");
 const category_entity_1 = require("../entities/category.entity");
 const brand_entity_1 = require("../entities/brand.entity");
+const XLSX = __importStar(require("xlsx"));
 const productRepository = data_source_1.AppDataSource.getRepository(product_entity_1.Product);
 const categoryRepository = data_source_1.AppDataSource.getRepository(category_entity_1.Category);
 const brandRepository = data_source_1.AppDataSource.getRepository(brand_entity_1.Brand);
+const toNum = (val) => {
+    if (val === undefined || val === null || val === "")
+        return null;
+    const n = Number(val);
+    return Number.isFinite(n) ? n : null;
+};
+const splitIds = (val) => {
+    if (!val)
+        return [];
+    return val
+        .toString()
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+};
+const splitTags = (val) => {
+    if (!val)
+        return [];
+    return val
+        .toString()
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+};
 const formatProductResponse = (product) => {
-    var _a;
+    var _a, _b;
     if (!product) {
         return null;
     }
     const { categories = [], brand } = product, productData = __rest(product, ["categories", "brand"]);
-    const normalizedProduct = Object.assign(Object.assign({}, productData), { discountPrice: (_a = productData.discountPrice) !== null && _a !== void 0 ? _a : productData.price });
+    const normalizedProduct = Object.assign(Object.assign({}, productData), { discountPrice: (_a = productData.discountPrice) !== null && _a !== void 0 ? _a : productData.price, tags: (_b = productData.tags) !== null && _b !== void 0 ? _b : [] });
     return Object.assign(Object.assign({}, normalizedProduct), { categoryIds: categories.map((c) => c.id), brandId: brand ? brand.id : null });
 };
 exports.ProductController = {
     // Create Product (Admin only) or Users with access
     createProduct: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-        var _a, _b, _c, _d, _e, _f;
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q;
         try {
             // Create and validate DTO
             const productData = new product_dto_1.CreateProductDto();
@@ -78,16 +136,25 @@ exports.ProductController = {
             // Create and save product
             const product = productRepository.create({
                 title: productData.title,
+                model: (_a = productData.model) !== null && _a !== void 0 ? _a : null,
                 images: productData.images,
                 price: productData.price,
-                discountPrice: (_a = productData.discountPrice) !== null && _a !== void 0 ? _a : productData.price,
-                wholesalePrice: (_b = productData.wholesalePrice) !== null && _b !== void 0 ? _b : null,
+                discountPrice: (_b = productData.discountPrice) !== null && _b !== void 0 ? _b : productData.price,
+                wholesalePrice: (_c = productData.wholesalePrice) !== null && _c !== void 0 ? _c : null,
                 summary: productData.summary,
                 quantity: productData.quantity || "0",
-                wholesaleOrderQuantity: (_c = productData.wholesaleOrderQuantity) !== null && _c !== void 0 ? _c : null,
-                unitsPerCarton: (_d = productData.unitsPerCarton) !== null && _d !== void 0 ? _d : null,
-                inStock: (_e = productData.inStock) !== null && _e !== void 0 ? _e : true,
-                isActive: (_f = productData.isActive) !== null && _f !== void 0 ? _f : true,
+                wholesaleOrderQuantity: (_d = productData.wholesaleOrderQuantity) !== null && _d !== void 0 ? _d : null,
+                unitsPerCarton: (_e = productData.unitsPerCarton) !== null && _e !== void 0 ? _e : null,
+                weight: (_f = productData.weight) !== null && _f !== void 0 ? _f : null,
+                length: (_g = productData.length) !== null && _g !== void 0 ? _g : null,
+                width: (_h = productData.width) !== null && _h !== void 0 ? _h : null,
+                height: (_j = productData.height) !== null && _j !== void 0 ? _j : null,
+                inStock: (_k = productData.inStock) !== null && _k !== void 0 ? _k : true,
+                isActive: (_l = productData.isActive) !== null && _l !== void 0 ? _l : true,
+                tags: (_m = productData.tags) !== null && _m !== void 0 ? _m : [],
+                metaTitle: (_o = productData.metaTitle) !== null && _o !== void 0 ? _o : null,
+                metaDescription: (_p = productData.metaDescription) !== null && _p !== void 0 ? _p : null,
+                metaKeyword: (_q = productData.metaKeyword) !== null && _q !== void 0 ? _q : null,
                 brand: brand !== null && brand !== void 0 ? brand : null,
                 categories,
             });
@@ -209,6 +276,115 @@ exports.ProductController = {
             res.status(500).json({ message: "Internal Server Error" });
         }
     }),
+    // Import products from XLSX/CSV (upsert by model if provided, else title)
+    importProducts: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+        var _a, _b, _c, _d;
+        try {
+            const uploadedFile = req.file;
+            if (!uploadedFile || !uploadedFile.buffer) {
+                res.status(400).json({ message: "No file uploaded" });
+                return;
+            }
+            const workbook = XLSX.read(uploadedFile.buffer, { type: "buffer" });
+            const firstSheetName = workbook.SheetNames[0];
+            const sheet = workbook.Sheets[firstSheetName];
+            const rows = XLSX.utils.sheet_to_json(sheet, {
+                defval: "",
+                raw: false,
+                blankrows: false,
+            });
+            if (!rows || rows.length === 0) {
+                res.status(400).json({ message: "No data found in file" });
+                return;
+            }
+            let created = 0;
+            let updated = 0;
+            const errors = [];
+            const createdProducts = [];
+            const updatedProducts = [];
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                const title = (_a = row.title) === null || _a === void 0 ? void 0 : _a.toString().trim();
+                if (!title) {
+                    errors.push({ row: i + 2, error: "Missing title" });
+                    continue;
+                }
+                const model = ((_b = row.model) === null || _b === void 0 ? void 0 : _b.toString().trim()) || null;
+                const price = toNum(row.price);
+                if (price === null) {
+                    errors.push({ row: i + 2, error: "Invalid price" });
+                    continue;
+                }
+                const quantityStr = (_d = (_c = row.quantity) === null || _c === void 0 ? void 0 : _c.toString().trim()) !== null && _d !== void 0 ? _d : "0";
+                const categoryIds = splitIds(row.categoryIds);
+                let categories = [];
+                if (categoryIds.length > 0) {
+                    categories = yield categoryRepository.find({ where: { id: (0, typeorm_1.In)(categoryIds) } });
+                    if (categories.length !== categoryIds.length) {
+                        errors.push({ row: i + 2, error: "Invalid categoryIds" });
+                        continue;
+                    }
+                }
+                const tags = splitTags(row.tag);
+                const weight = toNum(row.weight);
+                const length = toNum(row.length);
+                const width = toNum(row.width);
+                const height = toNum(row.height);
+                // Upsert by model if provided, else by title
+                const existing = yield productRepository.findOne({
+                    where: model ? [{ model }, { title }] : [{ title }],
+                    relations: ["categories", "brand"],
+                });
+                const baseData = {
+                    model,
+                    title,
+                    summary: row.summary || "",
+                    price,
+                    discountPrice: price,
+                    wholesalePrice: null,
+                    quantity: quantityStr,
+                    wholesaleOrderQuantity: null,
+                    unitsPerCarton: null,
+                    weight,
+                    length,
+                    width,
+                    height,
+                    inStock: true,
+                    isActive: true,
+                    tags,
+                    metaTitle: row.metaTitle || null,
+                    metaDescription: row.metaDescription || null,
+                    metaKeyword: row.metaKeyword || null,
+                    images: [],
+                };
+                if (existing) {
+                    Object.assign(existing, baseData);
+                    existing.categories = categories;
+                    yield productRepository.save(existing);
+                    updated += 1;
+                    updatedProducts.push({ title: existing.title, id: existing.id });
+                }
+                else {
+                    const newProduct = productRepository.create(Object.assign(Object.assign({}, baseData), { categories, brand: null }));
+                    yield productRepository.save(newProduct);
+                    created += 1;
+                    createdProducts.push({ title: newProduct.title, id: newProduct.id });
+                }
+            }
+            res.status(200).json({
+                message: "Import completed",
+                created,
+                updated,
+                errors,
+                createdProducts,
+                updatedProducts,
+            });
+        }
+        catch (error) {
+            console.error("Product import error:", error);
+            res.status(500).json({ message: "Internal server error" });
+        }
+    }),
     //Update product (Admin only)
     updateProduct: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         var _a;
@@ -257,6 +433,9 @@ exports.ProductController = {
             const { categoryIds, brandId } = updateData, rest = __rest(updateData, ["categoryIds", "brandId"]);
             Object.assign(product, rest);
             product.discountPrice = (_a = product.discountPrice) !== null && _a !== void 0 ? _a : product.price;
+            if (updateData.tags) {
+                product.tags = updateData.tags;
+            }
             yield productRepository.save(product);
             // Return the updated product with categories
             const updatedProduct = yield productRepository.findOne({

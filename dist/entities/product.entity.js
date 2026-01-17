@@ -25,6 +25,10 @@ __decorate([
     __metadata("design:type", String)
 ], Product.prototype, "title", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: "varchar", length: 255, nullable: true }),
+    __metadata("design:type", String)
+], Product.prototype, "model", void 0);
+__decorate([
     (0, typeorm_1.Column)("text", { array: true, default: [] }),
     __metadata("design:type", Array)
 ], Product.prototype, "images", void 0);
@@ -57,6 +61,22 @@ __decorate([
     __metadata("design:type", Number)
 ], Product.prototype, "unitsPerCarton", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: "decimal", precision: 10, scale: 2, nullable: true }),
+    __metadata("design:type", Number)
+], Product.prototype, "weight", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "decimal", precision: 10, scale: 2, nullable: true }),
+    __metadata("design:type", Number)
+], Product.prototype, "length", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "decimal", precision: 10, scale: 2, nullable: true }),
+    __metadata("design:type", Number)
+], Product.prototype, "width", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "decimal", precision: 10, scale: 2, nullable: true }),
+    __metadata("design:type", Number)
+], Product.prototype, "height", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: "boolean", default: true }),
     __metadata("design:type", Boolean)
 ], Product.prototype, "inStock", void 0);
@@ -64,6 +84,22 @@ __decorate([
     (0, typeorm_1.Column)({ type: "boolean", default: true }),
     __metadata("design:type", Boolean)
 ], Product.prototype, "isActive", void 0);
+__decorate([
+    (0, typeorm_1.Column)("text", { array: true, default: [] }),
+    __metadata("design:type", Array)
+], Product.prototype, "tags", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "varchar", length: 255, nullable: true }),
+    __metadata("design:type", String)
+], Product.prototype, "metaTitle", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "varchar", length: 255, nullable: true }),
+    __metadata("design:type", String)
+], Product.prototype, "metaDescription", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "varchar", length: 255, nullable: true }),
+    __metadata("design:type", String)
+], Product.prototype, "metaKeyword", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => brand_entity_1.Brand, (brand) => brand.products, {
         nullable: true,

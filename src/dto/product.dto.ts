@@ -15,6 +15,10 @@ export class CreateProductDto {
   @IsString({ each: true })
   images: string[];
 
+  @IsString()
+  @IsOptional()
+  model?: string;
+
   @IsNumber()
   price: number;
 
@@ -41,6 +45,22 @@ export class CreateProductDto {
   @IsOptional()
   unitsPerCarton?: number | null;
 
+  @IsNumber()
+  @IsOptional()
+  weight?: number | null;
+
+  @IsNumber()
+  @IsOptional()
+  length?: number | null;
+
+  @IsNumber()
+  @IsOptional()
+  width?: number | null;
+
+  @IsNumber()
+  @IsOptional()
+  height?: number | null;
+
   @IsBoolean()
   @IsOptional()
   inStock?: boolean;
@@ -56,6 +76,23 @@ export class CreateProductDto {
   @IsString()
   @IsOptional()
   brandId?: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  tags?: string[];
+
+  @IsString()
+  @IsOptional()
+  metaTitle?: string;
+
+  @IsString()
+  @IsOptional()
+  metaDescription?: string;
+
+  @IsString()
+  @IsOptional()
+  metaKeyword?: string;
 }
 
 export class UpdateProductDto {
@@ -96,6 +133,22 @@ export class UpdateProductDto {
   @IsOptional()
   unitsPerCarton?: number | null;
 
+  @IsNumber()
+  @IsOptional()
+  weight?: number | null;
+
+  @IsNumber()
+  @IsOptional()
+  length?: number | null;
+
+  @IsNumber()
+  @IsOptional()
+  width?: number | null;
+
+  @IsNumber()
+  @IsOptional()
+  height?: number | null;
+
   @IsBoolean()
   @IsOptional()
   inStock?: boolean;
@@ -112,4 +165,21 @@ export class UpdateProductDto {
   @IsString()
   @IsOptional()
   brandId?: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  tags?: string[];
+
+  @IsString()
+  @IsOptional()
+  metaTitle?: string;
+
+  @IsString()
+  @IsOptional()
+  metaDescription?: string;
+
+  @IsString()
+  @IsOptional()
+  metaKeyword?: string;
 }

@@ -20,6 +20,9 @@ export class Product {
   @Column({ type: "varchar", length: 255 })
   title: string;
 
+  @Column({ type: "varchar", length: 255, nullable: true })
+  model: string | null;
+
   @Column("text", { array: true, default: [] })
   images: string[];
 
@@ -44,11 +47,35 @@ export class Product {
   @Column({ type: "integer", nullable: true })
   unitsPerCarton: number | null;
 
+  @Column({ type: "decimal", precision: 10, scale: 2, nullable: true })
+  weight: number | null;
+
+  @Column({ type: "decimal", precision: 10, scale: 2, nullable: true })
+  length: number | null;
+
+  @Column({ type: "decimal", precision: 10, scale: 2, nullable: true })
+  width: number | null;
+
+  @Column({ type: "decimal", precision: 10, scale: 2, nullable: true })
+  height: number | null;
+
   @Column({ type: "boolean", default: true })
   inStock: boolean; // New field replacing stock boolean concept
 
   @Column({ type: "boolean", default: true })
   isActive: boolean;
+
+  @Column("text", { array: true, default: [] })
+  tags: string[];
+
+  @Column({ type: "varchar", length: 255, nullable: true })
+  metaTitle: string | null;
+
+  @Column({ type: "varchar", length: 255, nullable: true })
+  metaDescription: string | null;
+
+  @Column({ type: "varchar", length: 255, nullable: true })
+  metaKeyword: string | null;
 
   @ManyToOne(() => Brand, (brand) => brand.products, {
     nullable: true,

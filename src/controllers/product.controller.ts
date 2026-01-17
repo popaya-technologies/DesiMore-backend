@@ -6,10 +6,52 @@ import { validate } from "class-validator";
 import { Brackets, In } from "typeorm";
 import { Category } from "../entities/category.entity";
 import { Brand } from "../entities/brand.entity";
+import * as XLSX from "xlsx";
 
 const productRepository = AppDataSource.getRepository(Product);
 const categoryRepository = AppDataSource.getRepository(Category);
 const brandRepository = AppDataSource.getRepository(Brand);
+
+type ProductRow = Partial<{
+  model: string;
+  quantity: string | number;
+  price: string | number;
+  weight: string | number;
+  length: string | number;
+  width: string | number;
+  height: string | number;
+  title: string;
+  summary: string;
+  tag: string;
+  metaTitle: string;
+  metaDescription: string;
+  metaKeyword: string;
+  categoryIds: string;
+}>;
+
+const toNum = (val: any): number | null => {
+  if (val === undefined || val === null || val === "") return null;
+  const n = Number(val);
+  return Number.isFinite(n) ? n : null;
+};
+
+const splitIds = (val: any): string[] => {
+  if (!val) return [];
+  return val
+    .toString()
+    .split(",")
+    .map((s: string) => s.trim())
+    .filter(Boolean);
+};
+
+const splitTags = (val: any): string[] => {
+  if (!val) return [];
+  return val
+    .toString()
+    .split(",")
+    .map((s: string) => s.trim())
+    .filter(Boolean);
+};
 
 const formatProductResponse = (product: Product) => {
   if (!product) {
@@ -20,6 +62,7 @@ const formatProductResponse = (product: Product) => {
   const normalizedProduct = {
     ...productData,
     discountPrice: productData.discountPrice ?? productData.price,
+    tags: productData.tags ?? [],
   };
 
   return {
@@ -74,6 +117,7 @@ export const ProductController = {
       // Create and save product
       const product = productRepository.create({
         title: productData.title,
+        model: productData.model ?? null,
         images: productData.images,
         price: productData.price,
         discountPrice: productData.discountPrice ?? productData.price,
@@ -82,8 +126,16 @@ export const ProductController = {
         quantity: productData.quantity || "0",
         wholesaleOrderQuantity: productData.wholesaleOrderQuantity ?? null,
         unitsPerCarton: productData.unitsPerCarton ?? null,
+        weight: productData.weight ?? null,
+        length: productData.length ?? null,
+        width: productData.width ?? null,
+        height: productData.height ?? null,
         inStock: productData.inStock ?? true,
         isActive: productData.isActive ?? true,
+        tags: productData.tags ?? [],
+        metaTitle: productData.metaTitle ?? null,
+        metaDescription: productData.metaDescription ?? null,
+        metaKeyword: productData.metaKeyword ?? null,
         brand: brand ?? null,
         categories,
       });
@@ -226,6 +278,129 @@ export const ProductController = {
     }
   },
 
+  // Import products from XLSX/CSV (upsert by model if provided, else title)
+  importProducts: async (req: Request, res: Response) => {
+    try {
+      const uploadedFile = (req as any).file as { buffer: Buffer } | undefined;
+      if (!uploadedFile || !uploadedFile.buffer) {
+        res.status(400).json({ message: "No file uploaded" });
+        return;
+      }
+
+      const workbook = XLSX.read(uploadedFile.buffer, { type: "buffer" });
+      const firstSheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[firstSheetName];
+      const rows: ProductRow[] = XLSX.utils.sheet_to_json(sheet, {
+        defval: "",
+        raw: false,
+        blankrows: false,
+      });
+
+      if (!rows || rows.length === 0) {
+        res.status(400).json({ message: "No data found in file" });
+        return;
+      }
+
+      let created = 0;
+      let updated = 0;
+      const errors: Array<{ row: number; error: string }> = [];
+      const createdProducts: Array<{ title: string; id: string }> = [];
+      const updatedProducts: Array<{ title: string; id: string }> = [];
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const title = row.title?.toString().trim();
+        if (!title) {
+          errors.push({ row: i + 2, error: "Missing title" });
+          continue;
+        }
+
+        const model = row.model?.toString().trim() || null;
+        const price = toNum(row.price);
+        if (price === null) {
+          errors.push({ row: i + 2, error: "Invalid price" });
+          continue;
+        }
+
+        const quantityStr = row.quantity?.toString().trim() ?? "0";
+        const categoryIds = splitIds(row.categoryIds);
+        let categories: Category[] = [];
+        if (categoryIds.length > 0) {
+          categories = await categoryRepository.find({ where: { id: In(categoryIds) } });
+          if (categories.length !== categoryIds.length) {
+            errors.push({ row: i + 2, error: "Invalid categoryIds" });
+            continue;
+          }
+        }
+
+        const tags = splitTags(row.tag);
+
+        const weight = toNum(row.weight);
+        const length = toNum(row.length);
+        const width = toNum(row.width);
+        const height = toNum(row.height);
+
+        // Upsert by model if provided, else by title
+        const existing = await productRepository.findOne({
+          where: model ? [{ model }, { title }] : [{ title }],
+          relations: ["categories", "brand"],
+        });
+
+        const baseData: Partial<Product> = {
+          model,
+          title,
+          summary: row.summary || "",
+          price,
+          discountPrice: price,
+          wholesalePrice: null,
+          quantity: quantityStr,
+          wholesaleOrderQuantity: null,
+          unitsPerCarton: null,
+          weight,
+          length,
+          width,
+          height,
+          inStock: true,
+          isActive: true,
+          tags,
+          metaTitle: row.metaTitle || null,
+          metaDescription: row.metaDescription || null,
+          metaKeyword: row.metaKeyword || null,
+          images: [],
+        };
+
+        if (existing) {
+          Object.assign(existing, baseData);
+          existing.categories = categories;
+          await productRepository.save(existing);
+          updated += 1;
+          updatedProducts.push({ title: existing.title, id: existing.id });
+        } else {
+          const newProduct = productRepository.create({
+            ...baseData,
+            categories,
+            brand: null,
+          });
+          await productRepository.save(newProduct);
+          created += 1;
+          createdProducts.push({ title: newProduct.title, id: newProduct.id });
+        }
+      }
+
+      res.status(200).json({
+        message: "Import completed",
+        created,
+        updated,
+        errors,
+        createdProducts,
+        updatedProducts,
+      });
+    } catch (error) {
+      console.error("Product import error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
   //Update product (Admin only)
   updateProduct: async (req: Request, res: Response) => {
     try {
@@ -283,6 +458,9 @@ export const ProductController = {
       const { categoryIds, brandId, ...rest } = updateData;
       Object.assign(product, rest);
       product.discountPrice = product.discountPrice ?? product.price;
+      if (updateData.tags) {
+        product.tags = updateData.tags;
+      }
 
       await productRepository.save(product);
 
