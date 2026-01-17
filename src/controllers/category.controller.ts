@@ -81,19 +81,33 @@ export const CategoryController = {
   //Get all Categories (public)
   getCategories: async (req: Request, res: Response) => {
     try {
-      const { active } = req.query;
-      const query = categoryRepository
+      const { active, page = "1", limit = "10" } = req.query;
+      const take = Math.max(parseInt(limit as string, 10) || 10, 1);
+      const skip = (Math.max(parseInt(page as string, 10) || 1, 1) - 1) * take;
+
+      const qb = categoryRepository
         .createQueryBuilder("category")
         .leftJoinAndSelect("category.parentCategory", "parentCategory");
 
       if (active === "true") {
-        query.where("category.isActive = :isActive", { isActive: true });
+        qb.where("category.isActive = :isActive", { isActive: true });
       }
 
-      query.orderBy("category.displayOrder", "ASC");
+      const [categories, total] = await qb
+        .orderBy("category.displayOrder", "ASC")
+        .skip(skip)
+        .take(take)
+        .getManyAndCount();
 
-      const categories = await query.getMany();
-      res.status(200).json(categories);
+      res.status(200).json({
+        data: categories,
+        meta: {
+          total,
+          page: Math.max(parseInt(page as string, 10) || 1, 1),
+          limit: take,
+          totalPages: Math.ceil(total / take),
+        },
+      });
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: "Internal server error" });

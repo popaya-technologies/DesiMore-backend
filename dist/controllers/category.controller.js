@@ -107,16 +107,29 @@ exports.CategoryController = {
     //Get all Categories (public)
     getCategories: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         try {
-            const { active } = req.query;
-            const query = categoryRepository
+            const { active, page = "1", limit = "10" } = req.query;
+            const take = Math.max(parseInt(limit, 10) || 10, 1);
+            const skip = (Math.max(parseInt(page, 10) || 1, 1) - 1) * take;
+            const qb = categoryRepository
                 .createQueryBuilder("category")
                 .leftJoinAndSelect("category.parentCategory", "parentCategory");
             if (active === "true") {
-                query.where("category.isActive = :isActive", { isActive: true });
+                qb.where("category.isActive = :isActive", { isActive: true });
             }
-            query.orderBy("category.displayOrder", "ASC");
-            const categories = yield query.getMany();
-            res.status(200).json(categories);
+            const [categories, total] = yield qb
+                .orderBy("category.displayOrder", "ASC")
+                .skip(skip)
+                .take(take)
+                .getManyAndCount();
+            res.status(200).json({
+                data: categories,
+                meta: {
+                    total,
+                    page: Math.max(parseInt(page, 10) || 1, 1),
+                    limit: take,
+                    totalPages: Math.ceil(total / take),
+                },
+            });
         }
         catch (error) {
             console.error(error);

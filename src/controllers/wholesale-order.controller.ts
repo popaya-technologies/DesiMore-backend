@@ -190,7 +190,9 @@ export const WholesaleOrderController = {
 
   getMyRequests: async (req: Request, res: Response) => {
     try {
-      const { status, from, to } = req.query;
+      const { status, from, to, page = "1", limit = "10" } = req.query;
+      const take = Math.max(parseInt(limit as string, 10) || 10, 1);
+      const skip = (Math.max(parseInt(page as string, 10) || 1, 1) - 1) * take;
       const where: any = { userId: req.user.id };
       if (status) {
         where.status = status as any;
@@ -200,15 +202,25 @@ export const WholesaleOrderController = {
         where.createdAt = dateRange;
       }
 
-      const requests = await wholesaleOrderRequestRepository.find({
+      const [requests, total] = await wholesaleOrderRequestRepository.findAndCount({
         where,
         relations: ["items"],
         order: { createdAt: "DESC" },
+        skip,
+        take,
       });
 
       res
         .status(200)
-        .json(requests.map((request) => formatWholesaleRequestResponse(request)));
+        .json({
+          data: requests.map((request) => formatWholesaleRequestResponse(request)),
+          meta: {
+            total,
+            page: Math.max(parseInt(page as string, 10) || 1, 1),
+            limit: take,
+            totalPages: Math.ceil(total / take),
+          },
+        });
     } catch (error) {
       console.error("Get wholesale requests error:", error);
       res.status(500).json({ message: "Internal server error" });
@@ -217,7 +229,9 @@ export const WholesaleOrderController = {
 
   getAllRequests: async (req: Request, res: Response) => {
     try {
-      const { status, from, to } = req.query;
+      const { status, from, to, page = "1", limit = "10" } = req.query;
+      const take = Math.max(parseInt(limit as string, 10) || 10, 1);
+      const skip = (Math.max(parseInt(page as string, 10) || 1, 1) - 1) * take;
       const where: any = {};
       if (status) {
         where.status = status as any;
@@ -227,15 +241,23 @@ export const WholesaleOrderController = {
         where.createdAt = dateRange;
       }
 
-      const requests = await wholesaleOrderRequestRepository.find({
+      const [requests, total] = await wholesaleOrderRequestRepository.findAndCount({
         where,
         relations: ["items", "user"],
         order: { createdAt: "DESC" },
+        skip,
+        take,
       });
 
-      res
-        .status(200)
-        .json(requests.map((request) => formatWholesaleRequestResponse(request)));
+      res.status(200).json({
+        data: requests.map((request) => formatWholesaleRequestResponse(request)),
+        meta: {
+          total,
+          page: Math.max(parseInt(page as string, 10) || 1, 1),
+          limit: take,
+          totalPages: Math.ceil(total / take),
+        },
+      });
     } catch (error) {
       console.error("Get all wholesale requests error:", error);
       res.status(500).json({ message: "Internal server error" });

@@ -158,7 +158,9 @@ exports.WholesaleOrderController = {
     }),
     getMyRequests: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         try {
-            const { status, from, to } = req.query;
+            const { status, from, to, page = "1", limit = "10" } = req.query;
+            const take = Math.max(parseInt(limit, 10) || 10, 1);
+            const skip = (Math.max(parseInt(page, 10) || 1, 1) - 1) * take;
             const where = { userId: req.user.id };
             if (status) {
                 where.status = status;
@@ -167,14 +169,24 @@ exports.WholesaleOrderController = {
             if (dateRange) {
                 where.createdAt = dateRange;
             }
-            const requests = yield wholesaleOrderRequestRepository.find({
+            const [requests, total] = yield wholesaleOrderRequestRepository.findAndCount({
                 where,
                 relations: ["items"],
                 order: { createdAt: "DESC" },
+                skip,
+                take,
             });
             res
                 .status(200)
-                .json(requests.map((request) => formatWholesaleRequestResponse(request)));
+                .json({
+                data: requests.map((request) => formatWholesaleRequestResponse(request)),
+                meta: {
+                    total,
+                    page: Math.max(parseInt(page, 10) || 1, 1),
+                    limit: take,
+                    totalPages: Math.ceil(total / take),
+                },
+            });
         }
         catch (error) {
             console.error("Get wholesale requests error:", error);
@@ -183,7 +195,9 @@ exports.WholesaleOrderController = {
     }),
     getAllRequests: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         try {
-            const { status, from, to } = req.query;
+            const { status, from, to, page = "1", limit = "10" } = req.query;
+            const take = Math.max(parseInt(limit, 10) || 10, 1);
+            const skip = (Math.max(parseInt(page, 10) || 1, 1) - 1) * take;
             const where = {};
             if (status) {
                 where.status = status;
@@ -192,14 +206,22 @@ exports.WholesaleOrderController = {
             if (dateRange) {
                 where.createdAt = dateRange;
             }
-            const requests = yield wholesaleOrderRequestRepository.find({
+            const [requests, total] = yield wholesaleOrderRequestRepository.findAndCount({
                 where,
                 relations: ["items", "user"],
                 order: { createdAt: "DESC" },
+                skip,
+                take,
             });
-            res
-                .status(200)
-                .json(requests.map((request) => formatWholesaleRequestResponse(request)));
+            res.status(200).json({
+                data: requests.map((request) => formatWholesaleRequestResponse(request)),
+                meta: {
+                    total,
+                    page: Math.max(parseInt(page, 10) || 1, 1),
+                    limit: take,
+                    totalPages: Math.ceil(total / take),
+                },
+            });
         }
         catch (error) {
             console.error("Get all wholesale requests error:", error);
