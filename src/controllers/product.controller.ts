@@ -27,6 +27,7 @@ type ProductRow = Partial<{
   metaDescription: string;
   metaKeyword: string;
   categoryIds: string;
+  images: any;
 }>;
 
 const toNum = (val: any): number | null => {
@@ -47,6 +48,23 @@ const splitIds = (val: any): string[] => {
         s.toLowerCase() !== "null" &&
         s.toLowerCase() !== "undefined"
     );
+};
+
+const normalizeImages = (val: any): string[] => {
+  if (!val) return [];
+  if (Array.isArray(val)) {
+    return val
+      .map((item) => {
+        if (!item) return null;
+        if (typeof item === "string") return item;
+        if (typeof item === "object" && item.url) return item.url.toString();
+        return null;
+      })
+      .filter(Boolean) as string[];
+  }
+  if (typeof val === "object" && val.url) return [val.url.toString()];
+  if (typeof val === "string") return [val];
+  return [];
 };
 
 const formatProductResponse = (product: Product) => {
@@ -74,7 +92,11 @@ export const ProductController = {
     try {
       // Create and validate DTO
       const productData = new CreateProductDto();
-      Object.assign(productData, req.body);
+      const body = { ...req.body };
+      if (body.images) {
+        body.images = normalizeImages(body.images);
+      }
+      Object.assign(productData, body);
 
       const errors = await validate(productData);
       if (errors.length > 0) {
@@ -342,7 +364,7 @@ export const ProductController = {
 
         const quantityStr = row.quantity?.toString().trim() ?? "0";
         const categoryIds = splitIds(row.categoryIds);
-        let categories: Category[] = [];
+        let categories: Category[] | null = null;
         if (categoryIds.length > 0) {
           categories = await categoryRepository.find({ where: { id: In(categoryIds) } });
           if (categories.length !== categoryIds.length) {
@@ -355,6 +377,7 @@ export const ProductController = {
         const length = toNum(row.length);
         const width = toNum(row.width);
         const height = toNum(row.height);
+        const images = normalizeImages(row.images);
 
         // Upsert by model if provided, else by title
         const existing = await productRepository.findOne({
@@ -382,19 +405,29 @@ export const ProductController = {
           metaTitle: row.metaTitle || null,
           metaDescription: row.metaDescription || null,
           metaKeyword: row.metaKeyword || null,
-          images: [],
         };
+
+        if (images.length) {
+          (baseData as any).images = images;
+        }
 
         if (existing) {
           Object.assign(existing, baseData);
-          existing.categories = categories;
+          if (categories !== null) {
+            existing.categories = categories;
+          }
+          if (!images.length) {
+            // preserve existing images when none provided
+            existing.images = existing.images;
+          }
           await productRepository.save(existing);
           updated += 1;
           updatedProducts.push({ title: existing.title, id: existing.id });
         } else {
           const newProduct = productRepository.create({
             ...baseData,
-            categories,
+            images: images.length ? images : [],
+            categories: categories ?? [],
             brand: null,
           });
           await productRepository.save(newProduct);
@@ -472,7 +505,10 @@ export const ProductController = {
 
       // Update other fields (excluding categories which we handled above)
       const { categoryIds, brandId, ...rest } = updateData;
-      Object.assign(product, rest);
+      Object.assign(product, {
+        ...rest,
+        images: rest.images ? normalizeImages(rest.images) : product.images,
+      });
       product.discountPrice = product.discountPrice ?? product.price;
 
       await productRepository.save(product);

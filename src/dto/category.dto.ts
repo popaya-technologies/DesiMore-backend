@@ -19,7 +19,7 @@ export class CreateCategoryDto {
   @IsOptional()
   description?: string;
 
-  @IsUrl()
+  @IsString()
   @IsOptional()
   image?: string;
 
@@ -61,7 +61,7 @@ export class UpdateCategoryDto {
   @IsOptional()
   description?: string;
 
-  @IsUrl()
+  @IsString()
   @IsOptional()
   image?: string;
 

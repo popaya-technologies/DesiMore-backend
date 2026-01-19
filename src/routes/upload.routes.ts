@@ -17,10 +17,9 @@ ensureUploadDir();
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
   filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname) || "";
-    const base =
-      Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
-    cb(null, `${base}${ext}`);
+    const originalName = file.originalname || "file";
+    const safeName = originalName.replace(/[^a-zA-Z0-9._-]/g, "_");
+    cb(null, safeName);
   },
 });
 
@@ -44,14 +43,22 @@ const router = Router();
 router.post(
   "/image",
   authenticate,
-  upload.single("file"),
-  (req: UploadedRequest, res: Response) => {
-    if (!req.file) {
+  upload.fields([
+    { name: "file", maxCount: 1 },
+    { name: "image", maxCount: 1 },
+  ]),
+  (req: any, res: Response) => {
+    const files = req.files || {};
+    const file =
+      (files.file && files.file[0]) ||
+      (files.image && files.image[0]) ||
+      req.file;
+
+    if (!file) {
       res.status(400).json({ message: "No file uploaded" });
       return;
     }
 
-    const file = req.file;
     const publicUrl = `/uploads/${file.filename}`;
 
     res.status(201).json({
@@ -66,22 +73,23 @@ router.post(
 router.post(
   "/images",
   authenticate,
-  upload.array("files", 10), // max 10 files per request
-  (req: UploadedRequest, res: Response) => {
-    const files = (req as any).files as
-      | Array<{
-          filename: string;
-          size: number;
-          mimetype: string;
-        }>
-      | undefined;
+  upload.any(), // accept any field names, we'll filter below
+  (req: any, res: Response) => {
+    const files = (req.files as any[]) || [];
+    const filtered = files
+      .filter((f) =>
+        ["files", "file", "image", "images", "upload"].includes(
+          f.fieldname || ""
+        )
+      )
+      .slice(0, 10); // max 10
 
-    if (!files || files.length === 0) {
+    if (!filtered.length) {
       res.status(400).json({ message: "No files uploaded" });
       return;
     }
 
-    const result = files.map((file) => ({
+    const result = filtered.map((file) => ({
       filename: file.filename,
       url: `/uploads/${file.filename}`,
       size: file.size,

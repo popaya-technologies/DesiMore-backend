@@ -29,7 +29,7 @@ __decorate([
     __metadata("design:type", String)
 ], CreateCategoryDto.prototype, "description", void 0);
 __decorate([
-    (0, class_validator_1.IsUrl)(),
+    (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], CreateCategoryDto.prototype, "image", void 0);
@@ -82,7 +82,7 @@ __decorate([
     __metadata("design:type", String)
 ], UpdateCategoryDto.prototype, "description", void 0);
 __decorate([
-    (0, class_validator_1.IsUrl)(),
+    (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], UpdateCategoryDto.prototype, "image", void 0);

@@ -12,7 +12,6 @@ export class CreateProductDto {
   title: string;
 
   @IsArray()
-  @IsString({ each: true })
   images: string[];
 
   @IsString()
@@ -100,7 +99,6 @@ export class UpdateProductDto {
   title?: string;
 
   @IsArray()
-  @IsString({ each: true })
   @IsOptional()
   images?: string[];
 

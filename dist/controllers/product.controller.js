@@ -82,6 +82,28 @@ const splitIds = (val) => {
         s.toLowerCase() !== "null" &&
         s.toLowerCase() !== "undefined");
 };
+const normalizeImages = (val) => {
+    if (!val)
+        return [];
+    if (Array.isArray(val)) {
+        return val
+            .map((item) => {
+            if (!item)
+                return null;
+            if (typeof item === "string")
+                return item;
+            if (typeof item === "object" && item.url)
+                return item.url.toString();
+            return null;
+        })
+            .filter(Boolean);
+    }
+    if (typeof val === "object" && val.url)
+        return [val.url.toString()];
+    if (typeof val === "string")
+        return [val];
+    return [];
+};
 const formatProductResponse = (product) => {
     var _a, _b;
     if (!product) {
@@ -98,7 +120,11 @@ exports.ProductController = {
         try {
             // Create and validate DTO
             const productData = new product_dto_1.CreateProductDto();
-            Object.assign(productData, req.body);
+            const body = Object.assign({}, req.body);
+            if (body.images) {
+                body.images = normalizeImages(body.images);
+            }
+            Object.assign(productData, body);
             const errors = yield (0, class_validator_1.validate)(productData);
             if (errors.length > 0) {
                 res.status(400).json({ errors });
@@ -329,7 +355,7 @@ exports.ProductController = {
                 }
                 const quantityStr = (_d = (_c = row.quantity) === null || _c === void 0 ? void 0 : _c.toString().trim()) !== null && _d !== void 0 ? _d : "0";
                 const categoryIds = splitIds(row.categoryIds);
-                let categories = [];
+                let categories = null;
                 if (categoryIds.length > 0) {
                     categories = yield categoryRepository.find({ where: { id: (0, typeorm_1.In)(categoryIds) } });
                     if (categories.length !== categoryIds.length) {
@@ -341,6 +367,7 @@ exports.ProductController = {
                 const length = toNum(row.length);
                 const width = toNum(row.width);
                 const height = toNum(row.height);
+                const images = normalizeImages(row.images);
                 // Upsert by model if provided, else by title
                 const existing = yield productRepository.findOne({
                     where: model ? [{ model }, { title }] : [{ title }],
@@ -366,17 +393,25 @@ exports.ProductController = {
                     metaTitle: row.metaTitle || null,
                     metaDescription: row.metaDescription || null,
                     metaKeyword: row.metaKeyword || null,
-                    images: [],
                 };
+                if (images.length) {
+                    baseData.images = images;
+                }
                 if (existing) {
                     Object.assign(existing, baseData);
-                    existing.categories = categories;
+                    if (categories !== null) {
+                        existing.categories = categories;
+                    }
+                    if (!images.length) {
+                        // preserve existing images when none provided
+                        existing.images = existing.images;
+                    }
                     yield productRepository.save(existing);
                     updated += 1;
                     updatedProducts.push({ title: existing.title, id: existing.id });
                 }
                 else {
-                    const newProduct = productRepository.create(Object.assign(Object.assign({}, baseData), { categories, brand: null }));
+                    const newProduct = productRepository.create(Object.assign(Object.assign({}, baseData), { images: images.length ? images : [], categories: categories !== null && categories !== void 0 ? categories : [], brand: null }));
                     yield productRepository.save(newProduct);
                     created += 1;
                     createdProducts.push({ title: newProduct.title, id: newProduct.id });
@@ -442,7 +477,7 @@ exports.ProductController = {
             }
             // Update other fields (excluding categories which we handled above)
             const { categoryIds, brandId } = updateData, rest = __rest(updateData, ["categoryIds", "brandId"]);
-            Object.assign(product, rest);
+            Object.assign(product, Object.assign(Object.assign({}, rest), { images: rest.images ? normalizeImages(rest.images) : product.images }));
             product.discountPrice = (_a = product.discountPrice) !== null && _a !== void 0 ? _a : product.price;
             yield productRepository.save(product);
             // Return the updated product with categories
