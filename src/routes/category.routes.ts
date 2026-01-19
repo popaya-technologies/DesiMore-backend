@@ -19,6 +19,7 @@ router.post(
 );
 
 router.get("/", CategoryController.getCategories);
+router.get("/all", authenticate, checkPermission("category", "read"), CategoryController.getAllCategoriesAdmin);
 router.get("/names", CategoryController.getCategoryNames);
 
 // Batch import categories via XLSX/CSV, parentCategoryId provided separately (query or body)

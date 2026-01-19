@@ -112,6 +112,40 @@ exports.CategoryController = {
             const skip = (Math.max(parseInt(page, 10) || 1, 1) - 1) * take;
             const qb = categoryRepository
                 .createQueryBuilder("category")
+                .innerJoin("category.products", "product")
+                .leftJoinAndSelect("category.parentCategory", "parentCategory");
+            if (active === "true") {
+                qb.where("category.isActive = :isActive", { isActive: true });
+            }
+            const [categories, total] = yield qb
+                .distinct(true)
+                .orderBy("category.displayOrder", "ASC")
+                .skip(skip)
+                .take(take)
+                .getManyAndCount();
+            res.status(200).json({
+                data: categories,
+                meta: {
+                    total,
+                    page: Math.max(parseInt(page, 10) || 1, 1),
+                    limit: take,
+                    totalPages: Math.ceil(total / take),
+                },
+            });
+        }
+        catch (error) {
+            console.error(error);
+            res.status(500).json({ message: "Internal server error" });
+        }
+    }),
+    //Get all Categories (admin - includes empty categories)
+    getAllCategoriesAdmin: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+        try {
+            const { active, page = "1", limit = "10" } = req.query;
+            const take = Math.max(parseInt(limit, 10) || 10, 1);
+            const skip = (Math.max(parseInt(page, 10) || 1, 1) - 1) * take;
+            const qb = categoryRepository
+                .createQueryBuilder("category")
                 .leftJoinAndSelect("category.parentCategory", "parentCategory");
             if (active === "true") {
                 qb.where("category.isActive = :isActive", { isActive: true });
