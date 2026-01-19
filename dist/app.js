@@ -23,6 +23,8 @@ const auth_middleware_1 = require("./middlewares/auth.middleware");
 const rbac_middleware_1 = require("./middlewares/rbac.middleware");
 const cors_1 = __importDefault(require("cors"));
 const upload_config_1 = require("./utils/upload-config");
+const path_1 = __importDefault(require("path"));
+const fs_1 = __importDefault(require("fs"));
 const app = (0, express_1.default)();
 // Middleware
 app.use(express_1.default.json());
@@ -34,6 +36,11 @@ app.use((0, cors_1.default)({
 // Ensure uploads directory exists and serve it publicly
 (0, upload_config_1.ensureUploadDir)();
 app.use("/uploads", express_1.default.static(upload_config_1.UPLOAD_DIR));
+// Serve catalog assets (if present) publicly at /catalog
+const CATALOG_DIR = path_1.default.resolve(process.cwd(), "catalog");
+if (fs_1.default.existsSync(CATALOG_DIR)) {
+    app.use("/catalog", express_1.default.static(CATALOG_DIR));
+}
 // Routes
 app.use("/api/auth", auth_routes_1.default);
 app.use("/api/rbac", rbac_routes_1.default);

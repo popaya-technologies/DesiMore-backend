@@ -18,6 +18,8 @@ import { authenticate } from "./middlewares/auth.middleware";
 import { checkPermission } from "./middlewares/rbac.middleware";
 import cors from "cors";
 import { ensureUploadDir, UPLOAD_DIR } from "./utils/upload-config";
+import path from "path";
+import fs from "fs";
 
 const app = express();
 
@@ -34,6 +36,12 @@ app.use(
 // Ensure uploads directory exists and serve it publicly
 ensureUploadDir();
 app.use("/uploads", express.static(UPLOAD_DIR));
+
+// Serve catalog assets (if present) publicly at /catalog
+const CATALOG_DIR = path.resolve(process.cwd(), "catalog");
+if (fs.existsSync(CATALOG_DIR)) {
+  app.use("/catalog", express.static(CATALOG_DIR));
+}
 
 // Routes
 app.use("/api/auth", authRoutes);
