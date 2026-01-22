@@ -76,6 +76,40 @@ export const ParentCategoryController = {
         return;
       }
 
+      const categories = await categoryRepository
+        .createQueryBuilder("category")
+        .innerJoin("category.products", "product")
+        .leftJoinAndSelect("category.parentCategory", "parentCategory")
+        .where("category.parentCategoryId = :parentId", {
+          parentId: parentCategory.id,
+        })
+        .distinct(true)
+        .orderBy("category.displayOrder", "ASC")
+        .addOrderBy("category.name", "ASC")
+        .getMany();
+
+      res.status(200).json({
+        parentCategory,
+        categories,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  // Includes categories even if they have no products (admin)
+  getCategoriesByParentAll: async (req: Request, res: Response) => {
+    try {
+      const parentCategory = await parentCategoryRepository.findOne({
+        where: { id: req.params.id },
+      });
+
+      if (!parentCategory) {
+        res.status(404).json({ message: "Parent category not found" });
+        return;
+      }
+
       const categories = await categoryRepository.find({
         where: { parentCategoryId: parentCategory.id },
         relations: ["parentCategory"],

@@ -14,6 +14,12 @@ router.post(
 
 router.get("/", ParentCategoryController.getParentCategories);
 router.get("/:id/categories", ParentCategoryController.getCategoriesByParent);
+router.get(
+  "/:id/categories/all",
+  authenticate,
+  checkPermission("category", "read"),
+  ParentCategoryController.getCategoriesByParentAll
+);
 router.get("/:id", ParentCategoryController.getParentCategoryById);
 
 router.put(
