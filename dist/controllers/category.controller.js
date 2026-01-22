@@ -69,6 +69,12 @@ const toInt = (val) => {
     const n = Number(val);
     return Number.isFinite(n) ? n : undefined;
 };
+const toMaybeString = (val) => {
+    if (val === undefined || val === null)
+        return undefined;
+    const t = val.toString().trim();
+    return t ? t : undefined;
+};
 exports.CategoryController = {
     //Create Category (Admin only)
     createCategory: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -303,7 +309,6 @@ exports.CategoryController = {
     }),
     // Import categories from uploaded XLSX/CSV; parentCategoryId supplied separately
     importCategories: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-        var _a, _b;
         try {
             const parentCategoryId = req.body.parentCategoryId ||
                 req.query.parentCategoryId ||
@@ -327,7 +332,7 @@ exports.CategoryController = {
             const firstSheetName = workbook.SheetNames[0];
             const sheet = workbook.Sheets[firstSheetName];
             const rows = XLSX.utils.sheet_to_json(sheet, {
-                defval: "",
+                defval: undefined,
                 raw: false,
                 blankrows: false,
             });
@@ -342,41 +347,63 @@ exports.CategoryController = {
             const updatedCategories = [];
             for (let i = 0; i < rows.length; i++) {
                 const row = rows[i];
-                const name = (_a = row.name) === null || _a === void 0 ? void 0 : _a.toString().trim();
+                const name = toMaybeString(row.name);
                 if (!name) {
                     errors.push({ row: i + 2, error: "Missing name" }); // +2 accounts for header row
                     continue;
                 }
-                const slug = ((_b = row.slug) === null || _b === void 0 ? void 0 : _b.toString().trim()) ||
+                const slug = toMaybeString(row.slug) ||
                     name
                         .toLowerCase()
                         .replace(/[^a-z0-9]+/g, "-")
                         .replace(/(^-|-$)/g, "");
-                const isActive = toBool(row.isActive);
-                const displayOrder = toInt(row.displayOrder);
-                const baseData = {
-                    name,
-                    slug,
-                    description: row.description || null,
-                    image: row.image || null,
-                    isActive: isActive !== undefined ? isActive : true,
-                    displayOrder: displayOrder !== null && displayOrder !== void 0 ? displayOrder : 0,
-                    metaTitle: row.metaTitle || null,
-                    metaDescription: row.metaDescription || null,
-                    metaKeyword: row.metaKeyword || null,
-                };
+                const isActive = row.hasOwnProperty("isActive") ? toBool(row.isActive) : undefined;
+                const displayOrder = row.hasOwnProperty("displayOrder") ? toInt(row.displayOrder) : undefined;
+                const description = toMaybeString(row.description);
+                const image = toMaybeString(row.image);
+                const metaTitle = toMaybeString(row.metaTitle);
+                const metaDescription = toMaybeString(row.metaDescription);
+                const metaKeyword = toMaybeString(row.metaKeyword);
                 const existing = yield categoryRepository.findOne({
                     where: [{ slug }, { name }],
                 });
                 if (existing) {
-                    Object.assign(existing, baseData);
-                    existing.parentCategory = parentCategory;
+                    existing.name = name;
+                    existing.slug = slug;
+                    if (description !== undefined)
+                        existing.description = description || null;
+                    if (image !== undefined)
+                        existing.image = image || null;
+                    if (isActive !== undefined)
+                        existing.isActive = isActive;
+                    if (displayOrder !== undefined)
+                        existing.displayOrder = displayOrder;
+                    if (metaTitle !== undefined)
+                        existing.metaTitle = metaTitle || null;
+                    if (metaDescription !== undefined)
+                        existing.metaDescription = metaDescription || null;
+                    if (metaKeyword !== undefined)
+                        existing.metaKeyword = metaKeyword || null;
+                    if (parentCategoryId !== null) {
+                        existing.parentCategory = parentCategory;
+                    }
                     yield categoryRepository.save(existing);
                     updated += 1;
                     updatedCategories.push({ name: existing.name, id: existing.id });
                 }
                 else {
-                    const newCategory = categoryRepository.create(Object.assign(Object.assign({}, baseData), { parentCategory }));
+                    const newCategory = categoryRepository.create({
+                        name,
+                        slug,
+                        description: description || null,
+                        image: image || null,
+                        isActive: isActive !== undefined ? isActive : true,
+                        displayOrder: displayOrder !== null && displayOrder !== void 0 ? displayOrder : 0,
+                        metaTitle: metaTitle || null,
+                        metaDescription: metaDescription || null,
+                        metaKeyword: metaKeyword || null,
+                        parentCategory,
+                    });
                     yield categoryRepository.save(newCategory);
                     created += 1;
                     createdCategories.push({ name: newCategory.name, id: newCategory.id });
