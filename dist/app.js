@@ -35,11 +35,19 @@ app.use((0, cors_1.default)({
 }));
 // Ensure uploads directory exists and serve it publicly
 (0, upload_config_1.ensureUploadDir)();
-app.use("/uploads", express_1.default.static(upload_config_1.UPLOAD_DIR));
+app.use("/uploads", express_1.default.static(upload_config_1.UPLOAD_DIR, {
+    setHeaders: (res) => {
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    },
+}));
 // Serve catalog assets (if present) publicly at /catalog
 const CATALOG_DIR = path_1.default.resolve(process.cwd(), "catalog");
 if (fs_1.default.existsSync(CATALOG_DIR)) {
-    app.use("/catalog", express_1.default.static(CATALOG_DIR));
+    app.use("/catalog", express_1.default.static(CATALOG_DIR, {
+        setHeaders: (res) => {
+            res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        },
+    }));
 }
 // Routes
 app.use("/api/auth", auth_routes_1.default);

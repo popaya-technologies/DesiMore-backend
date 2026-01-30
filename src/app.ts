@@ -35,12 +35,26 @@ app.use(
 
 // Ensure uploads directory exists and serve it publicly
 ensureUploadDir();
-app.use("/uploads", express.static(UPLOAD_DIR));
+app.use(
+  "/uploads",
+  express.static(UPLOAD_DIR, {
+    setHeaders: (res) => {
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    },
+  })
+);
 
 // Serve catalog assets (if present) publicly at /catalog
 const CATALOG_DIR = path.resolve(process.cwd(), "catalog");
 if (fs.existsSync(CATALOG_DIR)) {
-  app.use("/catalog", express.static(CATALOG_DIR));
+  app.use(
+    "/catalog",
+    express.static(CATALOG_DIR, {
+      setHeaders: (res) => {
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      },
+    })
+  );
 }
 
 // Routes
