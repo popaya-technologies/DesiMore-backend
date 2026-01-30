@@ -78,9 +78,7 @@ const splitIds = (val) => {
         .toString()
         .split(",")
         .map((s) => s.trim())
-        .filter((s) => s &&
-        s.toLowerCase() !== "null" &&
-        s.toLowerCase() !== "undefined");
+        .filter((s) => s && s.toLowerCase() !== "null" && s.toLowerCase() !== "undefined");
 };
 const normalizeImages = (val) => {
     if (!val)
@@ -358,9 +356,7 @@ exports.ProductController = {
                 .leftJoinAndSelect("product.categories", "category")
                 .leftJoinAndSelect("product.brand", "brand")
                 .where(new typeorm_1.Brackets((qb) => {
-                qb.where("product.title ILIKE :q", { q: `%${q}%` })
-                    .orWhere("product.summary ILIKE :q", { q: `%${q}%` })
-                    .orWhere("product.model ILIKE :q", { q: `%${q}%` });
+                qb.where("product.title ILIKE :q", { q: `%${q}%` }).orWhere("product.model ILIKE :q", { q: `%${q}%` });
             }))
                 .andWhere("product.isActive = :active", { active: true });
             const [products, total] = yield qb
@@ -426,7 +422,9 @@ exports.ProductController = {
                 const categoryIds = splitIds(row.categoryIds);
                 let categories = null;
                 if (categoryIds.length > 0) {
-                    categories = yield categoryRepository.find({ where: { id: (0, typeorm_1.In)(categoryIds) } });
+                    categories = yield categoryRepository.find({
+                        where: { id: (0, typeorm_1.In)(categoryIds) },
+                    });
                     if (categories.length !== categoryIds.length) {
                         errors.push({ row: i + 2, error: "Invalid categoryIds" });
                         continue;

@@ -44,9 +44,7 @@ const splitIds = (val: any): string[] => {
     .map((s: string) => s.trim())
     .filter(
       (s: string) =>
-        s &&
-        s.toLowerCase() !== "null" &&
-        s.toLowerCase() !== "undefined"
+        s && s.toLowerCase() !== "null" && s.toLowerCase() !== "undefined"
     );
 };
 
@@ -236,9 +234,9 @@ export const ProductController = {
 
       const total = await baseQuery.getCount();
 
-      const productIds = (await baseQuery.clone().offset(skip).limit(take).getRawMany()).map(
-        (p) => p.id
-      );
+      const productIds = (
+        await baseQuery.clone().offset(skip).limit(take).getRawMany()
+      ).map((p) => p.id);
 
       // 2. If no products found, return empty array
       if (productIds.length === 0) {
@@ -263,7 +261,9 @@ export const ProductController = {
         .getMany();
 
       // 4. Transform response to include only categoryIds
-      const response = products.map((product) => formatProductResponse(product));
+      const response = products.map((product) =>
+        formatProductResponse(product)
+      );
 
       res.status(200).json({
         data: response,
@@ -370,9 +370,10 @@ export const ProductController = {
         .leftJoinAndSelect("product.brand", "brand")
         .where(
           new Brackets((qb) => {
-            qb.where("product.title ILIKE :q", { q: `%${q}%` })
-              .orWhere("product.summary ILIKE :q", { q: `%${q}%` })
-              .orWhere("product.model ILIKE :q", { q: `%${q}%` });
+            qb.where("product.title ILIKE :q", { q: `%${q}%` }).orWhere(
+              "product.model ILIKE :q",
+              { q: `%${q}%` }
+            );
           })
         )
         .andWhere("product.isActive = :active", { active: true });
@@ -446,7 +447,9 @@ export const ProductController = {
         const categoryIds = splitIds(row.categoryIds);
         let categories: Category[] | null = null;
         if (categoryIds.length > 0) {
-          categories = await categoryRepository.find({ where: { id: In(categoryIds) } });
+          categories = await categoryRepository.find({
+            where: { id: In(categoryIds) },
+          });
           if (categories.length !== categoryIds.length) {
             errors.push({ row: i + 2, error: "Invalid categoryIds" });
             continue;
