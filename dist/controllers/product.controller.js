@@ -360,8 +360,7 @@ exports.ProductController = {
                 .where(new typeorm_1.Brackets((qb) => {
                 qb.where("product.title ILIKE :q", { q: `%${q}%` })
                     .orWhere("product.summary ILIKE :q", { q: `%${q}%` })
-                    .orWhere("product.model ILIKE :q", { q: `%${q}%` })
-                    .orWhere("product.tag ILIKE :q", { q: `%${q}%` });
+                    .orWhere("product.model ILIKE :q", { q: `%${q}%` });
             }))
                 .andWhere("product.isActive = :active", { active: true });
             const [products, total] = yield qb

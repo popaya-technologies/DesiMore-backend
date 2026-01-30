@@ -372,8 +372,7 @@ export const ProductController = {
           new Brackets((qb) => {
             qb.where("product.title ILIKE :q", { q: `%${q}%` })
               .orWhere("product.summary ILIKE :q", { q: `%${q}%` })
-              .orWhere("product.model ILIKE :q", { q: `%${q}%` })
-              .orWhere("product.tag ILIKE :q", { q: `%${q}%` });
+              .orWhere("product.model ILIKE :q", { q: `%${q}%` });
           })
         )
         .andWhere("product.isActive = :active", { active: true });
