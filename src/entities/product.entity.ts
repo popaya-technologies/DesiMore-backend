@@ -68,6 +68,13 @@ export class Product {
   @Column({ type: "text", nullable: true })
   tag: string | null;
 
+  @Column({ type: "jsonb", nullable: true })
+  package: {
+    length?: number | null;
+    width?: number | null;
+    height?: number | null;
+  } | null;
+
   @Column({ type: "varchar", length: 255, nullable: true })
   metaTitle: string | null;
 

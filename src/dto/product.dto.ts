@@ -5,7 +5,23 @@ import {
   IsArray,
   IsNumber,
   IsInt,
+  ValidateNested,
 } from "class-validator";
+import { Type } from "class-transformer";
+
+class PackageDimensionsDto {
+  @IsNumber()
+  @IsOptional()
+  length?: number | null;
+
+  @IsNumber()
+  @IsOptional()
+  width?: number | null;
+
+  @IsNumber()
+  @IsOptional()
+  height?: number | null;
+}
 
 export class CreateProductDto {
   @IsString()
@@ -79,6 +95,11 @@ export class CreateProductDto {
   @IsString()
   @IsOptional()
   tag?: string;
+
+  @ValidateNested()
+  @Type(() => PackageDimensionsDto)
+  @IsOptional()
+  package?: PackageDimensionsDto;
 
   @IsString()
   @IsOptional()
@@ -166,6 +187,11 @@ export class UpdateProductDto {
   @IsString()
   @IsOptional()
   tag?: string;
+
+  @ValidateNested()
+  @Type(() => PackageDimensionsDto)
+  @IsOptional()
+  package?: PackageDimensionsDto;
 
   @IsString()
   @IsOptional()

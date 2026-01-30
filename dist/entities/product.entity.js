@@ -89,6 +89,10 @@ __decorate([
     __metadata("design:type", String)
 ], Product.prototype, "tag", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: "jsonb", nullable: true }),
+    __metadata("design:type", Object)
+], Product.prototype, "package", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: "varchar", length: 255, nullable: true }),
     __metadata("design:type", String)
 ], Product.prototype, "metaTitle", void 0);

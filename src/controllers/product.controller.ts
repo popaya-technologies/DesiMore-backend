@@ -67,6 +67,35 @@ const normalizeImages = (val: any): string[] => {
   return [];
 };
 
+const normalizePackage = (val: any) => {
+  if (!val || typeof val !== "object") return undefined;
+  const length =
+    val.length !== undefined && val.length !== null
+      ? Number(val.length)
+      : undefined;
+  const width =
+    val.width !== undefined && val.width !== null
+      ? Number(val.width)
+      : undefined;
+  const height =
+    val.height !== undefined && val.height !== null
+      ? Number(val.height)
+      : undefined;
+  const pkg = {
+    length: Number.isFinite(length) ? length : undefined,
+    width: Number.isFinite(width) ? width : undefined,
+    height: Number.isFinite(height) ? height : undefined,
+  };
+  if (
+    pkg.length === undefined &&
+    pkg.width === undefined &&
+    pkg.height === undefined
+  ) {
+    return undefined;
+  }
+  return pkg;
+};
+
 const formatProductResponse = (product: Product) => {
   if (!product) {
     return null;
@@ -95,6 +124,9 @@ export const ProductController = {
       const body = { ...req.body };
       if (body.images) {
         body.images = normalizeImages(body.images);
+      }
+      if (body.package) {
+        body.package = normalizePackage(body.package);
       }
       Object.assign(productData, body);
 
@@ -151,6 +183,7 @@ export const ProductController = {
         inStock: productData.inStock ?? true,
         isActive: productData.isActive ?? true,
         tag: productData.tag ?? null,
+        package: normalizePackage(productData.package) ?? null,
         metaTitle: productData.metaTitle ?? null,
         metaDescription: productData.metaDescription ?? null,
         metaKeyword: productData.metaKeyword ?? null,
@@ -556,6 +589,10 @@ export const ProductController = {
       Object.assign(product, {
         ...rest,
         images: rest.images ? normalizeImages(rest.images) : product.images,
+        package:
+          rest.package !== undefined
+            ? normalizePackage(rest.package) ?? null
+            : product.package,
       });
       product.discountPrice = product.discountPrice ?? product.price;
 

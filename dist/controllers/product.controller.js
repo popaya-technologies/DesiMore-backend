@@ -104,6 +104,30 @@ const normalizeImages = (val) => {
         return [val];
     return [];
 };
+const normalizePackage = (val) => {
+    if (!val || typeof val !== "object")
+        return undefined;
+    const length = val.length !== undefined && val.length !== null
+        ? Number(val.length)
+        : undefined;
+    const width = val.width !== undefined && val.width !== null
+        ? Number(val.width)
+        : undefined;
+    const height = val.height !== undefined && val.height !== null
+        ? Number(val.height)
+        : undefined;
+    const pkg = {
+        length: Number.isFinite(length) ? length : undefined,
+        width: Number.isFinite(width) ? width : undefined,
+        height: Number.isFinite(height) ? height : undefined,
+    };
+    if (pkg.length === undefined &&
+        pkg.width === undefined &&
+        pkg.height === undefined) {
+        return undefined;
+    }
+    return pkg;
+};
 const formatProductResponse = (product) => {
     var _a, _b;
     if (!product) {
@@ -116,13 +140,16 @@ const formatProductResponse = (product) => {
 exports.ProductController = {
     // Create Product (Admin only) or Users with access
     createProduct: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q;
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r;
         try {
             // Create and validate DTO
             const productData = new product_dto_1.CreateProductDto();
             const body = Object.assign({}, req.body);
             if (body.images) {
                 body.images = normalizeImages(body.images);
+            }
+            if (body.package) {
+                body.package = normalizePackage(body.package);
             }
             Object.assign(productData, body);
             const errors = yield (0, class_validator_1.validate)(productData);
@@ -171,9 +198,10 @@ exports.ProductController = {
                 inStock: (_k = productData.inStock) !== null && _k !== void 0 ? _k : true,
                 isActive: (_l = productData.isActive) !== null && _l !== void 0 ? _l : true,
                 tag: (_m = productData.tag) !== null && _m !== void 0 ? _m : null,
-                metaTitle: (_o = productData.metaTitle) !== null && _o !== void 0 ? _o : null,
-                metaDescription: (_p = productData.metaDescription) !== null && _p !== void 0 ? _p : null,
-                metaKeyword: (_q = productData.metaKeyword) !== null && _q !== void 0 ? _q : null,
+                package: (_o = normalizePackage(productData.package)) !== null && _o !== void 0 ? _o : null,
+                metaTitle: (_p = productData.metaTitle) !== null && _p !== void 0 ? _p : null,
+                metaDescription: (_q = productData.metaDescription) !== null && _q !== void 0 ? _q : null,
+                metaKeyword: (_r = productData.metaKeyword) !== null && _r !== void 0 ? _r : null,
                 brand: brand !== null && brand !== void 0 ? brand : null,
                 categories,
             });
@@ -475,7 +503,7 @@ exports.ProductController = {
     }),
     //Update product (Admin only)
     updateProduct: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-        var _a;
+        var _a, _b;
         try {
             const product = yield productRepository.findOne({
                 where: { id: req.params.id },
@@ -519,8 +547,10 @@ exports.ProductController = {
             }
             // Update other fields (excluding categories which we handled above)
             const { categoryIds, brandId } = updateData, rest = __rest(updateData, ["categoryIds", "brandId"]);
-            Object.assign(product, Object.assign(Object.assign({}, rest), { images: rest.images ? normalizeImages(rest.images) : product.images }));
-            product.discountPrice = (_a = product.discountPrice) !== null && _a !== void 0 ? _a : product.price;
+            Object.assign(product, Object.assign(Object.assign({}, rest), { images: rest.images ? normalizeImages(rest.images) : product.images, package: rest.package !== undefined
+                    ? (_a = normalizePackage(rest.package)) !== null && _a !== void 0 ? _a : null
+                    : product.package }));
+            product.discountPrice = (_b = product.discountPrice) !== null && _b !== void 0 ? _b : product.price;
             yield productRepository.save(product);
             // Return the updated product with categories
             const updatedProduct = yield productRepository.findOne({
