@@ -18,6 +18,7 @@ router.post("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPerm
 // Batch import products via XLSX/CSV
 router.post("/imports", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("product", "create"), upload.single("file"), product_controller_1.ProductController.importProducts);
 router.get("/", product_controller_1.ProductController.getProducts);
+router.get("/search", product_controller_1.ProductController.searchProducts);
 router.get("/categories/:slug/products", product_controller_1.ProductController.getProductsByCategory);
 router.get("/categories/id/:id", product_controller_1.ProductController.getProductsByCategoryId);
 router.get("/:id/related", product_controller_1.ProductController.getRelatedProducts);

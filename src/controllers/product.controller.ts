@@ -318,6 +318,54 @@ export const ProductController = {
     }
   },
 
+  // Search products (title/summary/model/tag), paginated
+  searchProducts: async (req: Request, res: Response) => {
+    try {
+      const q = (req.query.q as string) || "";
+      const { page = "1", limit = "10" } = req.query;
+      const take = Math.max(parseInt(limit as string, 10) || 10, 1);
+      const skip = (Math.max(parseInt(page as string, 10) || 1, 1) - 1) * take;
+
+      if (!q.trim()) {
+        res.status(400).json({ message: "Query parameter q is required" });
+        return;
+      }
+
+      const qb = productRepository
+        .createQueryBuilder("product")
+        .leftJoinAndSelect("product.categories", "category")
+        .leftJoinAndSelect("product.brand", "brand")
+        .where(
+          new Brackets((qb) => {
+            qb.where("product.title ILIKE :q", { q: `%${q}%` })
+              .orWhere("product.summary ILIKE :q", { q: `%${q}%` })
+              .orWhere("product.model ILIKE :q", { q: `%${q}%` })
+              .orWhere("product.tag ILIKE :q", { q: `%${q}%` });
+          })
+        )
+        .andWhere("product.isActive = :active", { active: true });
+
+      const [products, total] = await qb
+        .orderBy("product.createdAt", "DESC")
+        .skip(skip)
+        .take(take)
+        .getManyAndCount();
+
+      res.status(200).json({
+        data: products.map((p) => formatProductResponse(p)),
+        meta: {
+          total,
+          page: Math.max(parseInt(page as string, 10) || 1, 1),
+          limit: take,
+          totalPages: Math.ceil(total / take),
+        },
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  },
+
   // Import products from XLSX/CSV (upsert by model if provided, else title)
   importProducts: async (req: Request, res: Response) => {
     try {
