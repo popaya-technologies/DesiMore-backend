@@ -46,6 +46,45 @@ const resolveProductPrice = (product: Product) => {
   return discountPrice ?? regularPrice ?? 0;
 };
 
+const calcFreight = (amount: number) => {
+  if (amount >= 3500) return 0;
+  if (amount >= 3000) return 75;
+  if (amount >= 2500) return 95;
+  if (amount >= 1500) return 125;
+  if (amount >= 1200) return 150;
+  if (amount >= 1) return 199;
+  return 0;
+};
+
+const buildWholesaleSummary = (items: CartItem[]) => {
+  const subtotal = items.reduce((sum, item) => {
+    const qty = item.quantity || 0;
+    const wholesalePrice = toNumber(item.product?.wholesalePrice) ?? 0;
+    return sum + wholesalePrice * qty;
+  }, 0);
+
+  const discount = Number((subtotal * 0.02).toFixed(2)); // 2% mandatory
+  const discountedSubtotal = Math.max(subtotal - discount, 0);
+  const shipping = calcFreight(discountedSubtotal);
+  const tax = 0;
+  const total = Number((discountedSubtotal + shipping + tax).toFixed(2));
+
+  return { subtotal, discount, shipping, tax, total };
+};
+
+const withWholesaleSummary = (cart: Cart | null) => {
+  if (!cart) return cart;
+  // Prefer persisted wholesale fields if present
+  const summary = {
+    subtotal: toNumber(cart.wholesaleSubtotal) ?? 0,
+    discount: toNumber(cart.wholesaleDiscount) ?? 0,
+    shipping: toNumber(cart.wholesaleShipping) ?? 0,
+    tax: 0,
+    total: toNumber(cart.wholesaleTotal) ?? 0,
+  };
+  return Object.assign({}, cart, { wholesaleSummary: summary });
+};
+
 export const CartController = {
   // Get user's cart
   getCart: async (req: Request, res: Response) => {
@@ -58,7 +97,7 @@ export const CartController = {
       cart.calculateTotal();
       await cartRepository.save(cart);
 
-      res.status(200).json(cart);
+      res.status(200).json(withWholesaleSummary(cart));
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: "Internal server error" });
@@ -155,7 +194,7 @@ export const CartController = {
         relations: ["items", "items.product"],
       });
 
-      res.status(200).json(updatedCart);
+      res.status(200).json(withWholesaleSummary(updatedCart ?? cart));
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: "Internal server error" });
@@ -309,7 +348,7 @@ export const CartController = {
       cart.calculateTotal();
       await cartRepository.save(cart);
 
-      res.status(200).json(cart);
+      res.status(200).json(withWholesaleSummary(cart));
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: "Internal server error" });
@@ -344,7 +383,7 @@ export const CartController = {
       cart.calculateTotal();
       await cartRepository.save(cart);
 
-      res.status(200).json(cart);
+      res.status(200).json(withWholesaleSummary(cart));
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: "Internal server error" });
@@ -375,10 +414,13 @@ export const CartController = {
       cart.items = [];
       cart.total = 0;
       cart.wholesaleTotal = 0;
+      cart.wholesaleSubtotal = 0;
+      cart.wholesaleDiscount = 0;
+      cart.wholesaleShipping = 0;
       cart.itemsCount = 0;
       await cartRepository.save(cart);
 
-      res.status(200).json(cart);
+      res.status(200).json(withWholesaleSummary(cart));
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: "Internal server error" });

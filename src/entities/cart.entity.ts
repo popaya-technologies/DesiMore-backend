@@ -39,6 +39,15 @@ export class Cart {
   @Column({ type: "decimal", precision: 10, scale: 2, default: 0 })
   wholesaleTotal: number;
 
+  @Column({ type: "decimal", precision: 10, scale: 2, default: 0 })
+  wholesaleSubtotal: number;
+
+  @Column({ type: "decimal", precision: 10, scale: 2, default: 0 })
+  wholesaleDiscount: number;
+
+  @Column({ type: "decimal", precision: 10, scale: 2, default: 0 })
+  wholesaleShipping: number;
+
   @Column({ type: "integer", default: 0 })
   itemsCount: number;
 
@@ -54,7 +63,7 @@ export class Cart {
   calculateTotal(): void {
     const items = this.items ?? [];
     let total = 0;
-    let wholesaleTotal = 0;
+    let wholesaleSubtotal = 0;
     let count = 0;
 
     for (const item of items) {
@@ -63,13 +72,31 @@ export class Cart {
       const wholesalePrice = this.toNumber(item.product?.wholesalePrice);
 
       total += regularPrice * quantity;
-      wholesaleTotal += wholesalePrice * quantity;
+      wholesaleSubtotal += wholesalePrice * quantity;
       count += quantity;
     }
 
+    const wholesaleDiscount = Number((wholesaleSubtotal * 0.02).toFixed(2));
+    const discountedWholesale = Math.max(wholesaleSubtotal - wholesaleDiscount, 0);
+    const wholesaleShipping = this.calcFreight(discountedWholesale);
+    const wholesaleTotal = discountedWholesale + wholesaleShipping;
+
     this.total = total;
+    this.wholesaleSubtotal = wholesaleSubtotal;
+    this.wholesaleDiscount = wholesaleDiscount;
+    this.wholesaleShipping = wholesaleShipping;
     this.wholesaleTotal = wholesaleTotal;
     this.itemsCount = count;
+  }
+
+  private calcFreight(amount: number): number {
+    if (amount >= 3500) return 0;
+    if (amount >= 3000) return 75;
+    if (amount >= 2500) return 95;
+    if (amount >= 1500) return 125;
+    if (amount >= 1200) return 150;
+    if (amount >= 1) return 199;
+    return 0;
   }
 
   private toNumber(value: unknown): number {

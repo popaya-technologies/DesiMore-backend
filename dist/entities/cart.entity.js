@@ -23,19 +23,41 @@ let Cart = class Cart {
         var _a, _b, _c;
         const items = (_a = this.items) !== null && _a !== void 0 ? _a : [];
         let total = 0;
-        let wholesaleTotal = 0;
+        let wholesaleSubtotal = 0;
         let count = 0;
         for (const item of items) {
             const quantity = (_b = item.quantity) !== null && _b !== void 0 ? _b : 0;
             const regularPrice = this.toNumber(item.price);
             const wholesalePrice = this.toNumber((_c = item.product) === null || _c === void 0 ? void 0 : _c.wholesalePrice);
             total += regularPrice * quantity;
-            wholesaleTotal += wholesalePrice * quantity;
+            wholesaleSubtotal += wholesalePrice * quantity;
             count += quantity;
         }
+        const wholesaleDiscount = Number((wholesaleSubtotal * 0.02).toFixed(2));
+        const discountedWholesale = Math.max(wholesaleSubtotal - wholesaleDiscount, 0);
+        const wholesaleShipping = this.calcFreight(discountedWholesale);
+        const wholesaleTotal = discountedWholesale + wholesaleShipping;
         this.total = total;
+        this.wholesaleSubtotal = wholesaleSubtotal;
+        this.wholesaleDiscount = wholesaleDiscount;
+        this.wholesaleShipping = wholesaleShipping;
         this.wholesaleTotal = wholesaleTotal;
         this.itemsCount = count;
+    }
+    calcFreight(amount) {
+        if (amount >= 3500)
+            return 0;
+        if (amount >= 3000)
+            return 75;
+        if (amount >= 2500)
+            return 95;
+        if (amount >= 1500)
+            return 125;
+        if (amount >= 1200)
+            return 150;
+        if (amount >= 1)
+            return 199;
+        return 0;
     }
     toNumber(value) {
         if (value === null || value === undefined) {
@@ -77,6 +99,18 @@ __decorate([
     (0, typeorm_1.Column)({ type: "decimal", precision: 10, scale: 2, default: 0 }),
     __metadata("design:type", Number)
 ], Cart.prototype, "wholesaleTotal", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "decimal", precision: 10, scale: 2, default: 0 }),
+    __metadata("design:type", Number)
+], Cart.prototype, "wholesaleSubtotal", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "decimal", precision: 10, scale: 2, default: 0 }),
+    __metadata("design:type", Number)
+], Cart.prototype, "wholesaleDiscount", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "decimal", precision: 10, scale: 2, default: 0 }),
+    __metadata("design:type", Number)
+], Cart.prototype, "wholesaleShipping", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: "integer", default: 0 }),
     __metadata("design:type", Number)

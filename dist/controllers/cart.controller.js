@@ -51,6 +51,49 @@ const resolveProductPrice = (product) => {
     const regularPrice = toNumber(product.price);
     return (_a = discountPrice !== null && discountPrice !== void 0 ? discountPrice : regularPrice) !== null && _a !== void 0 ? _a : 0;
 };
+const calcFreight = (amount) => {
+    if (amount >= 3500)
+        return 0;
+    if (amount >= 3000)
+        return 75;
+    if (amount >= 2500)
+        return 95;
+    if (amount >= 1500)
+        return 125;
+    if (amount >= 1200)
+        return 150;
+    if (amount >= 1)
+        return 199;
+    return 0;
+};
+const buildWholesaleSummary = (items) => {
+    const subtotal = items.reduce((sum, item) => {
+        var _a, _b;
+        const qty = item.quantity || 0;
+        const wholesalePrice = (_b = toNumber((_a = item.product) === null || _a === void 0 ? void 0 : _a.wholesalePrice)) !== null && _b !== void 0 ? _b : 0;
+        return sum + wholesalePrice * qty;
+    }, 0);
+    const discount = Number((subtotal * 0.02).toFixed(2)); // 2% mandatory
+    const discountedSubtotal = Math.max(subtotal - discount, 0);
+    const shipping = calcFreight(discountedSubtotal);
+    const tax = 0;
+    const total = Number((discountedSubtotal + shipping + tax).toFixed(2));
+    return { subtotal, discount, shipping, tax, total };
+};
+const withWholesaleSummary = (cart) => {
+    var _a, _b, _c, _d;
+    if (!cart)
+        return cart;
+    // Prefer persisted wholesale fields if present
+    const summary = {
+        subtotal: (_a = toNumber(cart.wholesaleSubtotal)) !== null && _a !== void 0 ? _a : 0,
+        discount: (_b = toNumber(cart.wholesaleDiscount)) !== null && _b !== void 0 ? _b : 0,
+        shipping: (_c = toNumber(cart.wholesaleShipping)) !== null && _c !== void 0 ? _c : 0,
+        tax: 0,
+        total: (_d = toNumber(cart.wholesaleTotal)) !== null && _d !== void 0 ? _d : 0,
+    };
+    return Object.assign({}, cart, { wholesaleSummary: summary });
+};
 exports.CartController = {
     // Get user's cart
     getCart: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -60,7 +103,7 @@ exports.CartController = {
             const cart = yield ensureCart(userId, cartType);
             cart.calculateTotal();
             yield cartRepository.save(cart);
-            res.status(200).json(cart);
+            res.status(200).json(withWholesaleSummary(cart));
         }
         catch (error) {
             console.error(error);
@@ -143,7 +186,7 @@ exports.CartController = {
                 where: { id: cart.id },
                 relations: ["items", "items.product"],
             });
-            res.status(200).json(updatedCart);
+            res.status(200).json(withWholesaleSummary(updatedCart !== null && updatedCart !== void 0 ? updatedCart : cart));
         }
         catch (error) {
             console.error(error);
@@ -274,7 +317,7 @@ exports.CartController = {
             // Recalculate cart total
             cart.calculateTotal();
             yield cartRepository.save(cart);
-            res.status(200).json(cart);
+            res.status(200).json(withWholesaleSummary(cart));
         }
         catch (error) {
             console.error(error);
@@ -303,7 +346,7 @@ exports.CartController = {
             cart.items = cart.items.filter((item) => item.id !== itemId);
             cart.calculateTotal();
             yield cartRepository.save(cart);
-            res.status(200).json(cart);
+            res.status(200).json(withWholesaleSummary(cart));
         }
         catch (error) {
             console.error(error);
@@ -329,9 +372,12 @@ exports.CartController = {
             cart.items = [];
             cart.total = 0;
             cart.wholesaleTotal = 0;
+            cart.wholesaleSubtotal = 0;
+            cart.wholesaleDiscount = 0;
+            cart.wholesaleShipping = 0;
             cart.itemsCount = 0;
             yield cartRepository.save(cart);
-            res.status(200).json(cart);
+            res.status(200).json(withWholesaleSummary(cart));
         }
         catch (error) {
             console.error(error);
