@@ -88,30 +88,31 @@ const formatWholesaleRequestResponse = (request) => {
         return null;
     }
     const { items = [] } = request, rest = __rest(request, ["items"]);
-    const normalizedItems = items.map((item) => (Object.assign(Object.assign({}, item), { wholesalePrice: toNumber(item.wholesalePrice), effectivePricePerCarton: toNumber(item.effectivePricePerCarton), total: toNumber(item.total) })));
+    const normalizedItems = items.map((item) => (Object.assign(Object.assign({}, item), { wholesalePrice: toNumber(item.wholesalePrice), 
+        // effectivePricePerCarton is no longer exposed
+        total: toNumber(item.total) })));
     return Object.assign(Object.assign({}, rest), { subtotal: toNumber(rest.subtotal), tax: toNumber(rest.tax), shipping: toNumber(rest.shipping), discount: toNumber(rest.discount), total: toNumber(rest.total), items: normalizedItems });
 };
 const buildWholesaleItemsFromCart = (cartItems) => {
     return cartItems.map((cartItem) => {
-        var _a, _b, _c, _d;
+        var _a, _b;
         const product = cartItem.product;
         const requestedBoxes = cartItem.quantity;
         const unitsPerCarton = (_a = product.unitsPerCarton) !== null && _a !== void 0 ? _a : (product.wholesaleOrderQuantity
             ? parseInt(product.wholesaleOrderQuantity, 10)
             : null);
         const wholesalePrice = toNumber(product.wholesalePrice);
-        const fallbackDiscountPrice = toNumber(product.discountPrice);
-        const fallbackPrice = toNumber(product.price);
-        const effectivePricePerCarton = (_c = (_b = wholesalePrice !== null && wholesalePrice !== void 0 ? wholesalePrice : fallbackDiscountPrice) !== null && _b !== void 0 ? _b : fallbackPrice) !== null && _c !== void 0 ? _c : 0;
+        const unitPrice = wholesalePrice !== null && wholesalePrice !== void 0 ? wholesalePrice : 0;
         const item = new wholesale_order_item_entity_1.WholesaleOrderItem();
         item.productId = product.id;
         item.productName = product.title;
         item.productImages = product.images || [];
         item.requestedBoxes = requestedBoxes;
-        item.wholesaleOrderQuantity = (_d = product.wholesaleOrderQuantity) !== null && _d !== void 0 ? _d : null;
+        item.wholesaleOrderQuantity = (_b = product.wholesaleOrderQuantity) !== null && _b !== void 0 ? _b : null;
         item.unitsPerCarton = unitsPerCarton;
         item.wholesalePrice = wholesalePrice;
-        item.effectivePricePerCarton = effectivePricePerCarton;
+        // compute total using unitPrice directly
+        item.effectivePricePerCarton = unitPrice;
         item.calculateTotals();
         return item;
     });

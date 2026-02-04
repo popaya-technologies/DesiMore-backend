@@ -77,7 +77,7 @@ const formatWholesaleRequestResponse = (
   const normalizedItems = items.map((item) => ({
     ...item,
     wholesalePrice: toNumber(item.wholesalePrice),
-    effectivePricePerCarton: toNumber(item.effectivePricePerCarton),
+    // effectivePricePerCarton is no longer exposed
     total: toNumber(item.total),
   }));
 
@@ -103,11 +103,7 @@ const buildWholesaleItemsFromCart = (cartItems: CartItem[]) => {
         : null);
 
     const wholesalePrice = toNumber(product.wholesalePrice);
-    const fallbackDiscountPrice = toNumber(product.discountPrice);
-    const fallbackPrice = toNumber(product.price);
-
-    const effectivePricePerCarton =
-      wholesalePrice ?? fallbackDiscountPrice ?? fallbackPrice ?? 0;
+    const unitPrice = wholesalePrice ?? 0;
 
     const item = new WholesaleOrderItem();
     item.productId = product.id;
@@ -117,7 +113,8 @@ const buildWholesaleItemsFromCart = (cartItems: CartItem[]) => {
     item.wholesaleOrderQuantity = product.wholesaleOrderQuantity ?? null;
     item.unitsPerCarton = unitsPerCarton;
     item.wholesalePrice = wholesalePrice;
-    item.effectivePricePerCarton = effectivePricePerCarton;
+    // compute total using unitPrice directly
+    item.effectivePricePerCarton = unitPrice;
     item.calculateTotals();
 
     return item;
