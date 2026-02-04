@@ -63,6 +63,21 @@ const toNumber = (value) => {
     const parsed = parseFloat(value);
     return isNaN(parsed) ? null : parsed;
 };
+const calcFreight = (amount) => {
+    if (amount >= 3500)
+        return 0;
+    if (amount >= 3000)
+        return 75;
+    if (amount >= 2500)
+        return 95;
+    if (amount >= 1500)
+        return 125;
+    if (amount >= 1200)
+        return 150;
+    if (amount >= 1)
+        return 199;
+    return 0;
+};
 const getPermission = (req, action) => {
     var _a, _b;
     return (_b = (_a = req.user) === null || _a === void 0 ? void 0 : _a.permissions) === null || _b === void 0 ? void 0 : _b.some((permission) => permission.resource === "wholesale-order-request" &&
@@ -74,7 +89,7 @@ const formatWholesaleRequestResponse = (request) => {
     }
     const { items = [] } = request, rest = __rest(request, ["items"]);
     const normalizedItems = items.map((item) => (Object.assign(Object.assign({}, item), { wholesalePrice: toNumber(item.wholesalePrice), effectivePricePerCarton: toNumber(item.effectivePricePerCarton), total: toNumber(item.total) })));
-    return Object.assign(Object.assign({}, rest), { subtotal: toNumber(rest.subtotal), tax: toNumber(rest.tax), shipping: toNumber(rest.shipping), total: toNumber(rest.total), items: normalizedItems });
+    return Object.assign(Object.assign({}, rest), { subtotal: toNumber(rest.subtotal), tax: toNumber(rest.tax), shipping: toNumber(rest.shipping), discount: toNumber(rest.discount), total: toNumber(rest.total), items: normalizedItems });
 };
 const buildWholesaleItemsFromCart = (cartItems) => {
     return cartItems.map((cartItem) => {
@@ -136,9 +151,11 @@ exports.WholesaleOrderController = {
             request.status = wholesale_order_request_entity_1.WholesaleOrderRequestStatus.PENDING;
             request.items = buildWholesaleItemsFromCart(cart.items);
             request.subtotal = request.items.reduce((sum, item) => sum + (toNumber(item.total) || 0), 0);
+            request.discount = Number((request.subtotal * 0.02).toFixed(2)); // 2% discount
+            const discountedSubtotal = Math.max(request.subtotal - request.discount, 0);
             request.tax = 0;
-            request.shipping = request.subtotal > 500 ? 0 : 50;
-            request.total = Number((request.subtotal + request.shipping).toFixed(2));
+            request.shipping = calcFreight(discountedSubtotal);
+            request.total = Number((discountedSubtotal + request.shipping + request.tax).toFixed(2));
             yield wholesaleOrderRequestRepository.save(request);
             yield cartItemRepository.delete({ cartId: cart.id });
             cart.total = 0;

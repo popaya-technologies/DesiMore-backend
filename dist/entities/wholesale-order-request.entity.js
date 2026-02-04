@@ -61,6 +61,10 @@ __decorate([
     __metadata("design:type", Number)
 ], WholesaleOrderRequest.prototype, "shipping", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: "decimal", precision: 12, scale: 2, default: 0 }),
+    __metadata("design:type", Number)
+], WholesaleOrderRequest.prototype, "discount", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: "decimal", precision: 12, scale: 2 }),
     __metadata("design:type", Number)
 ], WholesaleOrderRequest.prototype, "total", void 0);

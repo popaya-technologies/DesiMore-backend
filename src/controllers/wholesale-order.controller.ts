@@ -49,6 +49,16 @@ const toNumber = (value?: string | number | null): number | null => {
   return isNaN(parsed) ? null : parsed;
 };
 
+const calcFreight = (amount: number) => {
+  if (amount >= 3500) return 0;
+  if (amount >= 3000) return 75;
+  if (amount >= 2500) return 95;
+  if (amount >= 1500) return 125;
+  if (amount >= 1200) return 150;
+  if (amount >= 1) return 199;
+  return 0;
+};
+
 const getPermission = (req: Request, action: string) =>
   req.user?.permissions?.some(
     (permission) =>
@@ -76,6 +86,7 @@ const formatWholesaleRequestResponse = (
     subtotal: toNumber(rest.subtotal),
     tax: toNumber(rest.tax),
     shipping: toNumber(rest.shipping),
+    discount: toNumber((rest as any).discount),
     total: toNumber(rest.total),
     items: normalizedItems,
   };
@@ -162,10 +173,15 @@ export const WholesaleOrderController = {
         (sum, item) => sum + (toNumber(item.total) || 0),
         0
       );
+      request.discount = Number((request.subtotal * 0.02).toFixed(2)); // 2% discount
+      const discountedSubtotal = Math.max(
+        request.subtotal - request.discount,
+        0
+      );
       request.tax = 0;
-      request.shipping = request.subtotal > 500 ? 0 : 50;
+      request.shipping = calcFreight(discountedSubtotal);
       request.total = Number(
-        (request.subtotal + request.shipping).toFixed(2)
+        (discountedSubtotal + request.shipping + request.tax).toFixed(2)
       );
 
       await wholesaleOrderRequestRepository.save(request);
