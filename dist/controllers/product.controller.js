@@ -222,13 +222,15 @@ exports.ProductController = {
     // Get All Products (Public)
     getProducts: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         try {
-            const { category, active, page = "1", limit = "10" } = req.query;
+            const { category, active, page = "1", limit = "10", minPrice, maxPrice, sort } = req.query;
             const take = Math.max(parseInt(limit, 10) || 10, 1);
             const skip = (Math.max(parseInt(page, 10) || 1, 1) - 1) * take;
             // 1. First get the product IDs that match our filters
             const baseQuery = productRepository
                 .createQueryBuilder("product")
                 .select("product.id", "id");
+            const min = minPrice !== undefined ? parseFloat(minPrice) : undefined;
+            const max = maxPrice !== undefined ? parseFloat(maxPrice) : undefined;
             if (category) {
                 baseQuery
                     .innerJoin("product.categories", "category")
@@ -238,6 +240,12 @@ exports.ProductController = {
                 baseQuery.andWhere("product.isActive = :isActive", {
                     isActive: true,
                 });
+            }
+            if (!isNaN(min)) {
+                baseQuery.andWhere("product.price >= :minPrice", { minPrice: min });
+            }
+            if (!isNaN(max)) {
+                baseQuery.andWhere("product.price <= :maxPrice", { maxPrice: max });
             }
             const total = yield baseQuery.getCount();
             const productIds = (yield baseQuery.clone().offset(skip).limit(take).getRawMany()).map((p) => p.id);
@@ -255,12 +263,21 @@ exports.ProductController = {
                 return;
             }
             // 3. Get complete product data with category IDs
-            const products = yield productRepository
+            const qb = productRepository
                 .createQueryBuilder("product")
                 .leftJoinAndSelect("product.categories", "category")
                 .leftJoinAndSelect("product.brand", "brand")
-                .where("product.id IN (:...productIds)", { productIds })
-                .getMany();
+                .where("product.id IN (:...productIds)", { productIds });
+            if (sort === "price_asc") {
+                qb.orderBy("product.price", "ASC");
+            }
+            else if (sort === "price_desc") {
+                qb.orderBy("product.price", "DESC");
+            }
+            else {
+                qb.orderBy("product.createdAt", "DESC");
+            }
+            const products = yield qb.getMany();
             // 4. Transform response to include only categoryIds
             const response = products.map((product) => formatProductResponse(product));
             res.status(200).json({
