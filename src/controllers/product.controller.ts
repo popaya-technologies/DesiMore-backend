@@ -44,7 +44,7 @@ const splitIds = (val: any): string[] => {
     .map((s: string) => s.trim())
     .filter(
       (s: string) =>
-        s && s.toLowerCase() !== "null" && s.toLowerCase() !== "undefined"
+        s && s.toLowerCase() !== "null" && s.toLowerCase() !== "undefined",
     );
 };
 
@@ -143,7 +143,7 @@ export const ProductController = {
         res.status(400).json({
           message: "One or more category IDs are invalid",
           invalidIds: productData.categoryIds.filter(
-            (id) => !categories.some((c) => c.id === id)
+            (id) => !categories.some((c) => c.id === id),
           ),
         });
         return;
@@ -211,7 +211,15 @@ export const ProductController = {
 
   getProducts: async (req: Request, res: Response) => {
     try {
-      const { category, active, page = "1", limit = "10", minPrice, maxPrice, sort } = req.query;
+      const {
+        category,
+        active,
+        page = "1",
+        limit = "10",
+        minPrice,
+        maxPrice,
+        sort,
+      } = req.query;
       const take = Math.max(parseInt(limit as string, 10) || 10, 1);
       const skip = (Math.max(parseInt(page as string, 10) || 1, 1) - 1) * take;
 
@@ -220,8 +228,10 @@ export const ProductController = {
         .createQueryBuilder("product")
         .select("product.id", "id");
 
-      const min = minPrice !== undefined ? parseFloat(minPrice as string) : undefined;
-      const max = maxPrice !== undefined ? parseFloat(maxPrice as string) : undefined;
+      const min =
+        minPrice !== undefined ? parseFloat(minPrice as string) : undefined;
+      const max =
+        maxPrice !== undefined ? parseFloat(maxPrice as string) : undefined;
 
       if (category) {
         baseQuery
@@ -281,7 +291,7 @@ export const ProductController = {
 
       // 4. Transform response to include only categoryIds
       const response = products.map((product) =>
-        formatProductResponse(product)
+        formatProductResponse(product),
       );
 
       res.status(200).json({
@@ -353,7 +363,7 @@ export const ProductController = {
             if (brandId) {
               qb.orWhere("brand.id = :brandId", { brandId });
             }
-          })
+          }),
         )
         .distinct(true)
         .orderBy("product.createdAt", "DESC");
@@ -391,9 +401,9 @@ export const ProductController = {
           new Brackets((qb) => {
             qb.where("product.title ILIKE :q", { q: `%${q}%` }).orWhere(
               "product.model ILIKE :q",
-              { q: `%${q}%` }
+              { q: `%${q}%` },
             );
-          })
+          }),
         )
         .andWhere("product.isActive = :active", { active: true });
 
@@ -612,7 +622,7 @@ export const ProductController = {
         images: rest.images ? normalizeImages(rest.images) : product.images,
         package:
           rest.package !== undefined
-            ? normalizePackage(rest.package) ?? null
+            ? (normalizePackage(rest.package) ?? null)
             : product.package,
       });
       product.discountPrice = product.discountPrice ?? product.price;
@@ -700,7 +710,7 @@ export const ProductController = {
       });
 
       const formattedProducts = products.map((product) =>
-        formatProductResponse(product)
+        formatProductResponse(product),
       );
 
       res.status(200).json({
@@ -747,7 +757,7 @@ export const ProductController = {
       });
 
       const formattedProducts = products.map((product) =>
-        formatProductResponse(product)
+        formatProductResponse(product),
       );
 
       res.status(200).json({

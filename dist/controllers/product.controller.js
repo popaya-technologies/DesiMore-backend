@@ -222,7 +222,7 @@ exports.ProductController = {
     // Get All Products (Public)
     getProducts: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         try {
-            const { category, active, page = "1", limit = "10", minPrice, maxPrice, sort } = req.query;
+            const { category, active, page = "1", limit = "10", minPrice, maxPrice, sort, } = req.query;
             const take = Math.max(parseInt(limit, 10) || 10, 1);
             const skip = (Math.max(parseInt(page, 10) || 1, 1) - 1) * take;
             // 1. First get the product IDs that match our filters
@@ -562,7 +562,7 @@ exports.ProductController = {
             // Update other fields (excluding categories which we handled above)
             const { categoryIds, brandId } = updateData, rest = __rest(updateData, ["categoryIds", "brandId"]);
             Object.assign(product, Object.assign(Object.assign({}, rest), { images: rest.images ? normalizeImages(rest.images) : product.images, package: rest.package !== undefined
-                    ? (_a = normalizePackage(rest.package)) !== null && _a !== void 0 ? _a : null
+                    ? ((_a = normalizePackage(rest.package)) !== null && _a !== void 0 ? _a : null)
                     : product.package }));
             product.discountPrice = (_b = product.discountPrice) !== null && _b !== void 0 ? _b : product.price;
             yield productRepository.save(product);
