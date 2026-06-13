@@ -13,6 +13,8 @@ router.post("/logout", auth_controller_1.AuthController.logout);
 router.post("/refresh-token", auth_controller_1.AuthController.refreshToken);
 router.post("/request-password-reset", auth_controller_1.AuthController.requestPasswordReset);
 router.post("/reset-password", auth_controller_1.AuthController.resetPassword);
+router.get("/me", auth_middleware_1.authenticate, auth_controller_1.AuthController.getMe);
+router.patch("/me", auth_middleware_1.authenticate, auth_controller_1.AuthController.updateMe);
 router.get("/users", auth_controller_1.AuthController.getAllUsers);
 router.get("/users/:id", auth_controller_1.AuthController.getUserById);
 router.delete("/users/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("user", "delete"), auth_controller_1.AuthController.deleteUser);

@@ -23,11 +23,27 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthController = void 0;
 const data_source_1 = require("../data-source");
 const user_entity_1 = require("../entities/user.entity");
+const auth_dto_1 = require("../dto/auth.dto");
 const jwt_1 = require("../utils/jwt");
 const email_1 = require("../utils/email");
 const helper_1 = require("../utils/helper");
+const class_validator_1 = require("class-validator");
+const class_transformer_1 = require("class-transformer");
 const rbac_service_1 = require("../services/rbac.service");
 const userRepository = data_source_1.AppDataSource.getRepository(user_entity_1.User);
+const profileSelect = [
+    "id",
+    "firstname",
+    "lastname",
+    "fullname",
+    "username",
+    "email",
+    "phone",
+    "avatar",
+    "userRole",
+    "createdAt",
+    "updatedAt",
+];
 exports.AuthController = {
     register: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         try {
@@ -317,6 +333,141 @@ exports.AuthController = {
             res.status(500).json({
                 message: "Internal server error",
             });
+        }
+    }),
+    getMe: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+        var _a;
+        try {
+            if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.id)) {
+                res.status(401).json({ message: "Unauthorized" });
+                return;
+            }
+            const user = yield userRepository.findOne({
+                where: { id: req.user.id },
+                select: profileSelect,
+            });
+            if (!user) {
+                res.status(404).json({ message: "User not found" });
+                return;
+            }
+            const userRoles = yield rbac_service_1.RBACService.getUserRoles(user.id);
+            const permissions = yield rbac_service_1.RBACService.getUserPermissions(user.id);
+            res.status(200).json({
+                user: Object.assign(Object.assign({}, user), { roles: userRoles.map((userRole) => userRole.role), permissions }),
+            });
+        }
+        catch (error) {
+            console.error("Error fetching current user:", error);
+            res.status(500).json({ message: "Internal server error" });
+        }
+    }),
+    updateMe: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+        var _a;
+        try {
+            if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.id)) {
+                res.status(401).json({ message: "Unauthorized" });
+                return;
+            }
+            const updateDto = (0, class_transformer_1.plainToInstance)(auth_dto_1.UpdateProfileDto, req.body);
+            const errors = yield (0, class_validator_1.validate)(updateDto, {
+                whitelist: true,
+                forbidNonWhitelisted: true,
+            });
+            if (errors.length > 0) {
+                res.status(400).json({ errors });
+                return;
+            }
+            const allowedFields = [
+                "firstname",
+                "lastname",
+                "username",
+                "email",
+                "phone",
+                "avatar",
+            ];
+            const hasUpdates = allowedFields.some((field) => updateDto[field] !== undefined);
+            if (!hasUpdates) {
+                res.status(400).json({
+                    message: "At least one profile field is required",
+                });
+                return;
+            }
+            const user = yield userRepository.findOne({
+                where: { id: req.user.id },
+            });
+            if (!user) {
+                res.status(404).json({ message: "User not found" });
+                return;
+            }
+            const normalizedUsername = updateDto.username !== undefined
+                ? updateDto.username.trim().toLowerCase()
+                : undefined;
+            const normalizedEmail = updateDto.email !== undefined
+                ? updateDto.email.trim().toLowerCase()
+                : undefined;
+            const normalizedPhone = updateDto.phone !== undefined ? updateDto.phone.trim() : undefined;
+            if (normalizedUsername && normalizedUsername !== user.username) {
+                const existingUser = yield userRepository.findOne({
+                    where: { username: normalizedUsername },
+                    select: ["id"],
+                });
+                if (existingUser && existingUser.id !== user.id) {
+                    res.status(400).json({ message: "Username already in use" });
+                    return;
+                }
+            }
+            if (normalizedEmail && normalizedEmail !== user.email) {
+                const existingUser = yield userRepository
+                    .createQueryBuilder("user")
+                    .select(["user.id"])
+                    .where("LOWER(user.email) = :email", { email: normalizedEmail })
+                    .getOne();
+                if (existingUser && existingUser.id !== user.id) {
+                    res.status(400).json({ message: "Email already in use" });
+                    return;
+                }
+            }
+            if (normalizedPhone && normalizedPhone !== user.phone) {
+                const existingUser = yield userRepository.findOne({
+                    where: { phone: normalizedPhone },
+                    select: ["id"],
+                });
+                if (existingUser && existingUser.id !== user.id) {
+                    res.status(400).json({ message: "Phone number already in use" });
+                    return;
+                }
+            }
+            if (updateDto.firstname !== undefined) {
+                user.firstname = updateDto.firstname.trim();
+            }
+            if (updateDto.lastname !== undefined) {
+                user.lastname = updateDto.lastname.trim();
+            }
+            if (normalizedUsername !== undefined) {
+                user.username = normalizedUsername;
+            }
+            if (normalizedEmail !== undefined) {
+                user.email = normalizedEmail;
+            }
+            if (normalizedPhone !== undefined) {
+                user.phone = normalizedPhone;
+            }
+            if (updateDto.avatar !== undefined) {
+                user.avatar = updateDto.avatar.trim() || null;
+            }
+            yield userRepository.save(user);
+            const updatedUser = yield userRepository.findOne({
+                where: { id: user.id },
+                select: profileSelect,
+            });
+            res.status(200).json({
+                message: "Profile updated successfully",
+                user: updatedUser,
+            });
+        }
+        catch (error) {
+            console.error("Error updating profile:", error);
+            res.status(500).json({ message: "Internal server error" });
         }
     }),
     getUserById: (req, res) => __awaiter(void 0, void 0, void 0, function* () {

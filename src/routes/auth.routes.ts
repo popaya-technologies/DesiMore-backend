@@ -13,6 +13,8 @@ router.post("/logout", AuthController.logout);
 router.post("/refresh-token", AuthController.refreshToken);
 router.post("/request-password-reset", AuthController.requestPasswordReset);
 router.post("/reset-password", AuthController.resetPassword);
+router.get("/me", authenticate, AuthController.getMe);
+router.patch("/me", authenticate, AuthController.updateMe);
 router.get("/users", AuthController.getAllUsers);
 router.get("/users/:id", AuthController.getUserById);
 router.delete(

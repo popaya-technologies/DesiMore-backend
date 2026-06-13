@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { AppDataSource } from "../data-source";
 import { User } from "../entities/user.entity";
+import { UpdateProfileDto } from "../dto/auth.dto";
 import {
   generateAccessToken,
   generateRefreshToken,
@@ -10,9 +11,24 @@ import * as bcrypt from "bcryptjs";
 import { sendPasswordResetOtp } from "../utils/email";
 import { clearTokens, setTokens } from "../utils/helper";
 import { validate } from "class-validator";
+import { plainToInstance } from "class-transformer";
 import { RBACService } from "../services/rbac.service";
 
 const userRepository = AppDataSource.getRepository(User);
+
+const profileSelect: Array<keyof User> = [
+  "id",
+  "firstname",
+  "lastname",
+  "fullname",
+  "username",
+  "email",
+  "phone",
+  "avatar",
+  "userRole",
+  "createdAt",
+  "updatedAt",
+];
 
 export const AuthController = {
   register: async (req: Request, res: Response): Promise<void> => {
@@ -354,6 +370,170 @@ export const AuthController = {
       res.status(500).json({
         message: "Internal server error",
       });
+    }
+  },
+
+  getMe: async (req: Request, res: Response): Promise<void> => {
+    try {
+      if (!req.user?.id) {
+        res.status(401).json({ message: "Unauthorized" });
+        return;
+      }
+
+      const user = await userRepository.findOne({
+        where: { id: req.user.id },
+        select: profileSelect,
+      });
+
+      if (!user) {
+        res.status(404).json({ message: "User not found" });
+        return;
+      }
+
+      const userRoles = await RBACService.getUserRoles(user.id);
+      const permissions = await RBACService.getUserPermissions(user.id);
+
+      res.status(200).json({
+        user: {
+          ...user,
+          roles: userRoles.map((userRole) => userRole.role),
+          permissions,
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching current user:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  updateMe: async (req: Request, res: Response): Promise<void> => {
+    try {
+      if (!req.user?.id) {
+        res.status(401).json({ message: "Unauthorized" });
+        return;
+      }
+
+      const updateDto = plainToInstance(UpdateProfileDto, req.body);
+      const errors = await validate(updateDto, {
+        whitelist: true,
+        forbidNonWhitelisted: true,
+      });
+
+      if (errors.length > 0) {
+        res.status(400).json({ errors });
+        return;
+      }
+
+      const allowedFields: Array<keyof UpdateProfileDto> = [
+        "firstname",
+        "lastname",
+        "username",
+        "email",
+        "phone",
+        "avatar",
+      ];
+
+      const hasUpdates = allowedFields.some(
+        (field) => updateDto[field] !== undefined
+      );
+
+      if (!hasUpdates) {
+        res.status(400).json({
+          message: "At least one profile field is required",
+        });
+        return;
+      }
+
+      const user = await userRepository.findOne({
+        where: { id: req.user.id },
+      });
+
+      if (!user) {
+        res.status(404).json({ message: "User not found" });
+        return;
+      }
+
+      const normalizedUsername =
+        updateDto.username !== undefined
+          ? updateDto.username.trim().toLowerCase()
+          : undefined;
+      const normalizedEmail =
+        updateDto.email !== undefined
+          ? updateDto.email.trim().toLowerCase()
+          : undefined;
+      const normalizedPhone =
+        updateDto.phone !== undefined ? updateDto.phone.trim() : undefined;
+
+      if (normalizedUsername && normalizedUsername !== user.username) {
+        const existingUser = await userRepository.findOne({
+          where: { username: normalizedUsername },
+          select: ["id"],
+        });
+
+        if (existingUser && existingUser.id !== user.id) {
+          res.status(400).json({ message: "Username already in use" });
+          return;
+        }
+      }
+
+      if (normalizedEmail && normalizedEmail !== user.email) {
+        const existingUser = await userRepository
+          .createQueryBuilder("user")
+          .select(["user.id"])
+          .where("LOWER(user.email) = :email", { email: normalizedEmail })
+          .getOne();
+
+        if (existingUser && existingUser.id !== user.id) {
+          res.status(400).json({ message: "Email already in use" });
+          return;
+        }
+      }
+
+      if (normalizedPhone && normalizedPhone !== user.phone) {
+        const existingUser = await userRepository.findOne({
+          where: { phone: normalizedPhone },
+          select: ["id"],
+        });
+
+        if (existingUser && existingUser.id !== user.id) {
+          res.status(400).json({ message: "Phone number already in use" });
+          return;
+        }
+      }
+
+      if (updateDto.firstname !== undefined) {
+        user.firstname = updateDto.firstname.trim();
+      }
+      if (updateDto.lastname !== undefined) {
+        user.lastname = updateDto.lastname.trim();
+      }
+      if (normalizedUsername !== undefined) {
+        user.username = normalizedUsername;
+      }
+      if (normalizedEmail !== undefined) {
+        user.email = normalizedEmail;
+      }
+      if (normalizedPhone !== undefined) {
+        user.phone = normalizedPhone;
+      }
+      if (updateDto.avatar !== undefined) {
+        user.avatar = updateDto.avatar.trim() || null;
+      }
+
+      await userRepository.save(user);
+
+      const updatedUser = await userRepository.findOne({
+        where: { id: user.id },
+        select: profileSelect,
+      });
+
+      res.status(200).json({
+        message: "Profile updated successfully",
+        user: updatedUser,
+      });
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      res.status(500).json({ message: "Internal server error" });
     }
   },
 

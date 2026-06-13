@@ -63,10 +63,6 @@ app.use("/api/payments", payment_routes_1.default);
 app.use("/api/wholesale-orders", wholesale_order_routes_1.default);
 app.use("/api/uploads", upload_routes_1.default);
 app.use("/api/messages", message_routes_1.default);
-// Protected route example
-app.get("/api/auth/me", auth_middleware_1.authenticate, (req, res) => {
-    res.json({ user: req.user });
-});
 // Example protected route with RBAC
 app.get("/api/admin/dashboard", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("dashboard", "read"), (req, res) => {
     res.json({ message: "Welcome to admin dashboard" });

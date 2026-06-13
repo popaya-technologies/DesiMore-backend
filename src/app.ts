@@ -72,11 +72,6 @@ app.use("/api/wholesale-orders", wholesaleOrderRoutes);
 app.use("/api/uploads", uploadRoutes);
 app.use("/api/messages", messageRoutes);
 
-// Protected route example
-app.get("/api/auth/me", authenticate, (req, res) => {
-  res.json({ user: req.user });
-});
-
 // Example protected route with RBAC
 app.get(
   "/api/admin/dashboard",
