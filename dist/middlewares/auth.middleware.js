@@ -25,7 +25,15 @@ const authenticate = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
         const decoded = (0, jwt_1.verifyAccessToken)(accessToken);
         const user = yield userRepository.findOne({
             where: { id: decoded.userId },
-            select: ["id", "firstname", "lastname", "email", "avatar"],
+            select: [
+                "id",
+                "firstname",
+                "lastname",
+                "username",
+                "email",
+                "phone",
+                "avatar",
+            ],
         });
         if (!user) {
             res.status(401).json({ message: "User not found" });
