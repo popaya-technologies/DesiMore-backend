@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Message = void 0;
 const typeorm_1 = require("typeorm");
+const product_entity_1 = require("./product.entity");
 let Message = class Message {
 };
 exports.Message = Message;
@@ -27,6 +28,21 @@ __decorate([
     (0, typeorm_1.Column)({ type: "text" }),
     __metadata("design:type", String)
 ], Message.prototype, "message", void 0);
+__decorate([
+    (0, typeorm_1.ManyToMany)(() => product_entity_1.Product, (product) => product.messages),
+    (0, typeorm_1.JoinTable)({
+        name: "message_products",
+        joinColumn: {
+            name: "messageId",
+            referencedColumnName: "id",
+        },
+        inverseJoinColumn: {
+            name: "productId",
+            referencedColumnName: "id",
+        },
+    }),
+    __metadata("design:type", Array)
+], Message.prototype, "products", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)

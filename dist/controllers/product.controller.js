@@ -53,7 +53,7 @@ var __rest = (this && this.__rest) || function (s, e) {
     return t;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ProductController = void 0;
+exports.ProductController = exports.formatProductResponse = void 0;
 const data_source_1 = require("../data-source");
 const product_entity_1 = require("../entities/product.entity");
 const product_dto_1 = require("../dto/product.dto");
@@ -135,6 +135,7 @@ const formatProductResponse = (product) => {
     const normalizedProduct = Object.assign(Object.assign({}, productData), { discountPrice: (_a = productData.discountPrice) !== null && _a !== void 0 ? _a : productData.price, tag: (_b = productData.tag) !== null && _b !== void 0 ? _b : null });
     return Object.assign(Object.assign({}, normalizedProduct), { categoryIds: categories.map((c) => c.id), brandId: brand ? brand.id : null });
 };
+exports.formatProductResponse = formatProductResponse;
 exports.ProductController = {
     // Create Product (Admin only) or Users with access
     createProduct: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -209,7 +210,7 @@ exports.ProductController = {
                 where: { id: product.id },
                 relations: ["categories", "brand"],
             });
-            res.status(201).json(formatProductResponse(createdProduct));
+            res.status(201).json((0, exports.formatProductResponse)(createdProduct));
         }
         catch (error) {
             console.error("Product creation error:", error);
@@ -279,7 +280,7 @@ exports.ProductController = {
             }
             const products = yield qb.getMany();
             // 4. Transform response to include only categoryIds
-            const response = products.map((product) => formatProductResponse(product));
+            const response = products.map((product) => (0, exports.formatProductResponse)(product));
             res.status(200).json({
                 data: response,
                 meta: {
@@ -306,7 +307,7 @@ exports.ProductController = {
                 res.status(404).json({ message: "Product not found" });
                 return;
             }
-            res.status(200).json(formatProductResponse(product));
+            res.status(200).json((0, exports.formatProductResponse)(product));
         }
         catch (error) {
             console.error(error);
@@ -350,7 +351,7 @@ exports.ProductController = {
                 qb.take(take);
             }
             const related = yield qb.getMany();
-            res.status(200).json(related.map((p) => formatProductResponse(p)));
+            res.status(200).json(related.map((p) => (0, exports.formatProductResponse)(p)));
         }
         catch (error) {
             console.error(error);
@@ -382,7 +383,7 @@ exports.ProductController = {
                 .take(take)
                 .getManyAndCount();
             res.status(200).json({
-                data: products.map((p) => formatProductResponse(p)),
+                data: products.map((p) => (0, exports.formatProductResponse)(p)),
                 meta: {
                     total,
                     page: Math.max(parseInt(page, 10) || 1, 1),
@@ -571,7 +572,7 @@ exports.ProductController = {
                 where: { id: product.id },
                 relations: ["categories", "brand"],
             });
-            res.status(200).json(formatProductResponse(updatedProduct));
+            res.status(200).json((0, exports.formatProductResponse)(updatedProduct));
         }
         catch (error) {
             console.error(error);
@@ -636,7 +637,7 @@ exports.ProductController = {
                 skip,
                 order: { createdAt: "DESC" },
             });
-            const formattedProducts = products.map((product) => formatProductResponse(product));
+            const formattedProducts = products.map((product) => (0, exports.formatProductResponse)(product));
             res.status(200).json({
                 data: formattedProducts,
                 meta: {
@@ -675,7 +676,7 @@ exports.ProductController = {
                 skip,
                 order: { createdAt: "DESC" },
             });
-            const formattedProducts = products.map((product) => formatProductResponse(product));
+            const formattedProducts = products.map((product) => (0, exports.formatProductResponse)(product));
             res.status(200).json({
                 data: formattedProducts,
                 meta: {

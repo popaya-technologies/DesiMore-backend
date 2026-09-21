@@ -11,6 +11,7 @@ import {
 } from "typeorm";
 import { Category } from "./category.entity";
 import { Brand } from "./brand.entity";
+import { Message } from "./message.entity";
 
 @Entity("products")
 export class Product {
@@ -104,6 +105,9 @@ export class Product {
     },
   })
   categories: Category[];
+
+  @ManyToMany(() => Message, (message) => message.products)
+  messages: Message[];
 
   @CreateDateColumn()
   createdAt: Date;

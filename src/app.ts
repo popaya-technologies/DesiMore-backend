@@ -30,7 +30,7 @@ app.use(
   cors({
     origin: "*",
     credentials: false,
-  })
+  }),
 );
 
 // Ensure uploads directory exists and serve it publicly
@@ -41,7 +41,7 @@ app.use(
     setHeaders: (res) => {
       res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
     },
-  })
+  }),
 );
 
 // Serve catalog assets (if present) publicly at /catalog
@@ -53,7 +53,7 @@ if (fs.existsSync(CATALOG_DIR)) {
       setHeaders: (res) => {
         res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
       },
-    })
+    }),
   );
 }
 
@@ -79,7 +79,7 @@ app.get(
   checkPermission("dashboard", "read"),
   (req, res) => {
     res.json({ message: "Welcome to admin dashboard" });
-  }
+  },
 );
 
 export default app;

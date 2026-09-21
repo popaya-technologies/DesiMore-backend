@@ -94,7 +94,7 @@ const normalizePackage = (val: any) => {
   return pkg;
 };
 
-const formatProductResponse = (product: Product) => {
+export const formatProductResponse = (product: Product) => {
   if (!product) {
     return null;
   }

@@ -13,6 +13,7 @@ exports.Product = void 0;
 const typeorm_1 = require("typeorm");
 const category_entity_1 = require("./category.entity");
 const brand_entity_1 = require("./brand.entity");
+const message_entity_1 = require("./message.entity");
 let Product = class Product {
 };
 exports.Product = Product;
@@ -127,6 +128,10 @@ __decorate([
     }),
     __metadata("design:type", Array)
 ], Product.prototype, "categories", void 0);
+__decorate([
+    (0, typeorm_1.ManyToMany)(() => message_entity_1.Message, (message) => message.products),
+    __metadata("design:type", Array)
+], Product.prototype, "messages", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)
