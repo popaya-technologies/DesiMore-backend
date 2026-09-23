@@ -44,6 +44,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthorizeNetService = void 0;
 const AuthorizeNet = __importStar(require("authorizenet"));
+const api_error_1 = require("../utils/api-error");
 const data_source_1 = require("../data-source");
 const payment_entity_1 = require("../entities/payment.entity");
 const order_entity_1 = require("../entities/order.entity");
@@ -79,17 +80,38 @@ class AuthorizeNetService {
                     ? parseFloat(paymentData.amount)
                     : paymentData.amount;
                 if (isNaN(amount) || amount <= 0) {
-                    throw new Error(`Invalid payment amount: ${paymentData.amount}`);
+                    throw new api_error_1.ApiError(400, "Payment amount must be greater than zero");
                 }
-                // Create payment record
-                const payment = paymentRepository.create({
-                    orderId,
-                    amount: amount,
-                    currency: "USD",
-                    status: payment_entity_1.PaymentStatus.PROCESSING,
-                    paymentMethod: payment_entity_1.PaymentMethod.CREDIT_CARD,
-                });
-                yield paymentRepository.save(payment);
+                // Serialize payment attempts and retain PROCESSING on ambiguous gateway errors.
+                const payment = yield data_source_1.AppDataSource.transaction((manager) => __awaiter(this, void 0, void 0, function* () {
+                    const locked = yield manager
+                        .getRepository(order_entity_1.Order)
+                        .findOne({
+                        where: { id: orderId },
+                        lock: { mode: "pessimistic_write" },
+                    });
+                    if (!locked ||
+                        [order_entity_1.OrderStatus.CANCELLED, order_entity_1.OrderStatus.REFUNDED].includes(locked.status))
+                        throw new api_error_1.ApiError(400, "Order cannot be paid");
+                    if ([payment_entity_1.PaymentStatus.PROCESSING, payment_entity_1.PaymentStatus.COMPLETED].includes(locked.paymentStatus))
+                        throw new api_error_1.ApiError(409, "Payment already processing or completed");
+                    const repo = manager.getRepository(payment_entity_1.Payment);
+                    const existing = yield repo.findOneBy({ orderId });
+                    if (existing && existing.status !== payment_entity_1.PaymentStatus.FAILED)
+                        throw new api_error_1.ApiError(409, "Payment cannot be retried");
+                    const record = existing ||
+                        repo.create({
+                            orderId,
+                            currency: "USD",
+                            paymentMethod: payment_entity_1.PaymentMethod.CREDIT_CARD,
+                        });
+                    record.amount = Number(locked.total);
+                    record.status = payment_entity_1.PaymentStatus.PROCESSING;
+                    record.failureMessage = null;
+                    locked.paymentStatus = payment_entity_1.PaymentStatus.PROCESSING;
+                    yield manager.getRepository(order_entity_1.Order).save(locked);
+                    return repo.save(record);
+                }));
                 // Create credit card object
                 const creditCard = new ApiContracts.CreditCardType();
                 creditCard.setCardNumber(paymentData.cardNumber.replace(/\s/g, ""));
@@ -106,7 +128,7 @@ class AuthorizeNetService {
                 const transactionRequestType = new ApiContracts.TransactionRequestType();
                 transactionRequestType.setTransactionType(ApiContracts.TransactionTypeEnum.AUTHCAPTURETRANSACTION);
                 transactionRequestType.setPayment(paymentType);
-                transactionRequestType.setAmount(amount);
+                transactionRequestType.setAmount(Number(payment.amount));
                 transactionRequestType.setOrder(orderDetails);
                 // Customer information
                 const customer = new ApiContracts.CustomerDataType();
@@ -156,148 +178,49 @@ class AuthorizeNetService {
             }
         });
     }
-    // New: charge without a pre-existing order. Used for pay-then-create flow.
-    // Returns a lightweight result so the controller can decide how to persist.
-    static createTransactionForCheckout(input) {
-        return __awaiter(this, void 0, void 0, function* () {
-            // Ensure amount is a valid number
-            const amount = typeof input.amount === "string" ? parseFloat(input.amount) : input.amount;
-            if (isNaN(amount) || amount <= 0) {
-                throw new Error(`Invalid payment amount: ${input.amount}`);
-            }
-            // Create credit card object
-            const creditCard = new ApiContracts.CreditCardType();
-            creditCard.setCardNumber(input.cardNumber.replace(/\s/g, ""));
-            creditCard.setExpirationDate(input.expirationDate);
-            creditCard.setCardCode(input.cardCode);
-            // Create payment type
-            const paymentType = new ApiContracts.PaymentType();
-            paymentType.setCreditCard(creditCard);
-            // Order details
-            const orderDetails = new ApiContracts.OrderType();
-            orderDetails.setInvoiceNumber(input.invoiceNumber);
-            orderDetails.setDescription(`Payment for invoice ${input.invoiceNumber}`);
-            // Transaction request
-            const transactionRequestType = new ApiContracts.TransactionRequestType();
-            transactionRequestType.setTransactionType(ApiContracts.TransactionTypeEnum.AUTHCAPTURETRANSACTION);
-            transactionRequestType.setPayment(paymentType);
-            transactionRequestType.setAmount(amount);
-            transactionRequestType.setOrder(orderDetails);
-            // Customer
-            const customer = new ApiContracts.CustomerDataType();
-            customer.setEmail(input.userEmail);
-            transactionRequestType.setCustomer(customer);
-            // Billing
-            const billingAddress = new ApiContracts.CustomerAddressType();
-            billingAddress.setFirstName(input.billingAddress.firstName);
-            billingAddress.setLastName(input.billingAddress.lastName);
-            billingAddress.setAddress(input.billingAddress.address);
-            billingAddress.setCity(input.billingAddress.city);
-            billingAddress.setState(input.billingAddress.state);
-            billingAddress.setZip(input.billingAddress.zipCode);
-            billingAddress.setCountry(input.billingAddress.country);
-            transactionRequestType.setBillTo(billingAddress);
-            // Shipping
-            const shippingAddress = new ApiContracts.CustomerAddressType();
-            shippingAddress.setFirstName(input.shippingAddress.firstName);
-            shippingAddress.setLastName(input.shippingAddress.lastName);
-            shippingAddress.setAddress(input.shippingAddress.address);
-            shippingAddress.setCity(input.shippingAddress.city);
-            shippingAddress.setState(input.shippingAddress.state);
-            shippingAddress.setZip(input.shippingAddress.zipCode);
-            shippingAddress.setCountry(input.shippingAddress.country);
-            transactionRequestType.setShipTo(shippingAddress);
-            // API request
-            const createRequest = new ApiContracts.CreateTransactionRequest();
-            createRequest.setMerchantAuthentication(AuthorizeNetService.createMerchantAuthentication());
-            createRequest.setTransactionRequest(transactionRequestType);
-            const controller = new ApiControllers.CreateTransactionController(createRequest.getJSON());
-            controller.setEnvironment(AuthorizeNetService.getEnvironment());
-            return new Promise((resolve) => {
-                controller.execute(() => {
-                    const apiResponse = controller.getResponse();
-                    const response = new ApiContracts.CreateTransactionResponse(apiResponse);
-                    const result = {
-                        status: "failed",
-                        authorizeNetResponse: response,
-                    };
-                    const transResponse = response.getTransactionResponse();
-                    if (transResponse) {
-                        const responseCode = transResponse.getResponseCode();
-                        if (responseCode === "1") {
-                            result.status = "completed";
-                            result.transactionId = transResponse.getTransId();
-                            result.authCode = transResponse.getAuthCode();
-                            if (transResponse.getAccountNumber()) {
-                                result.paymentDetails = {
-                                    lastFour: transResponse.getAccountNumber(),
-                                    cardType: transResponse.getAccountType(),
-                                };
-                            }
-                        }
-                        else {
-                            const errors = transResponse.getErrors() || [];
-                            result.failureMessage =
-                                errors.length > 0 ? errors[0].getErrorText() : "Payment failed";
-                        }
-                    }
-                    else {
-                        result.failureMessage = "No transaction response received";
-                    }
-                    resolve(result);
-                });
-            });
-        });
-    }
     static handleTransactionResponse(paymentId, response) {
         return __awaiter(this, void 0, void 0, function* () {
-            const payment = yield paymentRepository.findOne({
-                where: { id: paymentId },
-            });
-            if (!payment)
-                throw new Error("Payment not found");
-            payment.authorizeNetResponse = response;
-            const transResponse = response.getTransactionResponse();
-            if (transResponse) {
-                const responseCode = transResponse.getResponseCode();
-                const authCode = transResponse.getAuthCode();
-                const transId = transResponse.getTransId();
-                const messages = transResponse.getMessages() || [];
-                if (responseCode === "1") {
-                    // Approved
+            return data_source_1.AppDataSource.transaction((manager) => __awaiter(this, void 0, void 0, function* () {
+                var _a, _b;
+                const payment = yield manager
+                    .getRepository(payment_entity_1.Payment)
+                    .findOneBy({ id: paymentId });
+                if (!payment)
+                    throw new Error("Payment not found");
+                const order = yield manager
+                    .getRepository(order_entity_1.Order)
+                    .findOne({
+                    where: { id: payment.orderId },
+                    lock: { mode: "pessimistic_write" },
+                });
+                if (!order)
+                    throw new Error("Order not found");
+                const transaction = response.getTransactionResponse();
+                const code = transaction === null || transaction === void 0 ? void 0 : transaction.getResponseCode();
+                // Held-for-review or malformed responses require reconciliation, not an automatic retry.
+                if (!transaction || !["1", "2", "3"].includes(code))
+                    throw new Error("Gateway outcome requires reconciliation");
+                payment.authorizeNetResponse = response;
+                if (code === "1") {
                     payment.status = payment_entity_1.PaymentStatus.COMPLETED;
-                    payment.transactionId = transId;
-                    payment.authCode = authCode;
-                    // Update order status
-                    const order = yield orderRepository.findOne({
-                        where: { id: payment.orderId },
-                    });
-                    if (order) {
-                        order.paymentStatus = payment_entity_1.PaymentStatus.COMPLETED;
-                        order.status = order_entity_1.OrderStatus.CONFIRMED;
-                        yield orderRepository.save(order);
-                    }
-                    // Store masked card info
-                    if (transResponse.getAccountNumber()) {
-                        payment.paymentDetails = {
-                            lastFour: transResponse.getAccountNumber(),
-                            cardType: transResponse.getAccountType(),
-                        };
-                    }
+                    payment.transactionId = transaction.getTransId();
+                    payment.authCode = transaction.getAuthCode();
+                    payment.paymentDetails = {
+                        lastFour: transaction.getAccountNumber(),
+                        cardType: transaction.getAccountType(),
+                    };
+                    order.status = order_entity_1.OrderStatus.CONFIRMED;
+                    order.transactionId = payment.transactionId;
                 }
                 else {
-                    // Declined or Error
                     payment.status = payment_entity_1.PaymentStatus.FAILED;
-                    const errors = transResponse.getErrors() || [];
                     payment.failureMessage =
-                        errors.length > 0 ? errors[0].getErrorText() : "Payment failed";
+                        ((_b = (_a = transaction.getErrors()) === null || _a === void 0 ? void 0 : _a[0]) === null || _b === void 0 ? void 0 : _b.getErrorText()) || "Payment failed";
                 }
-            }
-            else {
-                payment.status = payment_entity_1.PaymentStatus.FAILED;
-                payment.failureMessage = "No transaction response received";
-            }
-            return yield paymentRepository.save(payment);
+                order.paymentStatus = payment.status;
+                yield manager.getRepository(order_entity_1.Order).save(order);
+                return manager.getRepository(payment_entity_1.Payment).save(payment);
+            }));
         });
     }
     static refundTransaction(paymentId, amount) {

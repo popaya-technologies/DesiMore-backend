@@ -26,6 +26,10 @@ __decorate([
     __metadata("design:type", String)
 ], CartItem.prototype, "id", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: "jsonb", default: [] }),
+    __metadata("design:type", Array)
+], CartItem.prototype, "selectedOptions", void 0);
+__decorate([
     (0, typeorm_1.ManyToOne)(() => cart_entity_1.Cart, (cart) => cart.items, { onDelete: "CASCADE" }),
     (0, typeorm_1.JoinColumn)({ name: "cartId" }),
     __metadata("design:type", cart_entity_1.Cart)

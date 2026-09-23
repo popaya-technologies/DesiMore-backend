@@ -14,9 +14,128 @@ const typeorm_1 = require("typeorm");
 const category_entity_1 = require("./category.entity");
 const brand_entity_1 = require("./brand.entity");
 const message_entity_1 = require("./message.entity");
+const product_attribute_entity_1 = require("./product-attribute.entity");
+const product_option_entity_1 = require("./product-option.entity");
+const product_discount_entity_1 = require("./product-discount.entity");
+const product_image_entity_1 = require("./product-image.entity");
+const download_entity_1 = require("./download.entity");
 let Product = class Product {
 };
 exports.Product = Product;
+__decorate([
+    (0, typeorm_1.Column)({ type: "varchar", nullable: true, length: 100 }),
+    __metadata("design:type", String)
+], Product.prototype, "sku", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "varchar", nullable: true, length: 100 }),
+    __metadata("design:type", String)
+], Product.prototype, "mpn", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "integer", default: 1 }),
+    __metadata("design:type", Number)
+], Product.prototype, "minimumQuantity", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "boolean", default: true }),
+    __metadata("design:type", Boolean)
+], Product.prototype, "subtractStock", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "varchar", default: "out_of_stock", length: 30 }),
+    __metadata("design:type", String)
+], Product.prototype, "outOfStockStatus", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "boolean", default: true }),
+    __metadata("design:type", Boolean)
+], Product.prototype, "requiresShipping", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "date", nullable: true }),
+    __metadata("design:type", String)
+], Product.prototype, "dateAvailable", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "varchar", default: "inch", length: 20 }),
+    __metadata("design:type", String)
+], Product.prototype, "lengthClass", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "varchar", default: "pound", length: 20 }),
+    __metadata("design:type", String)
+], Product.prototype, "weightClass", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "integer", default: 0 }),
+    __metadata("design:type", Number)
+], Product.prototype, "sortOrder", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "integer", default: 0 }),
+    __metadata("design:type", Number)
+], Product.prototype, "wholesaleQuantity", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "integer", default: 1 }),
+    __metadata("design:type", Number)
+], Product.prototype, "wholesaleMinimumQuantity", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "boolean", default: true }),
+    __metadata("design:type", Boolean)
+], Product.prototype, "wholesaleRequiresShipping", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "date", nullable: true }),
+    __metadata("design:type", String)
+], Product.prototype, "wholesaleDateAvailable", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "decimal", nullable: true, precision: 10, scale: 2 }),
+    __metadata("design:type", Number)
+], Product.prototype, "wholesaleLength", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "decimal", nullable: true, precision: 10, scale: 2 }),
+    __metadata("design:type", Number)
+], Product.prototype, "wholesaleWidth", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "decimal", nullable: true, precision: 10, scale: 2 }),
+    __metadata("design:type", Number)
+], Product.prototype, "wholesaleHeight", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "decimal", nullable: true, precision: 10, scale: 2 }),
+    __metadata("design:type", Number)
+], Product.prototype, "wholesaleWeight", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "varchar", default: "inch", length: 20 }),
+    __metadata("design:type", String)
+], Product.prototype, "wholesaleLengthClass", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "varchar", default: "pound", length: 20 }),
+    __metadata("design:type", String)
+], Product.prototype, "wholesaleWeightClass", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => product_attribute_entity_1.ProductAttribute, (row) => row.product),
+    __metadata("design:type", Array)
+], Product.prototype, "attributes", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => product_option_entity_1.ProductOption, (row) => row.product),
+    __metadata("design:type", Array)
+], Product.prototype, "options", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => product_discount_entity_1.ProductDiscount, (row) => row.product),
+    __metadata("design:type", Array)
+], Product.prototype, "discounts", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => product_image_entity_1.ProductImage, (row) => row.product),
+    __metadata("design:type", Array)
+], Product.prototype, "imageDetails", void 0);
+__decorate([
+    (0, typeorm_1.ManyToMany)(() => download_entity_1.Download),
+    (0, typeorm_1.JoinTable)({
+        name: "product_downloads",
+        joinColumn: { name: "productId" },
+        inverseJoinColumn: { name: "downloadId" },
+    }),
+    __metadata("design:type", Array)
+], Product.prototype, "downloads", void 0);
+__decorate([
+    (0, typeorm_1.ManyToMany)(() => Product),
+    (0, typeorm_1.JoinTable)({
+        name: "product_related",
+        joinColumn: { name: "productId" },
+        inverseJoinColumn: { name: "relatedProductId" },
+    }),
+    __metadata("design:type", Array)
+], Product.prototype, "relatedProducts", void 0);
 __decorate([
     (0, typeorm_1.PrimaryGeneratedColumn)("uuid"),
     __metadata("design:type", String)

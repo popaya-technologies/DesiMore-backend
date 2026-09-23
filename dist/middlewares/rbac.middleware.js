@@ -9,8 +9,23 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.checkPermission = void 0;
+exports.checkPermission = exports.checkAnyPermission = void 0;
 const rbac_service_1 = require("../services/rbac.service");
+// Product read permission also belongs to shoppers; editor metadata needs a write permission.
+const checkAnyPermission = (resource, actions) => (req, res, next) => {
+    var _a;
+    if (!req.user) {
+        res.status(401).json({ message: "Unauthorized" });
+        return;
+    }
+    if (req.user.userRole === "su" ||
+        ((_a = req.user.permissions) === null || _a === void 0 ? void 0 : _a.some((p) => p.resource === resource && actions.includes(p.action)))) {
+        next();
+        return;
+    }
+    res.status(403).json({ message: "Forbidden" });
+};
+exports.checkAnyPermission = checkAnyPermission;
 const checkPermission = (resource, action) => {
     return (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
         try {

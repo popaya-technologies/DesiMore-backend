@@ -14,6 +14,7 @@ import wholesaleOrderRoutes from "./routes/wholesale-order.routes";
 import parentCategoryRoutes from "./routes/parent-category.routes";
 import uploadRoutes from "./routes/upload.routes";
 import messageRoutes from "./routes/message.routes";
+import downloadRoutes from "./routes/download.routes";
 import { authenticate } from "./middlewares/auth.middleware";
 import { checkPermission } from "./middlewares/rbac.middleware";
 import cors from "cors";
@@ -24,7 +25,7 @@ import fs from "fs";
 const app = express();
 
 // Middleware
-app.use(express.json());
+app.use(express.json({ limit: "2mb" }));
 app.use(cookieParser());
 app.use(
   cors({
@@ -71,6 +72,7 @@ app.use("/api/payments", paymentRoutes);
 app.use("/api/wholesale-orders", wholesaleOrderRoutes);
 app.use("/api/uploads", uploadRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/downloads", downloadRoutes);
 
 // Example protected route with RBAC
 app.get(

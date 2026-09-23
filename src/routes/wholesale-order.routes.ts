@@ -9,21 +9,21 @@ router.post(
   "/",
   authenticate,
   checkPermission("wholesale-order-request", "create"),
-  WholesaleOrderController.createWholesaleOrderRequest
+  WholesaleOrderController.createWholesaleOrderRequest,
 );
 
 router.get(
   "/mine",
   authenticate,
   checkPermission("wholesale-order-request", "read"),
-  WholesaleOrderController.getMyRequests
+  WholesaleOrderController.getMyRequests,
 );
 
 router.get(
   "/",
   authenticate,
   checkPermission("wholesale-order-request", "read-all"),
-  WholesaleOrderController.getAllRequests
+  WholesaleOrderController.getAllRequests,
 );
 
 router.get("/:id", authenticate, WholesaleOrderController.getRequestById);
@@ -31,8 +31,8 @@ router.get("/:id", authenticate, WholesaleOrderController.getRequestById);
 router.patch(
   "/:id/status",
   authenticate,
-  checkPermission("wholesale-order-request", "update"),
-  WholesaleOrderController.updateRequestStatus
+  checkPermission("wholesale-order-request", "update-status"),
+  WholesaleOrderController.updateRequestStatus,
 );
 
 export default router;

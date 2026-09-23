@@ -9,5 +9,5 @@ router.post("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPerm
 router.get("/mine", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("wholesale-order-request", "read"), wholesale_order_controller_1.WholesaleOrderController.getMyRequests);
 router.get("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("wholesale-order-request", "read-all"), wholesale_order_controller_1.WholesaleOrderController.getAllRequests);
 router.get("/:id", auth_middleware_1.authenticate, wholesale_order_controller_1.WholesaleOrderController.getRequestById);
-router.patch("/:id/status", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("wholesale-order-request", "update"), wholesale_order_controller_1.WholesaleOrderController.updateRequestStatus);
+router.patch("/:id/status", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("wholesale-order-request", "update-status"), wholesale_order_controller_1.WholesaleOrderController.updateRequestStatus);
 exports.default = router;

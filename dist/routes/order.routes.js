@@ -12,7 +12,7 @@ router.post("/", auth_middleware_1.authenticate, order_controller_1.OrderControl
 router.get("/", auth_middleware_1.authenticate, order_controller_1.OrderController.getUserOrders);
 router.get("/:id", auth_middleware_1.authenticate, order_controller_1.OrderController.getOrder);
 router.put("/:id/status", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("order", "update"), order_controller_1.OrderController.updateOrderStatus);
-router.put("/:id/payment-status", auth_middleware_1.authenticate, order_controller_1.OrderController.updatePaymentStatus);
+router.put("/:id/payment-status", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("order", "update"), order_controller_1.OrderController.updatePaymentStatus);
 router.put("/:id/tracking", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("order", "update"), order_controller_1.OrderController.updateOrderTracking);
 router.post("/:id/cancel", auth_middleware_1.authenticate, order_controller_1.OrderController.cancelOrder);
 exports.default = router;

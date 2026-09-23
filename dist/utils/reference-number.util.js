@@ -26,9 +26,13 @@ const extractSequence = (reference) => {
     const parsed = parseInt(parts[2], 10);
     return isNaN(parsed) ? null : parsed;
 };
-const getLatestSequence = (prefix, year, entity, column) => __awaiter(void 0, void 0, void 0, function* () {
+const getLatestSequence = (prefix, year, entity, column, manager) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
-    const repo = data_source_1.AppDataSource.getRepository(entity);
+    const repo = (manager || data_source_1.AppDataSource.manager).getRepository(entity);
+    if (manager)
+        yield manager.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
+            prefix + year,
+        ]);
     const prefixWithYear = `${prefix}-${year}-`;
     const latest = yield repo
         .createQueryBuilder("record")
@@ -40,15 +44,15 @@ const getLatestSequence = (prefix, year, entity, column) => __awaiter(void 0, vo
     return (_a = extractSequence(latest === null || latest === void 0 ? void 0 : latest.ref)) !== null && _a !== void 0 ? _a : 0;
 });
 const buildReference = (prefix, year, sequence) => `${prefix}-${year}-${padNumber(sequence)}`;
-const generateOrderNumber = () => __awaiter(void 0, void 0, void 0, function* () {
+const generateOrderNumber = (manager) => __awaiter(void 0, void 0, void 0, function* () {
     const currentYear = new Date().getFullYear();
-    const lastSeq = yield getLatestSequence(ORDER_PREFIX, currentYear, order_entity_1.Order, "orderNumber");
+    const lastSeq = yield getLatestSequence(ORDER_PREFIX, currentYear, order_entity_1.Order, "orderNumber", manager);
     return buildReference(ORDER_PREFIX, currentYear, lastSeq + 1);
 });
 exports.generateOrderNumber = generateOrderNumber;
-const generateWholesaleRequestNumber = () => __awaiter(void 0, void 0, void 0, function* () {
+const generateWholesaleRequestNumber = (manager) => __awaiter(void 0, void 0, void 0, function* () {
     const currentYear = new Date().getFullYear();
-    const lastSeq = yield getLatestSequence(WHOLESALE_PREFIX, currentYear, wholesale_order_request_entity_1.WholesaleOrderRequest, "requestNumber");
+    const lastSeq = yield getLatestSequence(WHOLESALE_PREFIX, currentYear, wholesale_order_request_entity_1.WholesaleOrderRequest, "requestNumber", manager);
     return buildReference(WHOLESALE_PREFIX, currentYear, lastSeq + 1);
 });
 exports.generateWholesaleRequestNumber = generateWholesaleRequestNumber;

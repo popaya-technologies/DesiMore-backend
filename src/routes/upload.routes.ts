@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import multer from "multer";
 import path from "path";
+import { randomUUID } from "crypto";
 import { authenticate } from "../middlewares/auth.middleware";
 import { ensureUploadDir, UPLOAD_DIR } from "../utils/upload-config";
 
@@ -19,7 +20,7 @@ const storage = multer.diskStorage({
   filename: (_req, file, cb) => {
     const originalName = file.originalname || "file";
     const safeName = originalName.replace(/[^a-zA-Z0-9._-]/g, "_");
-    cb(null, safeName);
+    cb(null, randomUUID() + "-" + safeName);
   },
 });
 
@@ -35,7 +36,7 @@ const fileFilter: multer.Options["fileFilter"] = (_req, file, cb) => {
 const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  limits: { fileSize: 5 * 1024 * 1024, files: 10 }, // 5MB per file
 });
 
 const router = Router();
@@ -67,7 +68,7 @@ router.post(
       size: file.size,
       mimetype: file.mimetype,
     });
-  }
+  },
 );
 
 router.post(
@@ -79,8 +80,8 @@ router.post(
     const filtered = files
       .filter((f) =>
         ["files", "file", "image", "images", "upload"].includes(
-          f.fieldname || ""
-        )
+          f.fieldname || "",
+        ),
       )
       .slice(0, 10); // max 10
 
@@ -97,7 +98,11 @@ router.post(
     }));
 
     res.status(201).json(result);
-  }
+  },
 );
+
+router.use((error: any, _req: Request, res: Response, _next: any) => {
+  res.status(400).json({ message: error.message || "Invalid upload" });
+});
 
 export default router;

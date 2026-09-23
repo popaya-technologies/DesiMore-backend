@@ -1,4 +1,5 @@
 import * as AuthorizeNet from "authorizenet";
+import { ApiError } from "../utils/api-error";
 import { AppDataSource } from "../data-source";
 import {
   Payment,
@@ -26,7 +27,7 @@ export class AuthorizeNetService {
       new ApiContracts.MerchantAuthenticationType();
     merchantAuthenticationType.setName(process.env.AUTHORIZE_API_LOGIN_ID!);
     merchantAuthenticationType.setTransactionKey(
-      process.env.AUTHORIZE_TRANSACTION_KEY!
+      process.env.AUTHORIZE_TRANSACTION_KEY!,
     );
     return merchantAuthenticationType;
   }
@@ -38,7 +39,7 @@ export class AuthorizeNetService {
       expirationDate: string;
       cardCode: string;
       amount: number;
-    }
+    },
   ): Promise<Payment> {
     try {
       const order = await orderRepository.findOne({
@@ -57,19 +58,46 @@ export class AuthorizeNetService {
           : paymentData.amount;
 
       if (isNaN(amount) || amount <= 0) {
-        throw new Error(`Invalid payment amount: ${paymentData.amount}`);
+        throw new ApiError(400, "Payment amount must be greater than zero");
       }
 
-      // Create payment record
-      const payment = paymentRepository.create({
-        orderId,
-        amount: amount,
-        currency: "USD",
-        status: PaymentStatus.PROCESSING,
-        paymentMethod: PaymentMethod.CREDIT_CARD,
+      // Serialize payment attempts and retain PROCESSING on ambiguous gateway errors.
+      const payment = await AppDataSource.transaction(async (manager) => {
+        const locked = await manager
+          .getRepository(Order)
+          .findOne({
+            where: { id: orderId },
+            lock: { mode: "pessimistic_write" },
+          });
+        if (
+          !locked ||
+          [OrderStatus.CANCELLED, OrderStatus.REFUNDED].includes(locked.status)
+        )
+          throw new ApiError(400, "Order cannot be paid");
+        if (
+          [PaymentStatus.PROCESSING, PaymentStatus.COMPLETED].includes(
+            locked.paymentStatus,
+          )
+        )
+          throw new ApiError(409, "Payment already processing or completed");
+        const repo = manager.getRepository(Payment);
+        const existing = await repo.findOneBy({ orderId });
+        if (existing && existing.status !== PaymentStatus.FAILED)
+          throw new ApiError(409, "Payment cannot be retried");
+        const record =
+          existing ||
+          repo.create({
+            orderId,
+            currency: "USD",
+            paymentMethod: PaymentMethod.CREDIT_CARD,
+          });
+        record.amount = Number(locked.total);
+        record.status = PaymentStatus.PROCESSING;
+        record.failureMessage = null;
+        locked.paymentStatus = PaymentStatus.PROCESSING;
+        await manager.getRepository(Order).save(locked);
+        return repo.save(record);
       });
-
-      await paymentRepository.save(payment);
 
       // Create credit card object
       const creditCard = new ApiContracts.CreditCardType();
@@ -89,10 +117,10 @@ export class AuthorizeNetService {
       // Create transaction request
       const transactionRequestType = new ApiContracts.TransactionRequestType();
       transactionRequestType.setTransactionType(
-        ApiContracts.TransactionTypeEnum.AUTHCAPTURETRANSACTION
+        ApiContracts.TransactionTypeEnum.AUTHCAPTURETRANSACTION,
       );
       transactionRequestType.setPayment(paymentType);
-      transactionRequestType.setAmount(amount);
+      transactionRequestType.setAmount(Number(payment.amount));
       transactionRequestType.setOrder(orderDetails);
 
       // Customer information
@@ -125,13 +153,13 @@ export class AuthorizeNetService {
       // Create API request
       const createRequest = new ApiContracts.CreateTransactionRequest();
       createRequest.setMerchantAuthentication(
-        AuthorizeNetService.createMerchantAuthentication()
+        AuthorizeNetService.createMerchantAuthentication(),
       );
       createRequest.setTransactionRequest(transactionRequestType);
 
       // Execute transaction
       const controller = new ApiControllers.CreateTransactionController(
-        createRequest.getJSON()
+        createRequest.getJSON(),
       );
       controller.setEnvironment(AuthorizeNetService.getEnvironment());
 
@@ -139,7 +167,7 @@ export class AuthorizeNetService {
         controller.execute(() => {
           const apiResponse = controller.getResponse();
           const response = new ApiContracts.CreateTransactionResponse(
-            apiResponse
+            apiResponse,
           );
 
           // Update payment with response
@@ -154,210 +182,47 @@ export class AuthorizeNetService {
     }
   }
 
-  // New: charge without a pre-existing order. Used for pay-then-create flow.
-  // Returns a lightweight result so the controller can decide how to persist.
-  static async createTransactionForCheckout(input: {
-    userEmail: string;
-    cardNumber: string;
-    expirationDate: string;
-    cardCode: string;
-    amount: number;
-    invoiceNumber: string;
-    billingAddress: {
-      firstName: string;
-      lastName: string;
-      address: string;
-      city: string;
-      state: string;
-      zipCode: string;
-      country: string;
-    };
-    shippingAddress: {
-      firstName: string;
-      lastName: string;
-      address: string;
-      city: string;
-      state: string;
-      zipCode: string;
-      country: string;
-    };
-  }): Promise<{
-    status: "completed" | "failed";
-    transactionId?: string;
-    authCode?: string;
-    paymentDetails?: { lastFour?: string; cardType?: string };
-    authorizeNetResponse: any;
-    failureMessage?: string;
-  }> {
-    // Ensure amount is a valid number
-    const amount =
-      typeof input.amount === "string" ? parseFloat(input.amount) : input.amount;
-    if (isNaN(amount) || amount <= 0) {
-      throw new Error(`Invalid payment amount: ${input.amount}`);
-    }
-
-    // Create credit card object
-    const creditCard = new ApiContracts.CreditCardType();
-    creditCard.setCardNumber(input.cardNumber.replace(/\s/g, ""));
-    creditCard.setExpirationDate(input.expirationDate);
-    creditCard.setCardCode(input.cardCode);
-
-    // Create payment type
-    const paymentType = new ApiContracts.PaymentType();
-    paymentType.setCreditCard(creditCard);
-
-    // Order details
-    const orderDetails = new ApiContracts.OrderType();
-    orderDetails.setInvoiceNumber(input.invoiceNumber);
-    orderDetails.setDescription(`Payment for invoice ${input.invoiceNumber}`);
-
-    // Transaction request
-    const transactionRequestType = new ApiContracts.TransactionRequestType();
-    transactionRequestType.setTransactionType(
-      ApiContracts.TransactionTypeEnum.AUTHCAPTURETRANSACTION
-    );
-    transactionRequestType.setPayment(paymentType);
-    transactionRequestType.setAmount(amount);
-    transactionRequestType.setOrder(orderDetails);
-
-    // Customer
-    const customer = new ApiContracts.CustomerDataType();
-    customer.setEmail(input.userEmail);
-    transactionRequestType.setCustomer(customer);
-
-    // Billing
-    const billingAddress = new ApiContracts.CustomerAddressType();
-    billingAddress.setFirstName(input.billingAddress.firstName);
-    billingAddress.setLastName(input.billingAddress.lastName);
-    billingAddress.setAddress(input.billingAddress.address);
-    billingAddress.setCity(input.billingAddress.city);
-    billingAddress.setState(input.billingAddress.state);
-    billingAddress.setZip(input.billingAddress.zipCode);
-    billingAddress.setCountry(input.billingAddress.country);
-    transactionRequestType.setBillTo(billingAddress);
-
-    // Shipping
-    const shippingAddress = new ApiContracts.CustomerAddressType();
-    shippingAddress.setFirstName(input.shippingAddress.firstName);
-    shippingAddress.setLastName(input.shippingAddress.lastName);
-    shippingAddress.setAddress(input.shippingAddress.address);
-    shippingAddress.setCity(input.shippingAddress.city);
-    shippingAddress.setState(input.shippingAddress.state);
-    shippingAddress.setZip(input.shippingAddress.zipCode);
-    shippingAddress.setCountry(input.shippingAddress.country);
-    transactionRequestType.setShipTo(shippingAddress);
-
-    // API request
-    const createRequest = new ApiContracts.CreateTransactionRequest();
-    createRequest.setMerchantAuthentication(
-      AuthorizeNetService.createMerchantAuthentication()
-    );
-    createRequest.setTransactionRequest(transactionRequestType);
-
-    const controller = new ApiControllers.CreateTransactionController(
-      createRequest.getJSON()
-    );
-    controller.setEnvironment(AuthorizeNetService.getEnvironment());
-
-    return new Promise((resolve) => {
-      controller.execute(() => {
-        const apiResponse = controller.getResponse();
-        const response = new ApiContracts.CreateTransactionResponse(apiResponse);
-
-        const result: {
-          status: "completed" | "failed";
-          transactionId?: string;
-          authCode?: string;
-          paymentDetails?: { lastFour?: string; cardType?: string };
-          authorizeNetResponse: any;
-          failureMessage?: string;
-        } = {
-          status: "failed",
-          authorizeNetResponse: response,
-        };
-
-        const transResponse = response.getTransactionResponse();
-        if (transResponse) {
-          const responseCode = transResponse.getResponseCode();
-          if (responseCode === "1") {
-            result.status = "completed";
-            result.transactionId = transResponse.getTransId();
-            result.authCode = transResponse.getAuthCode();
-            if (transResponse.getAccountNumber()) {
-              result.paymentDetails = {
-                lastFour: transResponse.getAccountNumber(),
-                cardType: transResponse.getAccountType(),
-              };
-            }
-          } else {
-            const errors = transResponse.getErrors() || [];
-            result.failureMessage =
-              errors.length > 0 ? errors[0].getErrorText() : "Payment failed";
-          }
-        } else {
-          result.failureMessage = "No transaction response received";
-        }
-
-        resolve(result);
-      });
-    });
-  }
-
   private static async handleTransactionResponse(
     paymentId: string,
-    response: any
+    response: any,
   ) {
-    const payment = await paymentRepository.findOne({
-      where: { id: paymentId },
-    });
-    if (!payment) throw new Error("Payment not found");
-
-    payment.authorizeNetResponse = response;
-
-    const transResponse = response.getTransactionResponse();
-
-    if (transResponse) {
-      const responseCode = transResponse.getResponseCode();
-      const authCode = transResponse.getAuthCode();
-      const transId = transResponse.getTransId();
-      const messages = transResponse.getMessages() || [];
-
-      if (responseCode === "1") {
-        // Approved
-        payment.status = PaymentStatus.COMPLETED;
-        payment.transactionId = transId;
-        payment.authCode = authCode;
-
-        // Update order status
-        const order = await orderRepository.findOne({
+    return AppDataSource.transaction(async (manager) => {
+      const payment = await manager
+        .getRepository(Payment)
+        .findOneBy({ id: paymentId });
+      if (!payment) throw new Error("Payment not found");
+      const order = await manager
+        .getRepository(Order)
+        .findOne({
           where: { id: payment.orderId },
+          lock: { mode: "pessimistic_write" },
         });
-        if (order) {
-          order.paymentStatus = PaymentStatus.COMPLETED;
-          order.status = OrderStatus.CONFIRMED;
-          await orderRepository.save(order);
-        }
-
-        // Store masked card info
-        if (transResponse.getAccountNumber()) {
-          payment.paymentDetails = {
-            lastFour: transResponse.getAccountNumber(),
-            cardType: transResponse.getAccountType(),
-          };
-        }
+      if (!order) throw new Error("Order not found");
+      const transaction = response.getTransactionResponse();
+      const code = transaction?.getResponseCode();
+      // Held-for-review or malformed responses require reconciliation, not an automatic retry.
+      if (!transaction || !["1", "2", "3"].includes(code))
+        throw new Error("Gateway outcome requires reconciliation");
+      payment.authorizeNetResponse = response;
+      if (code === "1") {
+        payment.status = PaymentStatus.COMPLETED;
+        payment.transactionId = transaction.getTransId();
+        payment.authCode = transaction.getAuthCode();
+        payment.paymentDetails = {
+          lastFour: transaction.getAccountNumber(),
+          cardType: transaction.getAccountType(),
+        };
+        order.status = OrderStatus.CONFIRMED;
+        order.transactionId = payment.transactionId;
       } else {
-        // Declined or Error
         payment.status = PaymentStatus.FAILED;
-        const errors = transResponse.getErrors() || [];
         payment.failureMessage =
-          errors.length > 0 ? errors[0].getErrorText() : "Payment failed";
+          transaction.getErrors()?.[0]?.getErrorText() || "Payment failed";
       }
-    } else {
-      payment.status = PaymentStatus.FAILED;
-      payment.failureMessage = "No transaction response received";
-    }
-
-    return await paymentRepository.save(payment);
+      order.paymentStatus = payment.status;
+      await manager.getRepository(Order).save(order);
+      return manager.getRepository(Payment).save(payment);
+    });
   }
 
   static async refundTransaction(paymentId: string, amount?: number) {
@@ -374,7 +239,7 @@ export class AuthorizeNetService {
       // Create refund transaction
       const transactionRequestType = new ApiContracts.TransactionRequestType();
       transactionRequestType.setTransactionType(
-        ApiContracts.TransactionTypeEnum.REFUNDTRANSACTION
+        ApiContracts.TransactionTypeEnum.REFUNDTRANSACTION,
       );
       transactionRequestType.setAmount(refundAmount);
       transactionRequestType.setRefTransId(payment.transactionId);
@@ -382,13 +247,13 @@ export class AuthorizeNetService {
       // Create API request
       const createRequest = new ApiContracts.CreateTransactionRequest();
       createRequest.setMerchantAuthentication(
-        AuthorizeNetService.createMerchantAuthentication()
+        AuthorizeNetService.createMerchantAuthentication(),
       );
       createRequest.setTransactionRequest(transactionRequestType);
 
       // Execute refund
       const controller = new ApiControllers.CreateTransactionController(
-        createRequest.getJSON()
+        createRequest.getJSON(),
       );
       controller.setEnvironment(AuthorizeNetService.getEnvironment());
 
@@ -396,7 +261,7 @@ export class AuthorizeNetService {
         controller.execute(() => {
           const apiResponse = controller.getResponse();
           const response = new ApiContracts.CreateTransactionResponse(
-            apiResponse
+            apiResponse,
           );
 
           const transResponse = response.getTransactionResponse();
@@ -426,12 +291,12 @@ export class AuthorizeNetService {
     try {
       const getRequest = new ApiContracts.GetTransactionDetailsRequest();
       getRequest.setMerchantAuthentication(
-        AuthorizeNetService.createMerchantAuthentication()
+        AuthorizeNetService.createMerchantAuthentication(),
       );
       getRequest.setTransId(transactionId);
 
       const controller = new ApiControllers.GetTransactionDetailsController(
-        getRequest.getJSON()
+        getRequest.getJSON(),
       );
       controller.setEnvironment(AuthorizeNetService.getEnvironment());
 
@@ -439,7 +304,7 @@ export class AuthorizeNetService {
         controller.execute(() => {
           const apiResponse = controller.getResponse();
           const response = new ApiContracts.GetTransactionDetailsResponse(
-            apiResponse
+            apiResponse,
           );
           resolve(response);
         });

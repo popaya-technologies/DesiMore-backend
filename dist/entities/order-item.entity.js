@@ -33,6 +33,10 @@ __decorate([
     __metadata("design:type", String)
 ], OrderItem.prototype, "id", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: "jsonb", default: [] }),
+    __metadata("design:type", Array)
+], OrderItem.prototype, "selectedOptions", void 0);
+__decorate([
     (0, typeorm_1.ManyToOne)(() => order_entity_1.Order, (order) => order.items, { onDelete: "CASCADE" }),
     __metadata("design:type", order_entity_1.Order)
 ], OrderItem.prototype, "order", void 0);

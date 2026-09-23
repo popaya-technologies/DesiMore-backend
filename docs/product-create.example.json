@@ -1,0 +1,116 @@
+{
+  "title": "Stainless Steel Cookware Set",
+  "model": "COOK-SET-01",
+  "sku": "COOK-SET-01",
+  "mpn": "MFG-001",
+  "summary": "<p>Stainless steel cookware with <strong>durable handles</strong>.</p>",
+  "metaTitle": "Stainless Steel Cookware Set",
+  "metaDescription": "A durable cookware set.",
+  "metaKeyword": "cookware, stainless steel",
+  "tag": "kitchen,cookware",
+  "price": 50,
+  "discountPrice": null,
+  "quantity": 100,
+  "minimumQuantity": 1,
+  "subtractStock": true,
+  "outOfStockStatus": "2_3_days",
+  "requiresShipping": true,
+  "dateAvailable": "2026-09-22",
+  "length": 12,
+  "width": 10,
+  "height": 8,
+  "lengthClass": "inch",
+  "weight": 4,
+  "weightClass": "pound",
+  "sortOrder": 1,
+  "isActive": true,
+  "inStock": true,
+  "wholesalePrice": 240,
+  "wholesaleQuantity": 20,
+  "boxQuantity": 6,
+  "wholesaleMinimumQuantity": 1,
+  "wholesaleRequiresShipping": true,
+  "wholesaleDateAvailable": "2026-09-22",
+  "wholesaleLength": 24,
+  "wholesaleWidth": 20,
+  "wholesaleHeight": 16,
+  "wholesaleLengthClass": "inch",
+  "wholesaleWeight": 24,
+  "wholesaleWeightClass": "pound",
+  "manufacturerId": "11111111-1111-4111-8111-111111111111",
+  "categoryIds": [
+    "22222222-2222-4222-8222-222222222222"
+  ],
+  "downloadIds": [],
+  "relatedProductIds": [],
+  "attributes": [
+    {
+      "name": "Material",
+      "text": "<p>Stainless steel</p>",
+      "sortOrder": 0
+    }
+  ],
+  "options": [
+    {
+      "name": "Finish",
+      "type": "select",
+      "required": true,
+      "sortOrder": 0,
+      "values": [
+        {
+          "value": "Standard",
+          "quantity": 100,
+          "subtractStock": true,
+          "pricePrefix": "+",
+          "price": 0,
+          "pointsPrefix": "+",
+          "points": 0,
+          "weightPrefix": "+",
+          "weight": 0
+        },
+        {
+          "value": "Premium",
+          "quantity": 30,
+          "subtractStock": true,
+          "pricePrefix": "+",
+          "price": 5,
+          "pointsPrefix": "+",
+          "points": 2,
+          "weightPrefix": "+",
+          "weight": 0.5
+        }
+      ]
+    }
+  ],
+  "discounts": [
+    {
+      "customerGroup": "default",
+      "quantity": 5,
+      "priority": 0,
+      "price": 45,
+      "dateStart": "2026-09-22",
+      "dateEnd": "2026-12-31"
+    },
+    {
+      "customerGroup": "wholesaler",
+      "quantity": 10,
+      "priority": 0,
+      "price": 230,
+      "dateStart": null,
+      "dateEnd": null
+    }
+  ],
+  "imageDetails": [
+    {
+      "url": "https://example.com/cookware-main.jpg",
+      "isMain": true,
+      "sortOrder": 0
+    },
+    {
+      "url": "https://example.com/cookware-side.jpg",
+      "isMain": false,
+      "sortOrder": 1
+    }
+  ]
+}
+

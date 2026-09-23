@@ -13,6 +13,18 @@ export class OrderItem {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
+  @Column({ type: "jsonb", default: [] })
+  selectedOptions: {
+    optionId: string;
+    valueIds?: string[];
+    text?: string;
+    name?: string;
+    values?: string[];
+    priceAdjustment?: number;
+    pointsAdjustment?: number;
+    weightAdjustment?: number;
+  }[];
+
   @ManyToOne(() => Order, (order) => order.items, { onDelete: "CASCADE" })
   order: Order;
 
@@ -58,7 +70,7 @@ export class OrderItem {
         : this.quantity;
 
     console.log(
-      `OrderItem calculateTotal - price: ${price}, qty: ${qty}, actualPrice: ${actualPrice}, discountedPrice: ${this.discountedPrice}, originalPrice: ${this.price}`
+      `OrderItem calculateTotal - price: ${price}, qty: ${qty}, actualPrice: ${actualPrice}, discountedPrice: ${this.discountedPrice}, originalPrice: ${this.price}`,
     );
 
     this.total = price * qty;

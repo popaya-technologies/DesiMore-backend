@@ -1,40 +1,25 @@
 import { Request, Response } from "express";
 import { AppDataSource } from "../data-source";
 import { Product } from "../entities/product.entity";
-import { CreateProductDto, UpdateProductDto } from "../dto/product.dto";
-import { validate } from "class-validator";
 import { Brackets, In } from "typeorm";
 import { Category } from "../entities/category.entity";
-import { Brand } from "../entities/brand.entity";
 import * as XLSX from "xlsx";
+import {
+  saveProduct,
+  productResponse,
+  PRODUCT_RELATIONS,
+} from "../services/product.service";
+import { respondError } from "../utils/api-error";
+import {
+  LENGTH_CLASSES,
+  WEIGHT_CLASSES,
+  STOCK_STATUSES,
+  OPTION_TYPES,
+  CUSTOMER_GROUPS,
+} from "../dto/product.dto";
 
 const productRepository = AppDataSource.getRepository(Product);
 const categoryRepository = AppDataSource.getRepository(Category);
-const brandRepository = AppDataSource.getRepository(Brand);
-
-type ProductRow = Partial<{
-  model: string;
-  quantity: string | number;
-  price: string | number;
-  weight: string | number;
-  length: string | number;
-  width: string | number;
-  height: string | number;
-  title: string;
-  summary: string;
-  tag: string;
-  metaTitle: string;
-  metaDescription: string;
-  metaKeyword: string;
-  categoryIds: string;
-  images: any;
-}>;
-
-const toNum = (val: any): number | null => {
-  if (val === undefined || val === null || val === "") return null;
-  const n = Number(val);
-  return Number.isFinite(n) ? n : null;
-};
 
 const splitIds = (val: any): string[] => {
   if (!val) return [];
@@ -48,163 +33,47 @@ const splitIds = (val: any): string[] => {
     );
 };
 
-const normalizeImages = (val: any): string[] => {
-  if (!val) return [];
-  if (Array.isArray(val)) {
-    return val
-      .map((item) => {
-        if (!item) return null;
-        if (typeof item === "string") return item;
-        if (typeof item === "object" && item.url) return item.url.toString();
-        return null;
-      })
-      .filter(Boolean) as string[];
-  }
-  if (typeof val === "object" && val.url) return [val.url.toString()];
-  if (typeof val === "string") return [val];
-  return [];
-};
-
-const normalizePackage = (val: any) => {
-  if (!val || typeof val !== "object") return undefined;
-  const length =
-    val.length !== undefined && val.length !== null
-      ? Number(val.length)
-      : undefined;
-  const width =
-    val.width !== undefined && val.width !== null
-      ? Number(val.width)
-      : undefined;
-  const height =
-    val.height !== undefined && val.height !== null
-      ? Number(val.height)
-      : undefined;
-  const pkg = {
-    length: Number.isFinite(length) ? length : undefined,
-    width: Number.isFinite(width) ? width : undefined,
-    height: Number.isFinite(height) ? height : undefined,
-  };
-  if (
-    pkg.length === undefined &&
-    pkg.width === undefined &&
-    pkg.height === undefined
-  ) {
-    return undefined;
-  }
-  return pkg;
-};
-
-export const formatProductResponse = (product: Product) => {
-  if (!product) {
-    return null;
-  }
-
-  const { categories = [], brand, ...productData } = product;
-  const normalizedProduct = {
-    ...productData,
-    discountPrice: productData.discountPrice ?? productData.price,
-    tag: productData.tag ?? null,
-  };
-
-  return {
-    ...normalizedProduct,
-    categoryIds: categories.map((c) => c.id),
-    brandId: brand ? brand.id : null,
-  };
-};
+export const formatProductResponse = productResponse;
 
 export const ProductController = {
   // Create Product (Admin only) or Users with access
   createProduct: async (req: Request, res: Response) => {
     try {
-      // Create and validate DTO
-      const productData = new CreateProductDto();
-      const body = { ...req.body };
-      if (body.images) {
-        body.images = normalizeImages(body.images);
-      }
-      if (body.package) {
-        body.package = normalizePackage(body.package);
-      }
-      Object.assign(productData, body);
-
-      const errors = await validate(productData);
-      if (errors.length > 0) {
-        res.status(400).json({ errors });
-        return;
-      }
-
-      // Validate categories
-      const categories = await categoryRepository.find({
-        where: { id: In(productData.categoryIds) },
-      });
-
-      if (categories.length !== productData.categoryIds.length) {
-        res.status(400).json({
-          message: "One or more category IDs are invalid",
-          invalidIds: productData.categoryIds.filter(
-            (id) => !categories.some((c) => c.id === id),
-          ),
-        });
-        return;
-      }
-
-      // Validate brand if provided
-      let brand: Brand | null = null;
-      if (productData.brandId) {
-        brand = await brandRepository.findOne({
-          where: { id: productData.brandId },
-        });
-
-        if (!brand) {
-          res.status(400).json({ message: "Invalid brand ID" });
-          return;
-        }
-      }
-
-      // Create and save product
-      const product = productRepository.create({
-        title: productData.title,
-        model: productData.model ?? null,
-        images: productData.images,
-        price: productData.price,
-        discountPrice: productData.discountPrice ?? productData.price,
-        wholesalePrice: productData.wholesalePrice ?? null,
-        summary: productData.summary,
-        quantity: productData.quantity || "0",
-        wholesaleOrderQuantity: productData.wholesaleOrderQuantity ?? null,
-        unitsPerCarton: productData.unitsPerCarton ?? null,
-        weight: productData.weight ?? null,
-        length: productData.length ?? null,
-        width: productData.width ?? null,
-        height: productData.height ?? null,
-        inStock: productData.inStock ?? true,
-        isActive: productData.isActive ?? true,
-        tag: productData.tag ?? null,
-        package: normalizePackage(productData.package) ?? null,
-        metaTitle: productData.metaTitle ?? null,
-        metaDescription: productData.metaDescription ?? null,
-        metaKeyword: productData.metaKeyword ?? null,
-        brand: brand ?? null,
-        categories,
-      });
-
-      await productRepository.save(product);
-
-      // Return the created product with relations
-      const createdProduct = await productRepository.findOne({
-        where: { id: product.id },
-        relations: ["categories", "brand"],
-      });
-
-      res.status(201).json(formatProductResponse(createdProduct));
+      res.status(201).json(await saveProduct(req.body));
     } catch (error) {
-      console.error("Product creation error:", error);
-      res.status(500).json({
-        message: "Internal server error",
-        error: error.message,
-      });
+      respondError(res, error);
     }
+  },
+
+  getProductForEdit: async (req: Request, res: Response) => {
+    try {
+      const product = await productRepository.findOne({
+        where: { id: req.params.id },
+        relations: PRODUCT_RELATIONS,
+      });
+      if (!product) {
+        res.status(404).json({ message: "Product not found" });
+        return;
+      }
+      res.json(productResponse(product, true));
+    } catch (error) {
+      respondError(res, error);
+    }
+  },
+
+  getFormOptions: async (_req: Request, res: Response) => {
+    res.json({
+      lengthClasses: LENGTH_CLASSES,
+      weightClasses: WEIGHT_CLASSES,
+      outOfStockStatuses: STOCK_STATUSES,
+      optionTypes: OPTION_TYPES,
+      customerGroups: CUSTOMER_GROUPS,
+      manufacturerEndpoint: "/api/brands",
+      categoryEndpoint: "/api/categories/all",
+      downloadEndpoint: "/api/downloads",
+      wholesalePriceUnit: "box",
+      wholesaleStockUnit: "box",
+    });
   },
 
   // Get All Products (Public)
@@ -252,6 +121,16 @@ export const ProductController = {
         baseQuery.andWhere("product.price <= :maxPrice", { maxPrice: max });
       }
 
+      if (sort === "price_asc" || sort === "price_desc")
+        baseQuery.orderBy(
+          "product.price",
+          sort === "price_asc" ? "ASC" : "DESC",
+        );
+      else
+        baseQuery
+          .orderBy("product.sortOrder", "ASC")
+          .addOrderBy("product.createdAt", "DESC");
+      baseQuery.addOrderBy("product.id", "ASC");
       const total = await baseQuery.getCount();
 
       const productIds = (
@@ -284,7 +163,10 @@ export const ProductController = {
       } else if (sort === "price_desc") {
         qb.orderBy("product.price", "DESC");
       } else {
-        qb.orderBy("product.createdAt", "DESC");
+        qb.orderBy("product.sortOrder", "ASC").addOrderBy(
+          "product.createdAt",
+          "DESC",
+        );
       }
 
       const products = await qb.getMany();
@@ -314,7 +196,7 @@ export const ProductController = {
     try {
       const product = await productRepository.findOne({
         where: { id: req.params.id },
-        relations: ["categories", "brand"],
+        relations: PRODUCT_RELATIONS,
       });
 
       if (!product) {
@@ -338,7 +220,7 @@ export const ProductController = {
 
       const product = await productRepository.findOne({
         where: { id },
-        relations: ["categories", "brand"],
+        relations: PRODUCT_RELATIONS,
       });
 
       if (!product) {
@@ -346,6 +228,26 @@ export const ProductController = {
         return;
       }
 
+      if (product.relatedProducts?.length) {
+        const related = await productRepository.find({
+          where: {
+            id: In(product.relatedProducts.map((p) => p.id)),
+            isActive: true,
+          },
+          relations: ["categories", "brand"],
+          take: Math.min(Math.max(take || 10, 1), 100),
+        });
+        res.json(
+          related
+            .filter(
+              (p) =>
+                !p.dateAvailable ||
+                p.dateAvailable <= new Date().toISOString().slice(0, 10),
+            )
+            .map((p) => productResponse(p)),
+        );
+        return;
+      }
       const categoryIds = (product.categories || []).map((c) => c.id);
       const brandId = product.brand?.id;
 
@@ -431,214 +333,121 @@ export const ProductController = {
   // Import products from XLSX/CSV (upsert by model if provided, else title)
   importProducts: async (req: Request, res: Response) => {
     try {
-      const uploadedFile = (req as any).file as { buffer: Buffer } | undefined;
-      if (!uploadedFile || !uploadedFile.buffer) {
+      const file = (req as any).file;
+      if (!file?.buffer) {
         res.status(400).json({ message: "No file uploaded" });
         return;
       }
-
-      const workbook = XLSX.read(uploadedFile.buffer, { type: "buffer" });
-      const firstSheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[firstSheetName];
-      const rows: ProductRow[] = XLSX.utils.sheet_to_json(sheet, {
-        defval: "",
-        raw: false,
-        blankrows: false,
-      });
-
-      if (!rows || rows.length === 0) {
-        res.status(400).json({ message: "No data found in file" });
+      const workbook = XLSX.read(file.buffer, { type: "buffer" });
+      const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(
+        workbook.Sheets[workbook.SheetNames[0]],
+        { raw: false, blankrows: false },
+      );
+      if (!rows.length || rows.length > 5000) {
+        res.status(400).json({ message: "Import must contain 1 to 5000 rows" });
         return;
       }
-
-      let created = 0;
-      let updated = 0;
-      const errors: Array<{ row: number; error: string }> = [];
-      const createdProducts: Array<{ title: string; id: string }> = [];
-      const updatedProducts: Array<{ title: string; id: string }> = [];
-
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-        const title = row.title?.toString().trim();
-        if (!title) {
-          errors.push({ row: i + 2, error: "Missing title" });
-          continue;
-        }
-
-        const model = row.model?.toString().trim() || null;
-        const price = toNum(row.price);
-        if (price === null) {
-          errors.push({ row: i + 2, error: "Invalid price" });
-          continue;
-        }
-
-        const quantityStr = row.quantity?.toString().trim() ?? "0";
-        const categoryIds = splitIds(row.categoryIds);
-        let categories: Category[] | null = null;
-        if (categoryIds.length > 0) {
-          categories = await categoryRepository.find({
-            where: { id: In(categoryIds) },
+      const numeric = new Set([
+        "price",
+        "discountPrice",
+        "wholesalePrice",
+        "wholesaleQuantity",
+        "boxQuantity",
+        "unitsPerCarton",
+        "minimumQuantity",
+        "wholesaleMinimumQuantity",
+        "sortOrder",
+        "length",
+        "width",
+        "height",
+        "weight",
+        "wholesaleLength",
+        "wholesaleWidth",
+        "wholesaleHeight",
+        "wholesaleWeight",
+      ]);
+      const boolean = new Set([
+        "isActive",
+        "inStock",
+        "subtractStock",
+        "requiresShipping",
+        "wholesaleRequiresShipping",
+      ]);
+      const json = new Set([
+        "attributes",
+        "options",
+        "discounts",
+        "imageDetails",
+        "package",
+      ]);
+      const errors: any[] = [],
+        createdProducts: any[] = [],
+        updatedProducts: any[] = [];
+      for (let index = 0; index < rows.length; index++) {
+        try {
+          const body: any = {};
+          for (const [key, value] of Object.entries(rows[index])) {
+            if (value === undefined || value === null || value === "") continue;
+            if (numeric.has(key)) body[key] = Number(value);
+            else if (boolean.has(key)) {
+              const normalized = String(value).trim().toLowerCase();
+              if (
+                !["true", "false", "yes", "no", "1", "0"].includes(normalized)
+              )
+                throw new Error("Invalid boolean: " + key);
+              body[key] = ["true", "yes", "1"].includes(normalized);
+            } else if (json.has(key)) body[key] = JSON.parse(String(value));
+            else if (
+              ["categoryIds", "downloadIds", "relatedProductIds"].includes(key)
+            )
+              body[key] = String(value).trim().startsWith("[")
+                ? JSON.parse(String(value))
+                : splitIds(value);
+            else if (key === "images")
+              body.images = String(value).trim().startsWith("[")
+                ? JSON.parse(String(value))
+                : [String(value)];
+            else body[key] = String(value).trim();
+          }
+          const title = body.title || body.productName;
+          if (!title) throw new Error("Missing title");
+          const existing = await productRepository.findOne({
+            where: body.model
+              ? [{ model: body.model }, { title }]
+              : [{ title }],
           });
-          if (categories.length !== categoryIds.length) {
-            errors.push({ row: i + 2, error: "Invalid categoryIds" });
-            continue;
-          }
-        }
-
-        const weight = toNum(row.weight);
-        const length = toNum(row.length);
-        const width = toNum(row.width);
-        const height = toNum(row.height);
-        const images = normalizeImages(row.images);
-
-        // Upsert by model if provided, else by title
-        const existing = await productRepository.findOne({
-          where: model ? [{ model }, { title }] : [{ title }],
-          relations: ["categories", "brand"],
-        });
-
-        const baseData: Partial<Product> = {
-          model,
-          title,
-          summary: row.summary || "",
-          price,
-          discountPrice: price,
-          wholesalePrice: null,
-          quantity: quantityStr,
-          wholesaleOrderQuantity: null,
-          unitsPerCarton: null,
-          weight,
-          length,
-          width,
-          height,
-          inStock: true,
-          isActive: true,
-          tag: row.tag ? row.tag.toString().trim() : null,
-          metaTitle: row.metaTitle || null,
-          metaDescription: row.metaDescription || null,
-          metaKeyword: row.metaKeyword || null,
-        };
-
-        if (images.length) {
-          (baseData as any).images = images;
-        }
-
-        if (existing) {
-          Object.assign(existing, baseData);
-          if (categories !== null) {
-            existing.categories = categories;
-          }
-          if (!images.length) {
-            // preserve existing images when none provided
-            existing.images = existing.images;
-          }
-          await productRepository.save(existing);
-          updated += 1;
-          updatedProducts.push({ title: existing.title, id: existing.id });
-        } else {
-          const newProduct = productRepository.create({
-            ...baseData,
-            images: images.length ? images : [],
-            categories: categories ?? [],
-            brand: null,
+          const result = await saveProduct(body, existing?.id, true);
+          (existing ? updatedProducts : createdProducts).push({
+            id: result.id,
+            title: result.title,
           });
-          await productRepository.save(newProduct);
-          created += 1;
-          createdProducts.push({ title: newProduct.title, id: newProduct.id });
+        } catch (error) {
+          errors.push({
+            row: index + 2,
+            error: error.message,
+            ...(error.errors ? { details: error.errors } : {}),
+          });
         }
       }
-
-      res.status(200).json({
+      res.json({
         message: "Import completed",
-        created,
-        updated,
+        created: createdProducts.length,
+        updated: updatedProducts.length,
         errors,
         createdProducts,
         updatedProducts,
       });
     } catch (error) {
-      console.error("Product import error:", error);
-      res.status(500).json({ message: "Internal server error" });
+      res.status(400).json({ message: "Unable to read import file" });
     }
   },
 
   //Update product (Admin only)
   updateProduct: async (req: Request, res: Response) => {
     try {
-      const product = await productRepository.findOne({
-        where: { id: req.params.id },
-        relations: ["categories", "brand"], // This ensures relations are loaded
-      });
-
-      if (!product) {
-        res.status(404).json({ message: "Product not found" });
-        return;
-      }
-
-      const updateData = new UpdateProductDto();
-      Object.assign(updateData, req.body);
-
-      const errors = await validate(updateData);
-      if (errors.length > 0) {
-        res.status(400).json({ errors });
-        return;
-      }
-
-      // Update categories if provided
-      if (updateData.categoryIds) {
-        // Find categories with proper typing
-        const categories = (await categoryRepository.find({
-          where: { id: In(updateData.categoryIds) },
-        })) as Category[]; // Explicit type assertion
-
-        if (categories.length !== updateData.categoryIds.length) {
-          res
-            .status(400)
-            .json({ message: "One or more category IDs are invalid" });
-          return;
-        }
-
-        // Clear existing categories and set new ones
-        product.categories = categories;
-      }
-
-      if (updateData.brandId) {
-        const brand = await brandRepository.findOne({
-          where: { id: updateData.brandId },
-        });
-
-        if (!brand) {
-          res.status(400).json({ message: "Invalid brand ID" });
-          return;
-        }
-
-        product.brand = brand;
-      }
-
-      // Update other fields (excluding categories which we handled above)
-      const { categoryIds, brandId, ...rest } = updateData;
-      Object.assign(product, {
-        ...rest,
-        images: rest.images ? normalizeImages(rest.images) : product.images,
-        package:
-          rest.package !== undefined
-            ? (normalizePackage(rest.package) ?? null)
-            : product.package,
-      });
-      product.discountPrice = product.discountPrice ?? product.price;
-
-      await productRepository.save(product);
-
-      // Return the updated product with categories
-      const updatedProduct = await productRepository.findOne({
-        where: { id: product.id },
-        relations: ["categories", "brand"],
-      });
-
-      res.status(200).json(formatProductResponse(updatedProduct));
+      res.json(await saveProduct(req.body, req.params.id));
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: "Internal server error" });
+      respondError(res, error);
     }
   },
 
@@ -661,27 +470,6 @@ export const ProductController = {
     }
   },
 
-  // Upload Product Image (Admin only)
-  //under work
-  // uploadImage: async (req: Request, res: Response) => {
-  //   try {
-  //     if (!req.file) {
-  //       return res.status(400).json({ message: "No file uploaded" });
-  //     }
-
-  //     // In production, you would upload to S3/Cloudinary/etc.
-  //     const imagePath = `/uploads/${req.file.filename}`;
-
-  //     return res.status(200).json({
-  //       message: "Image uploaded successfully",
-  //       imagePath,
-  //     });
-  //   } catch (error) {
-  //     console.error(error);
-  //     return res.status(500).json({ message: "Internal server error" });
-  //   }
-  // },
-
   getProductsByCategory: async (req: Request, res: Response) => {
     try {
       const { slug } = req.params;
@@ -696,6 +484,7 @@ export const ProductController = {
 
       if (!category) {
         res.status(404).json({ message: "Category not found" });
+        return;
       }
 
       const [products, total] = await productRepository.findAndCount({
@@ -703,7 +492,7 @@ export const ProductController = {
           categories: { id: category.id },
           isActive: true,
         },
-        relations: ["categories", "brand"],
+        relations: PRODUCT_RELATIONS,
         take,
         skip,
         order: { createdAt: "DESC" },
@@ -750,7 +539,7 @@ export const ProductController = {
           categories: { id: category.id },
           isActive: true,
         },
-        relations: ["categories", "brand"],
+        relations: PRODUCT_RELATIONS,
         take,
         skip,
         order: { createdAt: "DESC" },
