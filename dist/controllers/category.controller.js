@@ -78,36 +78,85 @@ const toMaybeString = (val) => {
 exports.CategoryController = {
     //Create Category (Admin only)
     createCategory: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+        var _a, _b, _c, _d, _e, _f, _g;
         try {
-            const categoryData = new category_dto_1.CreateCategoryDto();
-            Object.assign(categoryData, req.body);
-            const errors = yield (0, class_validator_1.validate)(categoryData);
+            const categoryRepository = data_source_1.AppDataSource.getRepository(category_entity_1.Category);
+            const parentCategoryRepository = data_source_1.AppDataSource.getRepository(parent_category_entity_1.ParentCategory);
+            const categoryDto = new category_dto_1.CreateCategoryDto();
+            Object.assign(categoryDto, req.body);
+            const errors = yield (0, class_validator_1.validate)(categoryDto);
             if (errors.length > 0) {
-                res.status(400).json({ errors });
+                res.status(400).json({
+                    message: "Validation failed",
+                    errors,
+                });
+                return;
+            }
+            const existingName = yield categoryRepository.findOne({
+                where: {
+                    name: categoryDto.name,
+                },
+            });
+            if (existingName) {
+                res.status(409).json({
+                    message: "Category with this name already exists",
+                });
+                return;
+            }
+            const existingKeyword = yield categoryRepository.findOne({
+                where: {
+                    keyword: categoryDto.keyword,
+                },
+            });
+            if (existingKeyword) {
+                res.status(409).json({
+                    message: "Category with this SEO keyword already exists",
+                });
                 return;
             }
             let parentCategory = null;
-            if (categoryData.parentCategoryId) {
+            if (categoryDto.parentCategoryId) {
                 parentCategory = yield parentCategoryRepository.findOne({
-                    where: { id: categoryData.parentCategoryId },
+                    where: {
+                        id: categoryDto.parentCategoryId,
+                    },
                 });
                 if (!parentCategory) {
-                    res.status(404).json({ message: "Parent category not found" });
+                    res.status(400).json({
+                        message: "Parent category not found",
+                    });
                     return;
                 }
             }
-            const category = categoryRepository.create(categoryData);
-            category.parentCategory = parentCategory;
-            yield categoryRepository.save(category);
-            const createdCategory = yield categoryRepository.findOne({
-                where: { id: category.id },
-                relations: ["parentCategory"],
+            const category = categoryRepository.create({
+                name: categoryDto.name,
+                description: (_a = categoryDto.description) !== null && _a !== void 0 ? _a : null,
+                image: (_b = categoryDto.image) !== null && _b !== void 0 ? _b : null,
+                isActive: (_c = categoryDto.isActive) !== null && _c !== void 0 ? _c : true,
+                displayOrder: (_d = categoryDto.displayOrder) !== null && _d !== void 0 ? _d : 0,
+                parentCategoryId: (_e = categoryDto.parentCategoryId) !== null && _e !== void 0 ? _e : null,
+                metaTitle: categoryDto.metaTitle,
+                metaDescription: (_f = categoryDto.metaDescription) !== null && _f !== void 0 ? _f : null,
+                metaKeywords: (_g = categoryDto.metaKeywords) !== null && _g !== void 0 ? _g : null,
+                keyword: categoryDto.keyword,
+                parentCategory,
             });
-            res.status(201).json(createdCategory !== null && createdCategory !== void 0 ? createdCategory : category);
+            const savedCategory = yield categoryRepository.save(category);
+            const result = yield categoryRepository.findOne({
+                where: {
+                    id: savedCategory.id,
+                },
+                relations: {
+                    parentCategory: true,
+                },
+            });
+            res.status(201).json(result);
         }
         catch (error) {
-            console.error(error);
-            res.status(500).json({ message: "Internal server error" });
+            console.error("Create category error:", error);
+            res.status(500).json({
+                message: "Failed to create category",
+            });
         }
     }),
     //Get all Categories (public)
@@ -228,58 +277,127 @@ exports.CategoryController = {
     // Update Category (Admin only)
     updateCategory: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         try {
+            const categoryRepository = data_source_1.AppDataSource.getRepository(category_entity_1.Category);
+            const parentCategoryRepository = data_source_1.AppDataSource.getRepository(parent_category_entity_1.ParentCategory);
             const category = yield categoryRepository.findOne({
-                where: { id: req.params.id },
-                relations: ["parentCategory"],
+                where: {
+                    id: req.params.id,
+                },
+                relations: {
+                    parentCategory: true,
+                },
             });
             if (!category) {
-                res.status(404).json({ message: "Category not found" });
-                return;
-            }
-            const updateData = new category_dto_1.UpdateCategoryDto();
-            Object.assign(updateData, req.body);
-            const errors = yield (0, class_validator_1.validate)(updateData);
-            if (errors.length > 0) {
-                res.status(400).json({ errors });
-                return;
-            }
-            let parentCategory = category.parentCategory;
-            if (Object.prototype.hasOwnProperty.call(req.body, "parentCategoryId")) {
-                const parentId = req.body.parentCategoryId;
-                if (parentId === null || parentId === undefined || parentId === "") {
-                    parentCategory = null;
-                }
-                else {
-                    parentCategory = yield parentCategoryRepository.findOne({
-                        where: { id: parentId },
-                    });
-                    if (!parentCategory) {
-                        res.status(404).json({ message: "Parent category not found" });
-                        return;
-                    }
-                }
-            }
-            else if (updateData.parentCategoryId) {
-                parentCategory = yield parentCategoryRepository.findOne({
-                    where: { id: updateData.parentCategoryId },
+                res.status(404).json({
+                    message: "Category not found",
                 });
-                if (!parentCategory) {
-                    res.status(404).json({ message: "Parent category not found" });
+                return;
+            }
+            const categoryDto = new category_dto_1.UpdateCategoryDto();
+            Object.assign(categoryDto, req.body);
+            const errors = yield (0, class_validator_1.validate)(categoryDto);
+            if (errors.length > 0) {
+                res.status(400).json({
+                    message: "Validation failed",
+                    errors,
+                });
+                return;
+            }
+            // Check duplicate category name
+            if (categoryDto.name !== undefined) {
+                const existingName = yield categoryRepository.findOne({
+                    where: {
+                        name: categoryDto.name,
+                    },
+                });
+                if (existingName && existingName.id !== category.id) {
+                    res.status(409).json({
+                        message: "Category with this name already exists",
+                    });
                     return;
                 }
             }
-            Object.assign(category, updateData);
-            category.parentCategory = parentCategory;
-            yield categoryRepository.save(category);
-            const updatedCategory = yield categoryRepository.findOne({
-                where: { id: category.id },
-                relations: ["parentCategory"],
+            // Check duplicate SEO keyword
+            if (categoryDto.keyword !== undefined) {
+                const existingKeyword = yield categoryRepository.findOne({
+                    where: {
+                        keyword: categoryDto.keyword,
+                    },
+                });
+                if (existingKeyword && existingKeyword.id !== category.id) {
+                    res.status(409).json({
+                        message: "Category with this SEO keyword already exists",
+                    });
+                    return;
+                }
+            }
+            // Parent category
+            if (categoryDto.parentCategoryId !== undefined) {
+                if (categoryDto.parentCategoryId === null) {
+                    category.parentCategory = null;
+                    category.parentCategoryId = null;
+                }
+                else {
+                    const parentCategory = yield parentCategoryRepository.findOne({
+                        where: {
+                            id: categoryDto.parentCategoryId,
+                        },
+                    });
+                    if (!parentCategory) {
+                        res.status(400).json({
+                            message: "Parent category not found",
+                        });
+                        return;
+                    }
+                    category.parentCategory = parentCategory;
+                    category.parentCategoryId = categoryDto.parentCategoryId;
+                }
+            }
+            // General fields
+            if (categoryDto.name !== undefined) {
+                category.name = categoryDto.name;
+            }
+            if (categoryDto.description !== undefined) {
+                category.description = categoryDto.description || null;
+            }
+            if (categoryDto.image !== undefined) {
+                category.image = categoryDto.image || null;
+            }
+            if (categoryDto.isActive !== undefined) {
+                category.isActive = categoryDto.isActive;
+            }
+            if (categoryDto.displayOrder !== undefined) {
+                category.displayOrder = categoryDto.displayOrder;
+            }
+            // SEO fields
+            if (categoryDto.metaTitle !== undefined) {
+                category.metaTitle = categoryDto.metaTitle;
+            }
+            if (categoryDto.metaDescription !== undefined) {
+                category.metaDescription = categoryDto.metaDescription || null;
+            }
+            if (categoryDto.metaKeywords !== undefined) {
+                category.metaKeywords = categoryDto.metaKeywords || null;
+            }
+            if (categoryDto.keyword !== undefined) {
+                category.keyword = categoryDto.keyword;
+            }
+            const updatedCategory = yield categoryRepository.save(category);
+            const result = yield categoryRepository.findOne({
+                where: {
+                    id: updatedCategory.id,
+                },
+                relations: {
+                    parentCategory: true,
+                },
             });
-            res.status(200).json(updatedCategory !== null && updatedCategory !== void 0 ? updatedCategory : category);
+            res.status(200).json(result);
         }
         catch (error) {
-            console.error(error);
-            res.status(500).json({ message: "Internal server error" });
+            console.error("Update category error:", error);
+            res.status(500).json({
+                message: "Failed to update category",
+            });
         }
     }),
     // Delete Category (Admin only)
@@ -357,8 +475,12 @@ exports.CategoryController = {
                         .toLowerCase()
                         .replace(/[^a-z0-9]+/g, "-")
                         .replace(/(^-|-$)/g, "");
-                const isActive = row.hasOwnProperty("isActive") ? toBool(row.isActive) : undefined;
-                const displayOrder = row.hasOwnProperty("displayOrder") ? toInt(row.displayOrder) : undefined;
+                const isActive = row.hasOwnProperty("isActive")
+                    ? toBool(row.isActive)
+                    : undefined;
+                const displayOrder = row.hasOwnProperty("displayOrder")
+                    ? toInt(row.displayOrder)
+                    : undefined;
                 const description = toMaybeString(row.description);
                 const image = toMaybeString(row.image);
                 const metaTitle = toMaybeString(row.metaTitle);
@@ -382,8 +504,9 @@ exports.CategoryController = {
                         existing.metaTitle = metaTitle || null;
                     if (metaDescription !== undefined)
                         existing.metaDescription = metaDescription || null;
-                    if (metaKeyword !== undefined)
-                        existing.metaKeyword = metaKeyword || null;
+                    if (metaKeyword !== undefined) {
+                        existing.metaKeywords = metaKeyword || null;
+                    }
                     if (parentCategoryId !== null) {
                         existing.parentCategory = parentCategory;
                     }
@@ -401,12 +524,15 @@ exports.CategoryController = {
                         displayOrder: displayOrder !== null && displayOrder !== void 0 ? displayOrder : 0,
                         metaTitle: metaTitle || null,
                         metaDescription: metaDescription || null,
-                        metaKeyword: metaKeyword || null,
+                        metaKeywords: metaKeyword,
                         parentCategory,
                     });
                     yield categoryRepository.save(newCategory);
                     created += 1;
-                    createdCategories.push({ name: newCategory.name, id: newCategory.id });
+                    createdCategories.push({
+                        name: newCategory.name,
+                        id: newCategory.id,
+                    });
                 }
             }
             res.status(200).json({

@@ -14,6 +14,9 @@ const typeorm_1 = require("typeorm");
 const product_entity_1 = require("./product.entity");
 const parent_category_entity_1 = require("./parent-category.entity");
 let Category = class Category {
+    // =========================================================
+    // SLUG
+    // =========================================================
     generateSlug() {
         if (!this.slug) {
             this.slug = this.name
@@ -29,41 +32,82 @@ __decorate([
     __metadata("design:type", String)
 ], Category.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: "varchar", length: 255, unique: true }),
+    (0, typeorm_1.Column)({
+        type: "varchar",
+        length: 255,
+        unique: true,
+    }),
     __metadata("design:type", String)
 ], Category.prototype, "name", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: "varchar", length: 255, unique: true }),
+    (0, typeorm_1.Column)({
+        type: "varchar",
+        length: 255,
+        unique: true,
+    }),
     __metadata("design:type", String)
 ], Category.prototype, "slug", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: "text", nullable: true }),
+    (0, typeorm_1.Column)({
+        type: "text",
+        nullable: true,
+    }),
     __metadata("design:type", String)
 ], Category.prototype, "description", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: "varchar", length: 255, nullable: true }),
+    (0, typeorm_1.Column)({
+        type: "varchar",
+        length: 255,
+        nullable: true,
+    }),
     __metadata("design:type", String)
 ], Category.prototype, "image", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: "boolean", default: true }),
+    (0, typeorm_1.Column)({
+        type: "boolean",
+        default: true,
+    }),
     __metadata("design:type", Boolean)
 ], Category.prototype, "isActive", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: "integer", default: 0 }),
+    (0, typeorm_1.Column)({
+        type: "integer",
+        default: 0,
+    }),
     __metadata("design:type", Number)
 ], Category.prototype, "displayOrder", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: "varchar", length: 255, nullable: true }),
+    (0, typeorm_1.Column)({
+        type: "varchar",
+        length: 255,
+        nullable: true,
+    }),
     __metadata("design:type", String)
 ], Category.prototype, "metaTitle", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: "varchar", length: 255, nullable: true }),
+    (0, typeorm_1.Column)({
+        type: "varchar",
+        length: 255,
+        nullable: true,
+    }),
     __metadata("design:type", String)
 ], Category.prototype, "metaDescription", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: "varchar", length: 255, nullable: true }),
+    (0, typeorm_1.Column)({
+        type: "text",
+        nullable: true,
+    }),
     __metadata("design:type", String)
-], Category.prototype, "metaKeyword", void 0);
+], Category.prototype, "metaKeywords", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        type: "varchar",
+        length: 255,
+        unique: true,
+        nullable: true,
+    }),
+    __metadata("design:type", String)
+], Category.prototype, "keyword", void 0);
 __decorate([
     (0, typeorm_1.ManyToMany)(() => product_entity_1.Product, (product) => product.categories),
     __metadata("design:type", Array)
@@ -73,11 +117,16 @@ __decorate([
         nullable: true,
         onDelete: "SET NULL",
     }),
-    (0, typeorm_1.JoinColumn)({ name: "parentCategoryId" }),
+    (0, typeorm_1.JoinColumn)({
+        name: "parentCategoryId",
+    }),
     __metadata("design:type", parent_category_entity_1.ParentCategory)
 ], Category.prototype, "parentCategory", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: "uuid", nullable: true }),
+    (0, typeorm_1.Column)({
+        type: "uuid",
+        nullable: true,
+    }),
     __metadata("design:type", String)
 ], Category.prototype, "parentCategoryId", void 0);
 __decorate([

@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UpdateCategoryDto = exports.CreateCategoryDto = void 0;
 const class_validator_1 = require("class-validator");
+const keywordRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 class CreateCategoryDto {
 }
 exports.CreateCategoryDto = CreateCategoryDto;
@@ -40,6 +41,7 @@ __decorate([
 ], CreateCategoryDto.prototype, "isActive", void 0);
 __decorate([
     (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(0),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)
 ], CreateCategoryDto.prototype, "displayOrder", void 0);
@@ -50,7 +52,6 @@ __decorate([
 ], CreateCategoryDto.prototype, "parentCategoryId", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], CreateCategoryDto.prototype, "metaTitle", void 0);
 __decorate([
@@ -62,7 +63,14 @@ __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
-], CreateCategoryDto.prototype, "metaKeyword", void 0);
+], CreateCategoryDto.prototype, "metaKeywords", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.Matches)(keywordRegex, {
+        message: "Use lowercase letters, numbers, and hyphens without spaces",
+    }),
+    __metadata("design:type", String)
+], CreateCategoryDto.prototype, "keyword", void 0);
 class UpdateCategoryDto {
 }
 exports.UpdateCategoryDto = UpdateCategoryDto;
@@ -93,6 +101,7 @@ __decorate([
 ], UpdateCategoryDto.prototype, "isActive", void 0);
 __decorate([
     (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(0),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)
 ], UpdateCategoryDto.prototype, "displayOrder", void 0);
@@ -115,4 +124,12 @@ __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
-], UpdateCategoryDto.prototype, "metaKeyword", void 0);
+], UpdateCategoryDto.prototype, "metaKeywords", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.Matches)(keywordRegex, {
+        message: "Use lowercase letters, numbers, and hyphens without spaces",
+    }),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], UpdateCategoryDto.prototype, "keyword", void 0);

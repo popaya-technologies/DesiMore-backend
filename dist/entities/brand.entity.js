@@ -20,13 +20,42 @@ __decorate([
     __metadata("design:type", String)
 ], Brand.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: "varchar", length: 255, unique: true }),
+    (0, typeorm_1.Column)({
+        type: "varchar",
+        length: 255,
+        unique: true,
+    }),
     __metadata("design:type", String)
 ], Brand.prototype, "name", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: "text", nullable: true }),
+    (0, typeorm_1.Column)({
+        type: "text",
+        nullable: true,
+    }),
     __metadata("design:type", String)
 ], Brand.prototype, "description", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        type: "text",
+        nullable: true,
+    }),
+    __metadata("design:type", String)
+], Brand.prototype, "image", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        type: "integer",
+        default: 0,
+    }),
+    __metadata("design:type", Number)
+], Brand.prototype, "sortOrder", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        type: "varchar",
+        length: 255,
+        unique: true,
+    }),
+    __metadata("design:type", String)
+], Brand.prototype, "keyword", void 0);
 __decorate([
     (0, typeorm_1.OneToMany)(() => product_entity_1.Product, (product) => product.brand),
     __metadata("design:type", Array)
