@@ -15,6 +15,7 @@ import parentCategoryRoutes from "./routes/parent-category.routes";
 import uploadRoutes from "./routes/upload.routes";
 import messageRoutes from "./routes/message.routes";
 import downloadRoutes from "./routes/download.routes";
+import faqRoutes from "./routes/faq.routes";
 import { authenticate } from "./middlewares/auth.middleware";
 import { checkPermission } from "./middlewares/rbac.middleware";
 import cors from "cors";
@@ -73,6 +74,7 @@ app.use("/api/wholesale-orders", wholesaleOrderRoutes);
 app.use("/api/uploads", uploadRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/downloads", downloadRoutes);
+app.use("/api/faqs", faqRoutes);
 
 // Example protected route with RBAC
 app.get(
