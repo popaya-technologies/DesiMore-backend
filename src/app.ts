@@ -16,6 +16,7 @@ import uploadRoutes from "./routes/upload.routes";
 import messageRoutes from "./routes/message.routes";
 import downloadRoutes from "./routes/download.routes";
 import faqRoutes from "./routes/faq.routes";
+import carrierRoutes from "./routes/carrier.routes";
 import { authenticate } from "./middlewares/auth.middleware";
 import { checkPermission } from "./middlewares/rbac.middleware";
 import cors from "cors";
@@ -75,6 +76,7 @@ app.use("/api/uploads", uploadRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/downloads", downloadRoutes);
 app.use("/api/faqs", faqRoutes);
+app.use("/api/carriers", carrierRoutes);
 
 // Example protected route with RBAC
 app.get(
