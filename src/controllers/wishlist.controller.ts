@@ -1,10 +1,11 @@
 import { Request, Response } from "express";
+import { addCartItem } from "../services/cart.service";
+import { respondError, ApiError } from "../utils/api-error";
+import { AddToCartDto } from "../dto/cart.dto";
 import { AppDataSource } from "../data-source";
 import { Wishlist } from "../entities/wishlist.entity";
 import { WishlistItem } from "../entities/wishlist-item.entity";
 import { Product } from "../entities/product.entity";
-import { Cart, CartType } from "../entities/cart.entity";
-import { CartItem } from "../entities/cart-item.entity";
 import { validate } from "class-validator";
 import { plainToInstance } from "class-transformer";
 import { AddToWishlistDto } from "../dto/wishlist.dto";
@@ -12,8 +13,6 @@ import { AddToWishlistDto } from "../dto/wishlist.dto";
 const wishlistRepository = AppDataSource.getRepository(Wishlist);
 const wishlistItemRepository = AppDataSource.getRepository(WishlistItem);
 const productRepository = AppDataSource.getRepository(Product);
-const cartRepository = AppDataSource.getRepository(Cart);
-const cartItemRepository = AppDataSource.getRepository(CartItem);
 
 export const WishlistController = {
   // Get user's wishlist
@@ -42,7 +41,9 @@ export const WishlistController = {
   addItemByParam: async (req: Request, res: Response) => {
     try {
       const userId = req.user.id;
-      const dto = plainToInstance(AddToWishlistDto, { productId: req.params.item });
+      const dto = plainToInstance(AddToWishlistDto, {
+        productId: req.params.item,
+      });
 
       const errors = await validate(dto, {
         whitelist: true,
@@ -189,82 +190,37 @@ export const WishlistController = {
         return;
       }
 
-      // Ensure product exists and is in stock
-      const product = wItem.product || (await productRepository.findOne({ where: { id: wItem.productId } }));
-      if (!product) {
-        res.status(404).json({ message: "Product not found" });
-        return;
-      }
-
-      if (!product.inStock) {
-        res.status(400).json({ message: "Product is out of stock" });
-        return;
-      }
-
-      const availableQuantity =
-        typeof product.quantity === "string" ? parseInt(product.quantity) || 0 : (product.quantity as any) || 0;
-      if (availableQuantity < 1) {
-        res.status(400).json({ message: "Insufficient quantity", availableQuantity });
-        return;
-      }
-
-      // Get or create cart
-      let cart = await cartRepository.findOne({
-        where: { userId, type: CartType.REGULAR },
-        relations: ["items", "items.product"],
+      const cartDto = plainToInstance(AddToCartDto, {
+        productId: wItem.productId,
+        quantity: req.body?.quantity ?? 1,
+        selectedOptions: req.body?.selectedOptions,
       });
-      if (!cart) {
-        cart = cartRepository.create({ userId, type: CartType.REGULAR, items: [] });
-        cart = await cartRepository.save(cart);
-        cart.items = [];
-      }
-
-      // Determine price from product
-      const productPrice =
-        typeof product.discountPrice === "string"
-          ? parseFloat(product.discountPrice) || 0
-          : typeof product.discountPrice === "number"
-          ? product.discountPrice
-          : typeof product.price === "string"
-          ? parseFloat(product.price) || 0
-          : (product.price as any) || 0;
-      if (!productPrice || productPrice <= 0) {
-        res.status(400).json({ message: "Invalid product price" });
-        return;
-      }
-
-      // Add or increment in cart
-      const existingItem = cart.items?.find((ci) => ci.productId === wItem.productId);
-      if (existingItem) {
-        existingItem.updateQuantity(existingItem.quantity + 1, productPrice);
-        await cartItemRepository.save(existingItem);
-      } else {
-        const newCartItem = cartItemRepository.create({
-          cartId: cart.id,
-          productId: wItem.productId,
-          quantity: 1,
-          price: productPrice,
-          product,
-        });
-        await cartItemRepository.save(newCartItem);
-        cart.items = [...(cart.items || []), newCartItem];
-      }
-
-      // Recalculate and save cart
-      cart.calculateTotal();
-      await cartRepository.save(cart);
+      const cartErrors = await validate(cartDto, {
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        validationError: { target: false, value: false },
+      });
+      if (cartErrors.length)
+        throw new ApiError(400, "Invalid cart data", cartErrors);
+      const updatedCart = await addCartItem(
+        req.user,
+        wItem.productId,
+        cartDto.quantity,
+        cartDto.selectedOptions,
+      );
 
       // Remove from wishlist
       await wishlistItemRepository.delete(wItem.id);
 
       // Return updated resources
-      const updatedCart = await cartRepository.findOne({ where: { id: cart.id }, relations: ["items", "items.product"] });
-      const updatedWishlist = await wishlistRepository.findOne({ where: { id: wishlist.id }, relations: ["items", "items.product"] });
+      const updatedWishlist = await wishlistRepository.findOne({
+        where: { id: wishlist.id },
+        relations: ["items", "items.product"],
+      });
 
       res.status(200).json({ cart: updatedCart, wishlist: updatedWishlist });
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: "Internal server error" });
+      respondError(res, error);
     }
   },
 };

@@ -41,36 +41,18 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __rest = (this && this.__rest) || function (s, e) {
-    var t = {};
-    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
-        t[p] = s[p];
-    if (s != null && typeof Object.getOwnPropertySymbols === "function")
-        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
-            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
-                t[p[i]] = s[p[i]];
-        }
-    return t;
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ProductController = exports.formatProductResponse = void 0;
 const data_source_1 = require("../data-source");
 const product_entity_1 = require("../entities/product.entity");
-const product_dto_1 = require("../dto/product.dto");
-const class_validator_1 = require("class-validator");
 const typeorm_1 = require("typeorm");
 const category_entity_1 = require("../entities/category.entity");
-const brand_entity_1 = require("../entities/brand.entity");
 const XLSX = __importStar(require("xlsx"));
+const product_service_1 = require("../services/product.service");
+const api_error_1 = require("../utils/api-error");
+const product_dto_1 = require("../dto/product.dto");
 const productRepository = data_source_1.AppDataSource.getRepository(product_entity_1.Product);
 const categoryRepository = data_source_1.AppDataSource.getRepository(category_entity_1.Category);
-const brandRepository = data_source_1.AppDataSource.getRepository(brand_entity_1.Brand);
-const toNum = (val) => {
-    if (val === undefined || val === null || val === "")
-        return null;
-    const n = Number(val);
-    return Number.isFinite(n) ? n : null;
-};
 const splitIds = (val) => {
     if (!val)
         return [];
@@ -80,145 +62,46 @@ const splitIds = (val) => {
         .map((s) => s.trim())
         .filter((s) => s && s.toLowerCase() !== "null" && s.toLowerCase() !== "undefined");
 };
-const normalizeImages = (val) => {
-    if (!val)
-        return [];
-    if (Array.isArray(val)) {
-        return val
-            .map((item) => {
-            if (!item)
-                return null;
-            if (typeof item === "string")
-                return item;
-            if (typeof item === "object" && item.url)
-                return item.url.toString();
-            return null;
-        })
-            .filter(Boolean);
-    }
-    if (typeof val === "object" && val.url)
-        return [val.url.toString()];
-    if (typeof val === "string")
-        return [val];
-    return [];
-};
-const normalizePackage = (val) => {
-    if (!val || typeof val !== "object")
-        return undefined;
-    const length = val.length !== undefined && val.length !== null
-        ? Number(val.length)
-        : undefined;
-    const width = val.width !== undefined && val.width !== null
-        ? Number(val.width)
-        : undefined;
-    const height = val.height !== undefined && val.height !== null
-        ? Number(val.height)
-        : undefined;
-    const pkg = {
-        length: Number.isFinite(length) ? length : undefined,
-        width: Number.isFinite(width) ? width : undefined,
-        height: Number.isFinite(height) ? height : undefined,
-    };
-    if (pkg.length === undefined &&
-        pkg.width === undefined &&
-        pkg.height === undefined) {
-        return undefined;
-    }
-    return pkg;
-};
-const formatProductResponse = (product) => {
-    var _a, _b;
-    if (!product) {
-        return null;
-    }
-    const { categories = [], brand } = product, productData = __rest(product, ["categories", "brand"]);
-    const normalizedProduct = Object.assign(Object.assign({}, productData), { discountPrice: (_a = productData.discountPrice) !== null && _a !== void 0 ? _a : productData.price, tag: (_b = productData.tag) !== null && _b !== void 0 ? _b : null });
-    return Object.assign(Object.assign({}, normalizedProduct), { categoryIds: categories.map((c) => c.id), brandId: brand ? brand.id : null });
-};
-exports.formatProductResponse = formatProductResponse;
+exports.formatProductResponse = product_service_1.productResponse;
 exports.ProductController = {
     // Create Product (Admin only) or Users with access
     createProduct: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r;
         try {
-            // Create and validate DTO
-            const productData = new product_dto_1.CreateProductDto();
-            const body = Object.assign({}, req.body);
-            if (body.images) {
-                body.images = normalizeImages(body.images);
-            }
-            if (body.package) {
-                body.package = normalizePackage(body.package);
-            }
-            Object.assign(productData, body);
-            const errors = yield (0, class_validator_1.validate)(productData);
-            if (errors.length > 0) {
-                res.status(400).json({ errors });
-                return;
-            }
-            // Validate categories
-            const categories = yield categoryRepository.find({
-                where: { id: (0, typeorm_1.In)(productData.categoryIds) },
-            });
-            if (categories.length !== productData.categoryIds.length) {
-                res.status(400).json({
-                    message: "One or more category IDs are invalid",
-                    invalidIds: productData.categoryIds.filter((id) => !categories.some((c) => c.id === id)),
-                });
-                return;
-            }
-            // Validate brand if provided
-            let brand = null;
-            if (productData.brandId) {
-                brand = yield brandRepository.findOne({
-                    where: { id: productData.brandId },
-                });
-                if (!brand) {
-                    res.status(400).json({ message: "Invalid brand ID" });
-                    return;
-                }
-            }
-            // Create and save product
-            const product = productRepository.create({
-                title: productData.title,
-                model: (_a = productData.model) !== null && _a !== void 0 ? _a : null,
-                images: productData.images,
-                price: productData.price,
-                discountPrice: (_b = productData.discountPrice) !== null && _b !== void 0 ? _b : productData.price,
-                wholesalePrice: (_c = productData.wholesalePrice) !== null && _c !== void 0 ? _c : null,
-                summary: productData.summary,
-                quantity: productData.quantity || "0",
-                wholesaleOrderQuantity: (_d = productData.wholesaleOrderQuantity) !== null && _d !== void 0 ? _d : null,
-                unitsPerCarton: (_e = productData.unitsPerCarton) !== null && _e !== void 0 ? _e : null,
-                weight: (_f = productData.weight) !== null && _f !== void 0 ? _f : null,
-                length: (_g = productData.length) !== null && _g !== void 0 ? _g : null,
-                width: (_h = productData.width) !== null && _h !== void 0 ? _h : null,
-                height: (_j = productData.height) !== null && _j !== void 0 ? _j : null,
-                inStock: (_k = productData.inStock) !== null && _k !== void 0 ? _k : true,
-                isActive: (_l = productData.isActive) !== null && _l !== void 0 ? _l : true,
-                tag: (_m = productData.tag) !== null && _m !== void 0 ? _m : null,
-                package: (_o = normalizePackage(productData.package)) !== null && _o !== void 0 ? _o : null,
-                metaTitle: (_p = productData.metaTitle) !== null && _p !== void 0 ? _p : null,
-                metaDescription: (_q = productData.metaDescription) !== null && _q !== void 0 ? _q : null,
-                metaKeyword: (_r = productData.metaKeyword) !== null && _r !== void 0 ? _r : null,
-                brand: brand !== null && brand !== void 0 ? brand : null,
-                categories,
-            });
-            yield productRepository.save(product);
-            // Return the created product with relations
-            const createdProduct = yield productRepository.findOne({
-                where: { id: product.id },
-                relations: ["categories", "brand"],
-            });
-            res.status(201).json((0, exports.formatProductResponse)(createdProduct));
+            res.status(201).json(yield (0, product_service_1.saveProduct)(req.body));
         }
         catch (error) {
-            console.error("Product creation error:", error);
-            res.status(500).json({
-                message: "Internal server error",
-                error: error.message,
-            });
+            (0, api_error_1.respondError)(res, error);
         }
+    }),
+    getProductForEdit: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+        try {
+            const product = yield productRepository.findOne({
+                where: { id: req.params.id },
+                relations: product_service_1.PRODUCT_RELATIONS,
+            });
+            if (!product) {
+                res.status(404).json({ message: "Product not found" });
+                return;
+            }
+            res.json((0, product_service_1.productResponse)(product, true));
+        }
+        catch (error) {
+            (0, api_error_1.respondError)(res, error);
+        }
+    }),
+    getFormOptions: (_req, res) => __awaiter(void 0, void 0, void 0, function* () {
+        res.json({
+            lengthClasses: product_dto_1.LENGTH_CLASSES,
+            weightClasses: product_dto_1.WEIGHT_CLASSES,
+            outOfStockStatuses: product_dto_1.STOCK_STATUSES,
+            optionTypes: product_dto_1.OPTION_TYPES,
+            customerGroups: product_dto_1.CUSTOMER_GROUPS,
+            manufacturerEndpoint: "/api/brands",
+            categoryEndpoint: "/api/categories/all",
+            downloadEndpoint: "/api/downloads",
+            wholesalePriceUnit: "box",
+            wholesaleStockUnit: "box",
+        });
     }),
     // Get All Products (Public)
     getProducts: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -248,6 +131,13 @@ exports.ProductController = {
             if (!isNaN(max)) {
                 baseQuery.andWhere("product.price <= :maxPrice", { maxPrice: max });
             }
+            if (sort === "price_asc" || sort === "price_desc")
+                baseQuery.orderBy("product.price", sort === "price_asc" ? "ASC" : "DESC");
+            else
+                baseQuery
+                    .orderBy("product.sortOrder", "ASC")
+                    .addOrderBy("product.createdAt", "DESC");
+            baseQuery.addOrderBy("product.id", "ASC");
             const total = yield baseQuery.getCount();
             const productIds = (yield baseQuery.clone().offset(skip).limit(take).getRawMany()).map((p) => p.id);
             // 2. If no products found, return empty array
@@ -276,7 +166,7 @@ exports.ProductController = {
                 qb.orderBy("product.price", "DESC");
             }
             else {
-                qb.orderBy("product.createdAt", "DESC");
+                qb.orderBy("product.sortOrder", "ASC").addOrderBy("product.createdAt", "DESC");
             }
             const products = yield qb.getMany();
             // 4. Transform response to include only categoryIds
@@ -301,7 +191,7 @@ exports.ProductController = {
         try {
             const product = yield productRepository.findOne({
                 where: { id: req.params.id },
-                relations: ["categories", "brand"],
+                relations: product_service_1.PRODUCT_RELATIONS,
             });
             if (!product) {
                 res.status(404).json({ message: "Product not found" });
@@ -316,21 +206,36 @@ exports.ProductController = {
     }),
     // Related products (by shared categories or brand)
     getRelatedProducts: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-        var _a;
+        var _a, _b;
         try {
             const { id } = req.params;
             const limitParam = req.query.limit;
             const take = limitParam ? parseInt(limitParam, 10) : 10;
             const product = yield productRepository.findOne({
                 where: { id },
-                relations: ["categories", "brand"],
+                relations: product_service_1.PRODUCT_RELATIONS,
             });
             if (!product) {
                 res.status(404).json({ message: "Product not found" });
                 return;
             }
+            if ((_a = product.relatedProducts) === null || _a === void 0 ? void 0 : _a.length) {
+                const related = yield productRepository.find({
+                    where: {
+                        id: (0, typeorm_1.In)(product.relatedProducts.map((p) => p.id)),
+                        isActive: true,
+                    },
+                    relations: ["categories", "brand"],
+                    take: Math.min(Math.max(take || 10, 1), 100),
+                });
+                res.json(related
+                    .filter((p) => !p.dateAvailable ||
+                    p.dateAvailable <= new Date().toISOString().slice(0, 10))
+                    .map((p) => (0, product_service_1.productResponse)(p)));
+                return;
+            }
             const categoryIds = (product.categories || []).map((c) => c.id);
-            const brandId = (_a = product.brand) === null || _a === void 0 ? void 0 : _a.id;
+            const brandId = (_b = product.brand) === null || _b === void 0 ? void 0 : _b.id;
             const qb = productRepository
                 .createQueryBuilder("product")
                 .leftJoinAndSelect("product.categories", "category")
@@ -399,184 +304,117 @@ exports.ProductController = {
     }),
     // Import products from XLSX/CSV (upsert by model if provided, else title)
     importProducts: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-        var _a, _b, _c, _d;
         try {
-            const uploadedFile = req.file;
-            if (!uploadedFile || !uploadedFile.buffer) {
+            const file = req.file;
+            if (!(file === null || file === void 0 ? void 0 : file.buffer)) {
                 res.status(400).json({ message: "No file uploaded" });
                 return;
             }
-            const workbook = XLSX.read(uploadedFile.buffer, { type: "buffer" });
-            const firstSheetName = workbook.SheetNames[0];
-            const sheet = workbook.Sheets[firstSheetName];
-            const rows = XLSX.utils.sheet_to_json(sheet, {
-                defval: "",
-                raw: false,
-                blankrows: false,
-            });
-            if (!rows || rows.length === 0) {
-                res.status(400).json({ message: "No data found in file" });
+            const workbook = XLSX.read(file.buffer, { type: "buffer" });
+            const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { raw: false, blankrows: false });
+            if (!rows.length || rows.length > 5000) {
+                res.status(400).json({ message: "Import must contain 1 to 5000 rows" });
                 return;
             }
-            let created = 0;
-            let updated = 0;
-            const errors = [];
-            const createdProducts = [];
-            const updatedProducts = [];
-            for (let i = 0; i < rows.length; i++) {
-                const row = rows[i];
-                const title = (_a = row.title) === null || _a === void 0 ? void 0 : _a.toString().trim();
-                if (!title) {
-                    errors.push({ row: i + 2, error: "Missing title" });
-                    continue;
-                }
-                const model = ((_b = row.model) === null || _b === void 0 ? void 0 : _b.toString().trim()) || null;
-                const price = toNum(row.price);
-                if (price === null) {
-                    errors.push({ row: i + 2, error: "Invalid price" });
-                    continue;
-                }
-                const quantityStr = (_d = (_c = row.quantity) === null || _c === void 0 ? void 0 : _c.toString().trim()) !== null && _d !== void 0 ? _d : "0";
-                const categoryIds = splitIds(row.categoryIds);
-                let categories = null;
-                if (categoryIds.length > 0) {
-                    categories = yield categoryRepository.find({
-                        where: { id: (0, typeorm_1.In)(categoryIds) },
+            const numeric = new Set([
+                "price",
+                "discountPrice",
+                "wholesalePrice",
+                "wholesaleQuantity",
+                "boxQuantity",
+                "unitsPerCarton",
+                "minimumQuantity",
+                "wholesaleMinimumQuantity",
+                "sortOrder",
+                "length",
+                "width",
+                "height",
+                "weight",
+                "wholesaleLength",
+                "wholesaleWidth",
+                "wholesaleHeight",
+                "wholesaleWeight",
+            ]);
+            const boolean = new Set([
+                "isActive",
+                "inStock",
+                "subtractStock",
+                "requiresShipping",
+                "wholesaleRequiresShipping",
+            ]);
+            const json = new Set([
+                "attributes",
+                "options",
+                "discounts",
+                "imageDetails",
+                "package",
+            ]);
+            const errors = [], createdProducts = [], updatedProducts = [];
+            for (let index = 0; index < rows.length; index++) {
+                try {
+                    const body = {};
+                    for (const [key, value] of Object.entries(rows[index])) {
+                        if (value === undefined || value === null || value === "")
+                            continue;
+                        if (numeric.has(key))
+                            body[key] = Number(value);
+                        else if (boolean.has(key)) {
+                            const normalized = String(value).trim().toLowerCase();
+                            if (!["true", "false", "yes", "no", "1", "0"].includes(normalized))
+                                throw new Error("Invalid boolean: " + key);
+                            body[key] = ["true", "yes", "1"].includes(normalized);
+                        }
+                        else if (json.has(key))
+                            body[key] = JSON.parse(String(value));
+                        else if (["categoryIds", "downloadIds", "relatedProductIds"].includes(key))
+                            body[key] = String(value).trim().startsWith("[")
+                                ? JSON.parse(String(value))
+                                : splitIds(value);
+                        else if (key === "images")
+                            body.images = String(value).trim().startsWith("[")
+                                ? JSON.parse(String(value))
+                                : [String(value)];
+                        else
+                            body[key] = String(value).trim();
+                    }
+                    const title = body.title || body.productName;
+                    if (!title)
+                        throw new Error("Missing title");
+                    const existing = yield productRepository.findOne({
+                        where: body.model
+                            ? [{ model: body.model }, { title }]
+                            : [{ title }],
                     });
-                    if (categories.length !== categoryIds.length) {
-                        errors.push({ row: i + 2, error: "Invalid categoryIds" });
-                        continue;
-                    }
+                    const result = yield (0, product_service_1.saveProduct)(body, existing === null || existing === void 0 ? void 0 : existing.id, true);
+                    (existing ? updatedProducts : createdProducts).push({
+                        id: result.id,
+                        title: result.title,
+                    });
                 }
-                const weight = toNum(row.weight);
-                const length = toNum(row.length);
-                const width = toNum(row.width);
-                const height = toNum(row.height);
-                const images = normalizeImages(row.images);
-                // Upsert by model if provided, else by title
-                const existing = yield productRepository.findOne({
-                    where: model ? [{ model }, { title }] : [{ title }],
-                    relations: ["categories", "brand"],
-                });
-                const baseData = {
-                    model,
-                    title,
-                    summary: row.summary || "",
-                    price,
-                    discountPrice: price,
-                    wholesalePrice: null,
-                    quantity: quantityStr,
-                    wholesaleOrderQuantity: null,
-                    unitsPerCarton: null,
-                    weight,
-                    length,
-                    width,
-                    height,
-                    inStock: true,
-                    isActive: true,
-                    tag: row.tag ? row.tag.toString().trim() : null,
-                    metaTitle: row.metaTitle || null,
-                    metaDescription: row.metaDescription || null,
-                    metaKeyword: row.metaKeyword || null,
-                };
-                if (images.length) {
-                    baseData.images = images;
-                }
-                if (existing) {
-                    Object.assign(existing, baseData);
-                    if (categories !== null) {
-                        existing.categories = categories;
-                    }
-                    if (!images.length) {
-                        // preserve existing images when none provided
-                        existing.images = existing.images;
-                    }
-                    yield productRepository.save(existing);
-                    updated += 1;
-                    updatedProducts.push({ title: existing.title, id: existing.id });
-                }
-                else {
-                    const newProduct = productRepository.create(Object.assign(Object.assign({}, baseData), { images: images.length ? images : [], categories: categories !== null && categories !== void 0 ? categories : [], brand: null }));
-                    yield productRepository.save(newProduct);
-                    created += 1;
-                    createdProducts.push({ title: newProduct.title, id: newProduct.id });
+                catch (error) {
+                    errors.push(Object.assign({ row: index + 2, error: error.message }, (error.errors ? { details: error.errors } : {})));
                 }
             }
-            res.status(200).json({
+            res.json({
                 message: "Import completed",
-                created,
-                updated,
+                created: createdProducts.length,
+                updated: updatedProducts.length,
                 errors,
                 createdProducts,
                 updatedProducts,
             });
         }
         catch (error) {
-            console.error("Product import error:", error);
-            res.status(500).json({ message: "Internal server error" });
+            res.status(400).json({ message: "Unable to read import file" });
         }
     }),
     //Update product (Admin only)
     updateProduct: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-        var _a, _b;
         try {
-            const product = yield productRepository.findOne({
-                where: { id: req.params.id },
-                relations: ["categories", "brand"], // This ensures relations are loaded
-            });
-            if (!product) {
-                res.status(404).json({ message: "Product not found" });
-                return;
-            }
-            const updateData = new product_dto_1.UpdateProductDto();
-            Object.assign(updateData, req.body);
-            const errors = yield (0, class_validator_1.validate)(updateData);
-            if (errors.length > 0) {
-                res.status(400).json({ errors });
-                return;
-            }
-            // Update categories if provided
-            if (updateData.categoryIds) {
-                // Find categories with proper typing
-                const categories = (yield categoryRepository.find({
-                    where: { id: (0, typeorm_1.In)(updateData.categoryIds) },
-                })); // Explicit type assertion
-                if (categories.length !== updateData.categoryIds.length) {
-                    res
-                        .status(400)
-                        .json({ message: "One or more category IDs are invalid" });
-                    return;
-                }
-                // Clear existing categories and set new ones
-                product.categories = categories;
-            }
-            if (updateData.brandId) {
-                const brand = yield brandRepository.findOne({
-                    where: { id: updateData.brandId },
-                });
-                if (!brand) {
-                    res.status(400).json({ message: "Invalid brand ID" });
-                    return;
-                }
-                product.brand = brand;
-            }
-            // Update other fields (excluding categories which we handled above)
-            const { categoryIds, brandId } = updateData, rest = __rest(updateData, ["categoryIds", "brandId"]);
-            Object.assign(product, Object.assign(Object.assign({}, rest), { images: rest.images ? normalizeImages(rest.images) : product.images, package: rest.package !== undefined
-                    ? ((_a = normalizePackage(rest.package)) !== null && _a !== void 0 ? _a : null)
-                    : product.package }));
-            product.discountPrice = (_b = product.discountPrice) !== null && _b !== void 0 ? _b : product.price;
-            yield productRepository.save(product);
-            // Return the updated product with categories
-            const updatedProduct = yield productRepository.findOne({
-                where: { id: product.id },
-                relations: ["categories", "brand"],
-            });
-            res.status(200).json((0, exports.formatProductResponse)(updatedProduct));
+            res.json(yield (0, product_service_1.saveProduct)(req.body, req.params.id));
         }
         catch (error) {
-            console.error(error);
-            res.status(500).json({ message: "Internal server error" });
+            (0, api_error_1.respondError)(res, error);
         }
     }),
     //Delete Product (Admin only)
@@ -597,24 +435,6 @@ exports.ProductController = {
             res.status(500).json({ message: "Internal Sever Error" });
         }
     }),
-    // Upload Product Image (Admin only)
-    //under work
-    // uploadImage: async (req: Request, res: Response) => {
-    //   try {
-    //     if (!req.file) {
-    //       return res.status(400).json({ message: "No file uploaded" });
-    //     }
-    //     // In production, you would upload to S3/Cloudinary/etc.
-    //     const imagePath = `/uploads/${req.file.filename}`;
-    //     return res.status(200).json({
-    //       message: "Image uploaded successfully",
-    //       imagePath,
-    //     });
-    //   } catch (error) {
-    //     console.error(error);
-    //     return res.status(500).json({ message: "Internal server error" });
-    //   }
-    // },
     getProductsByCategory: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         try {
             const { slug } = req.params;
@@ -626,13 +446,14 @@ exports.ProductController = {
             });
             if (!category) {
                 res.status(404).json({ message: "Category not found" });
+                return;
             }
             const [products, total] = yield productRepository.findAndCount({
                 where: {
                     categories: { id: category.id },
                     isActive: true,
                 },
-                relations: ["categories", "brand"],
+                relations: product_service_1.PRODUCT_RELATIONS,
                 take,
                 skip,
                 order: { createdAt: "DESC" },
@@ -671,7 +492,7 @@ exports.ProductController = {
                     categories: { id: category.id },
                     isActive: true,
                 },
-                relations: ["categories", "brand"],
+                relations: product_service_1.PRODUCT_RELATIONS,
                 take,
                 skip,
                 order: { createdAt: "DESC" },

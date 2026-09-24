@@ -14,6 +14,18 @@ export class CartItem {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
+  @Column({ type: "jsonb", default: [] })
+  selectedOptions: {
+    optionId: string;
+    valueIds?: string[];
+    text?: string;
+    name?: string;
+    values?: string[];
+    priceAdjustment?: number;
+    pointsAdjustment?: number;
+    weightAdjustment?: number;
+  }[];
+
   @ManyToOne(() => Cart, (cart) => cart.items, { onDelete: "CASCADE" })
   @JoinColumn({ name: "cartId" })
   cart: Cart;

@@ -19,6 +19,7 @@ const wholesale_order_routes_1 = __importDefault(require("./routes/wholesale-ord
 const parent_category_routes_1 = __importDefault(require("./routes/parent-category.routes"));
 const upload_routes_1 = __importDefault(require("./routes/upload.routes"));
 const message_routes_1 = __importDefault(require("./routes/message.routes"));
+const download_routes_1 = __importDefault(require("./routes/download.routes"));
 const auth_middleware_1 = require("./middlewares/auth.middleware");
 const rbac_middleware_1 = require("./middlewares/rbac.middleware");
 const cors_1 = __importDefault(require("cors"));
@@ -27,7 +28,7 @@ const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
 const app = (0, express_1.default)();
 // Middleware
-app.use(express_1.default.json());
+app.use(express_1.default.json({ limit: "2mb" }));
 app.use((0, cookie_parser_1.default)());
 app.use((0, cors_1.default)({
     origin: "*",
@@ -63,6 +64,7 @@ app.use("/api/payments", payment_routes_1.default);
 app.use("/api/wholesale-orders", wholesale_order_routes_1.default);
 app.use("/api/uploads", upload_routes_1.default);
 app.use("/api/messages", message_routes_1.default);
+app.use("/api/downloads", download_routes_1.default);
 // Example protected route with RBAC
 app.get("/api/admin/dashboard", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("dashboard", "read"), (req, res) => {
     res.json({ message: "Welcome to admin dashboard" });

@@ -28,7 +28,13 @@ __decorate([
     __metadata("design:type", String)
 ], WholesaleOrderItem.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => wholesale_order_request_entity_1.WholesaleOrderRequest, (request) => request.items, { onDelete: "CASCADE" }),
+    (0, typeorm_1.Column)({ type: "jsonb", default: [] }),
+    __metadata("design:type", Array)
+], WholesaleOrderItem.prototype, "selectedOptions", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => wholesale_order_request_entity_1.WholesaleOrderRequest, (request) => request.items, {
+        onDelete: "CASCADE",
+    }),
     (0, typeorm_1.JoinColumn)({ name: "requestId" }),
     __metadata("design:type", wholesale_order_request_entity_1.WholesaleOrderRequest)
 ], WholesaleOrderItem.prototype, "request", void 0);

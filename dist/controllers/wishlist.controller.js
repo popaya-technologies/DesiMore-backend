@@ -10,20 +10,19 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WishlistController = void 0;
+const cart_service_1 = require("../services/cart.service");
+const api_error_1 = require("../utils/api-error");
+const cart_dto_1 = require("../dto/cart.dto");
 const data_source_1 = require("../data-source");
 const wishlist_entity_1 = require("../entities/wishlist.entity");
 const wishlist_item_entity_1 = require("../entities/wishlist-item.entity");
 const product_entity_1 = require("../entities/product.entity");
-const cart_entity_1 = require("../entities/cart.entity");
-const cart_item_entity_1 = require("../entities/cart-item.entity");
 const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
 const wishlist_dto_1 = require("../dto/wishlist.dto");
 const wishlistRepository = data_source_1.AppDataSource.getRepository(wishlist_entity_1.Wishlist);
 const wishlistItemRepository = data_source_1.AppDataSource.getRepository(wishlist_item_entity_1.WishlistItem);
 const productRepository = data_source_1.AppDataSource.getRepository(product_entity_1.Product);
-const cartRepository = data_source_1.AppDataSource.getRepository(cart_entity_1.Cart);
-const cartItemRepository = data_source_1.AppDataSource.getRepository(cart_item_entity_1.CartItem);
 exports.WishlistController = {
     // Get user's wishlist
     getWishlist: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -49,7 +48,9 @@ exports.WishlistController = {
         var _a;
         try {
             const userId = req.user.id;
-            const dto = (0, class_transformer_1.plainToInstance)(wishlist_dto_1.AddToWishlistDto, { productId: req.params.item });
+            const dto = (0, class_transformer_1.plainToInstance)(wishlist_dto_1.AddToWishlistDto, {
+                productId: req.params.item,
+            });
             const errors = yield (0, class_validator_1.validate)(dto, {
                 whitelist: true,
                 forbidUnknownValues: true,
@@ -157,7 +158,7 @@ exports.WishlistController = {
     }),
     // Move wishlist item to cart (adds quantity 1 and removes from wishlist)
     moveItemToCart: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-        var _a, _b;
+        var _a, _b, _c, _d;
         try {
             const userId = req.user.id;
             const { itemId } = req.params;
@@ -175,73 +176,30 @@ exports.WishlistController = {
                 res.status(404).json({ message: "Item not found in wishlist" });
                 return;
             }
-            // Ensure product exists and is in stock
-            const product = wItem.product || (yield productRepository.findOne({ where: { id: wItem.productId } }));
-            if (!product) {
-                res.status(404).json({ message: "Product not found" });
-                return;
-            }
-            if (!product.inStock) {
-                res.status(400).json({ message: "Product is out of stock" });
-                return;
-            }
-            const availableQuantity = typeof product.quantity === "string" ? parseInt(product.quantity) || 0 : product.quantity || 0;
-            if (availableQuantity < 1) {
-                res.status(400).json({ message: "Insufficient quantity", availableQuantity });
-                return;
-            }
-            // Get or create cart
-            let cart = yield cartRepository.findOne({
-                where: { userId, type: cart_entity_1.CartType.REGULAR },
-                relations: ["items", "items.product"],
+            const cartDto = (0, class_transformer_1.plainToInstance)(cart_dto_1.AddToCartDto, {
+                productId: wItem.productId,
+                quantity: (_c = (_b = req.body) === null || _b === void 0 ? void 0 : _b.quantity) !== null && _c !== void 0 ? _c : 1,
+                selectedOptions: (_d = req.body) === null || _d === void 0 ? void 0 : _d.selectedOptions,
             });
-            if (!cart) {
-                cart = cartRepository.create({ userId, type: cart_entity_1.CartType.REGULAR, items: [] });
-                cart = yield cartRepository.save(cart);
-                cart.items = [];
-            }
-            // Determine price from product
-            const productPrice = typeof product.discountPrice === "string"
-                ? parseFloat(product.discountPrice) || 0
-                : typeof product.discountPrice === "number"
-                    ? product.discountPrice
-                    : typeof product.price === "string"
-                        ? parseFloat(product.price) || 0
-                        : product.price || 0;
-            if (!productPrice || productPrice <= 0) {
-                res.status(400).json({ message: "Invalid product price" });
-                return;
-            }
-            // Add or increment in cart
-            const existingItem = (_b = cart.items) === null || _b === void 0 ? void 0 : _b.find((ci) => ci.productId === wItem.productId);
-            if (existingItem) {
-                existingItem.updateQuantity(existingItem.quantity + 1, productPrice);
-                yield cartItemRepository.save(existingItem);
-            }
-            else {
-                const newCartItem = cartItemRepository.create({
-                    cartId: cart.id,
-                    productId: wItem.productId,
-                    quantity: 1,
-                    price: productPrice,
-                    product,
-                });
-                yield cartItemRepository.save(newCartItem);
-                cart.items = [...(cart.items || []), newCartItem];
-            }
-            // Recalculate and save cart
-            cart.calculateTotal();
-            yield cartRepository.save(cart);
+            const cartErrors = yield (0, class_validator_1.validate)(cartDto, {
+                whitelist: true,
+                forbidNonWhitelisted: true,
+                validationError: { target: false, value: false },
+            });
+            if (cartErrors.length)
+                throw new api_error_1.ApiError(400, "Invalid cart data", cartErrors);
+            const updatedCart = yield (0, cart_service_1.addCartItem)(req.user, wItem.productId, cartDto.quantity, cartDto.selectedOptions);
             // Remove from wishlist
             yield wishlistItemRepository.delete(wItem.id);
             // Return updated resources
-            const updatedCart = yield cartRepository.findOne({ where: { id: cart.id }, relations: ["items", "items.product"] });
-            const updatedWishlist = yield wishlistRepository.findOne({ where: { id: wishlist.id }, relations: ["items", "items.product"] });
+            const updatedWishlist = yield wishlistRepository.findOne({
+                where: { id: wishlist.id },
+                relations: ["items", "items.product"],
+            });
             res.status(200).json({ cart: updatedCart, wishlist: updatedWishlist });
         }
         catch (error) {
-            console.error(error);
-            res.status(500).json({ message: "Internal server error" });
+            (0, api_error_1.respondError)(res, error);
         }
     }),
 };

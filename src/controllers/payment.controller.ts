@@ -1,7 +1,9 @@
 import { Request, Response } from "express";
+import { createRetailOrder } from "../services/order.service";
+import { ApiError, respondError } from "../utils/api-error";
 import { AppDataSource } from "../data-source";
 import { Order, OrderStatus } from "../entities/order.entity";
-import { Payment, PaymentMethod, PaymentStatus } from "../entities/payment.entity";
+import { Payment, PaymentStatus } from "../entities/payment.entity";
 import { validate } from "class-validator";
 import { plainToInstance } from "class-transformer";
 import { AuthorizeNetService } from "../services/authorize-net.service";
@@ -10,251 +12,78 @@ import {
   RefundPaymentDto,
   CheckoutPaymentDto,
 } from "../dto/payment.dto";
-import { Cart, CartType } from "../entities/cart.entity";
-import { CartItem } from "../entities/cart-item.entity";
-import { Product } from "../entities/product.entity";
-import { OrderItem } from "../entities/order-item.entity";
-import { generateOrderNumber } from "../utils/reference-number.util";
 
 const orderRepository = AppDataSource.getRepository(Order);
 const paymentRepository = AppDataSource.getRepository(Payment);
-const cartRepository = AppDataSource.getRepository(Cart);
-const cartItemRepository = AppDataSource.getRepository(CartItem);
-const productRepository = AppDataSource.getRepository(Product);
 
 export const PaymentController = {
   processPayment: async (req: Request, res: Response): Promise<void> => {
+    let orderId: string | undefined = req.body?.orderId;
     try {
-      const userId = req.user.id;
-      // Backward-compatible path (existing: order-first payment)
-      if (req.body && req.body.orderId) {
-        // Transform and validate DTO
-        const processPaymentDto = plainToInstance(ProcessPaymentDto, req.body);
-        const errors = await validate(processPaymentDto, {
-          whitelist: true,
-          forbidUnknownValues: true,
-          validationError: { target: false },
-        });
-
-        if (errors.length > 0) {
-          res.status(400).json({ errors });
-          return;
-        }
-
-        // Verify user owns the order
-        const order = await orderRepository.findOne({
-          where: { id: processPaymentDto.orderId, userId },
-          relations: ["items"], // Load items to see the calculation
-        });
-
-        if (!order) {
-          res.status(404).json({ message: "Order not found" });
-          return;
-        }
-
-        if (order.paymentStatus === PaymentStatus.COMPLETED) {
-          res.status(400).json({ message: "Order already paid" });
-          return;
-        }
-
-        // Process payment based on existing order total
-        const orderTotal =
-          typeof order.total === "string" ? parseFloat(order.total) : order.total;
-
-        if (isNaN(orderTotal) || orderTotal <= 0) {
-          res.status(400).json({
-            message: "Invalid order total",
-            orderTotal: order.total,
-          });
-          return;
-        }
-
-        const payment = await AuthorizeNetService.createTransaction(
-          processPaymentDto.orderId,
-          {
-            cardNumber: processPaymentDto.cardNumber,
-            expirationDate: processPaymentDto.expirationDate,
-            cardCode: processPaymentDto.cardCode,
-            amount: orderTotal,
-          }
-        );
-
-        const isSuccess = payment.status === "completed";
-        res.status(isSuccess ? 200 : 400).json({
-          success: isSuccess,
-          payment,
-          message: isSuccess
-            ? "Payment processed successfully"
-            : "Payment processing failed",
-        });
-        return;
-      }
-
-      // New path: pay-then-create (no pre-existing order)
-      const checkoutDto = plainToInstance(CheckoutPaymentDto, req.body);
-      const errors = await validate(checkoutDto, {
+      const dto: any = orderId
+        ? plainToInstance(ProcessPaymentDto, req.body)
+        : plainToInstance(CheckoutPaymentDto, req.body);
+      const errors = await validate(dto, {
         whitelist: true,
-        forbidUnknownValues: true,
-        validationError: { target: false },
+        forbidNonWhitelisted: true,
+        validationError: { target: false, value: false },
       });
-      if (errors.length > 0) {
-        res.status(400).json({ errors });
-        return;
-      }
-
-      // Load user's cart
-      const cartWhere = checkoutDto.cartId
-        ? { id: checkoutDto.cartId, userId }
-        : { userId, type: CartType.REGULAR };
-
-      const cart = await cartRepository.findOne({
-        where: cartWhere,
-        relations: ["items", "items.product"],
-      });
-
-      if (!cart || !cart.items || cart.items.length === 0) {
-        res.status(400).json({ message: "Cart is empty" });
-        return;
-      }
-
-      // Build order items & compute totals (without persisting yet)
-      const tempOrderItems: OrderItem[] = await Promise.all(
-        cart.items.map(async (cartItem) => {
-          const orderItem = new OrderItem();
-          orderItem.productId = cartItem.productId;
-          orderItem.productName = cartItem.product.title;
-          orderItem.productImages = cartItem.product.images;
-          orderItem.quantity = cartItem.quantity;
-
-          const resolvedPrice =
-            typeof cartItem.price === "string"
-              ? parseFloat(cartItem.price)
-              : cartItem.price ??
-                (typeof cartItem.product.discountPrice === "string"
-                  ? parseFloat(cartItem.product.discountPrice)
-                  : typeof cartItem.product.discountPrice === "number"
-                  ? cartItem.product.discountPrice
-                  : typeof cartItem.product.price === "string"
-                  ? parseFloat(cartItem.product.price)
-                  : cartItem.product.price);
-
-          if (
-            resolvedPrice === null ||
-            resolvedPrice === undefined ||
-            isNaN(resolvedPrice) ||
-            resolvedPrice <= 0
-          ) {
-            throw new Error(
-              `Invalid product price for product ${cartItem.product.title}`
-            );
-          }
-
-          orderItem.price = resolvedPrice;
-
-          if (cartItem.product.discountPrice) {
-            const discountedPrice =
-              typeof cartItem.product.discountPrice === "string"
-                ? parseFloat(cartItem.product.discountPrice)
-                : cartItem.product.discountPrice;
-            if (!isNaN(discountedPrice) && discountedPrice > 0) {
-              orderItem.discountedPrice = discountedPrice;
-            }
-          }
-          orderItem.calculateTotal();
-          return orderItem;
-        })
-      );
-
-      const subtotal = tempOrderItems.reduce((sum, item) => {
-        const itemTotal =
-          typeof item.total === "string" ? parseFloat(item.total) : item.total;
-        return sum + (isNaN(itemTotal) ? 0 : itemTotal);
-      }, 0);
-      const tax = 0; // Tax disabled
-      const shipping = subtotal > 500 ? 0 : 50;
-      const total = subtotal + shipping;
-      if (isNaN(total) || total <= 0) {
-        res.status(400).json({ message: "Invalid cart total" });
-        return;
-      }
-
-      // Generate an invoice number with year + sequence
-      const invoiceNumber = await generateOrderNumber();
-
-      // Charge via Authorize.Net without a saved order
-      const chargeResult = await AuthorizeNetService.createTransactionForCheckout({
-        userEmail: req.user.email,
-        cardNumber: checkoutDto.cardNumber,
-        expirationDate: checkoutDto.expirationDate,
-        cardCode: checkoutDto.cardCode,
-        amount: total,
-        invoiceNumber,
-        billingAddress: checkoutDto.billingAddress || checkoutDto.shippingAddress,
-        shippingAddress: checkoutDto.shippingAddress,
-      });
-
-      if (chargeResult.status !== "completed") {
-        res.status(400).json({
-          success: false,
-          message: chargeResult.failureMessage || "Payment processing failed",
-          details: chargeResult.authorizeNetResponse,
+      if (errors.length)
+        throw new ApiError(400, "Invalid payment data", errors);
+      let order: Order;
+      if (orderId) {
+        order = await orderRepository.findOne({
+          where: { id: orderId, userId: req.user.id },
         });
-        return;
+        if (!order) throw new ApiError(404, "Order not found");
+      } else {
+        // Persist the pending order and reserve stock before contacting the gateway.
+        // A declined/unknown charge can be retried/reconciled against this order ID.
+        order = await createRetailOrder(req.user.id, dto);
+        orderId = order.id;
       }
-
-      // Create order now that payment is successful
-      const order = new Order();
-      order.userId = userId;
-      order.orderNumber = invoiceNumber; // ensure consistency with payment invoice
-      order.shippingAddress = checkoutDto.shippingAddress as any;
-      order.billingAddress =
-        (checkoutDto.billingAddress as any) || (checkoutDto.shippingAddress as any);
-      order.paymentMethod = checkoutDto.paymentMethod;
-      order.notes = checkoutDto.notes;
-      order.items = tempOrderItems;
-      order.subtotal = subtotal;
-      order.tax = tax;
-      order.shipping = shipping;
-      order.total = total;
-      order.paymentStatus = PaymentStatus.COMPLETED;
-      order.status = OrderStatus.CONFIRMED;
-      order.transactionId = chargeResult.transactionId;
-
-      await orderRepository.save(order);
-
-      // Clear cart
-      await cartItemRepository.delete({ cartId: cart.id });
-      cart.total = 0 as any;
-      cart.wholesaleTotal = 0 as any;
-      cart.itemsCount = 0 as any;
-      await cartRepository.save(cart);
-
-      // Persist payment record linked to the newly created order
-      const payment = paymentRepository.create({
-        orderId: order.id,
-        amount: total as any,
-        currency: "USD",
-        status: PaymentStatus.COMPLETED,
-        paymentMethod: PaymentMethod.CREDIT_CARD,
-        transactionId: chargeResult.transactionId,
-        authCode: chargeResult.authCode,
-        paymentDetails: chargeResult.paymentDetails as any,
-        authorizeNetResponse: chargeResult.authorizeNetResponse,
+      if ([OrderStatus.CANCELLED, OrderStatus.REFUNDED].includes(order.status))
+        throw new ApiError(400, "Order cannot be paid");
+      if (
+        [PaymentStatus.COMPLETED, PaymentStatus.PROCESSING].includes(
+          order.paymentStatus,
+        )
+      )
+        throw new ApiError(409, "Payment already completed or processing");
+      const payment = await AuthorizeNetService.createTransaction(order.id, {
+        cardNumber: dto.cardNumber,
+        expirationDate: dto.expirationDate,
+        cardCode: dto.cardCode,
+        amount: Number(order.total),
       });
-      await paymentRepository.save(payment);
-
-      res.status(200).json({
-        success: true,
-        message: "Payment processed and order created successfully",
-        order,
-        payment,
+      const updated = await orderRepository.findOne({
+        where: { id: order.id },
+        relations: ["items"],
       });
+      const success = payment.status === PaymentStatus.COMPLETED;
+      res
+        .status(success ? 200 : 400)
+        .json({
+          success,
+          order: updated,
+          orderId,
+          payment,
+          message: success
+            ? "Payment processed successfully"
+            : "Payment failed; retry using orderId",
+        });
     } catch (error) {
-      console.error("Payment processing error:", error);
-      res.status(500).json({
-        message: "Payment processing failed",
-        error: error.message,
-      });
+      if (orderId) res.setHeader("X-Order-Id", orderId);
+      if (!(error instanceof ApiError) && orderId) {
+        console.error("Payment processing error", error);
+        res
+          .status(502)
+          .json({
+            message:
+              "Payment could not be confirmed. Check this order before retrying.",
+            orderId,
+          });
+      } else respondError(res, error);
     }
   },
 
@@ -315,7 +144,7 @@ export const PaymentController = {
 
       const refundedPayment = await AuthorizeNetService.refundTransaction(
         paymentId,
-        refundDto.amount
+        refundDto.amount,
       );
 
       res.status(200).json({

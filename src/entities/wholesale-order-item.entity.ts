@@ -12,11 +12,21 @@ export class WholesaleOrderItem {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
-  @ManyToOne(
-    () => WholesaleOrderRequest,
-    (request) => request.items,
-    { onDelete: "CASCADE" }
-  )
+  @Column({ type: "jsonb", default: [] })
+  selectedOptions: {
+    optionId: string;
+    valueIds?: string[];
+    text?: string;
+    name?: string;
+    values?: string[];
+    priceAdjustment?: number;
+    pointsAdjustment?: number;
+    weightAdjustment?: number;
+  }[];
+
+  @ManyToOne(() => WholesaleOrderRequest, (request) => request.items, {
+    onDelete: "CASCADE",
+  })
   @JoinColumn({ name: "requestId" })
   request: WholesaleOrderRequest;
 
@@ -59,7 +69,7 @@ export class WholesaleOrderItem {
       ? unitsPerCarton * this.requestedBoxes
       : null;
     this.total = Number(
-      (this.effectivePricePerCarton * this.requestedBoxes).toFixed(2)
+      (this.effectivePricePerCarton * this.requestedBoxes).toFixed(2),
     );
   }
 }

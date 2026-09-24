@@ -1,4 +1,5 @@
 import { AppDataSource } from "../data-source";
+import { EntityManager } from "typeorm";
 import { Order } from "../entities/order.entity";
 import { WholesaleOrderRequest } from "../entities/wholesale-order-request.entity";
 
@@ -20,9 +21,14 @@ const getLatestSequence = async (
   prefix: string,
   year: number,
   entity: typeof Order | typeof WholesaleOrderRequest,
-  column: "orderNumber" | "requestNumber"
+  column: "orderNumber" | "requestNumber",
+  manager?: EntityManager,
 ): Promise<number> => {
-  const repo = AppDataSource.getRepository(entity);
+  const repo = (manager || AppDataSource.manager).getRepository(entity);
+  if (manager)
+    await manager.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
+      prefix + year,
+    ]);
   const prefixWithYear = `${prefix}-${year}-`;
 
   const latest = await repo
@@ -39,24 +45,30 @@ const getLatestSequence = async (
 const buildReference = (prefix: string, year: number, sequence: number) =>
   `${prefix}-${year}-${padNumber(sequence)}`;
 
-export const generateOrderNumber = async (): Promise<string> => {
+export const generateOrderNumber = async (
+  manager?: EntityManager,
+): Promise<string> => {
   const currentYear = new Date().getFullYear();
   const lastSeq = await getLatestSequence(
     ORDER_PREFIX,
     currentYear,
     Order,
-    "orderNumber"
+    "orderNumber",
+    manager,
   );
   return buildReference(ORDER_PREFIX, currentYear, lastSeq + 1);
 };
 
-export const generateWholesaleRequestNumber = async (): Promise<string> => {
+export const generateWholesaleRequestNumber = async (
+  manager?: EntityManager,
+): Promise<string> => {
   const currentYear = new Date().getFullYear();
   const lastSeq = await getLatestSequence(
     WHOLESALE_PREFIX,
     currentYear,
     WholesaleOrderRequest,
-    "requestNumber"
+    "requestNumber",
+    manager,
   );
   return buildReference(WHOLESALE_PREFIX, currentYear, lastSeq + 1);
 };

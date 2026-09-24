@@ -2,10 +2,13 @@ import {
   IsString,
   IsBoolean,
   IsOptional,
-  IsUrl,
   IsInt,
   IsUUID,
+  Matches,
+  Min,
 } from "class-validator";
+
+const keywordRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export class CreateCategoryDto {
   @IsString()
@@ -28,6 +31,7 @@ export class CreateCategoryDto {
   isActive?: boolean;
 
   @IsInt()
+  @Min(0)
   @IsOptional()
   displayOrder?: number;
 
@@ -35,9 +39,9 @@ export class CreateCategoryDto {
   @IsOptional()
   parentCategoryId?: string;
 
+  // SEO
   @IsString()
-  @IsOptional()
-  metaTitle?: string;
+  metaTitle: string;
 
   @IsString()
   @IsOptional()
@@ -45,7 +49,13 @@ export class CreateCategoryDto {
 
   @IsString()
   @IsOptional()
-  metaKeyword?: string;
+  metaKeywords?: string;
+
+  @IsString()
+  @Matches(keywordRegex, {
+    message: "Use lowercase letters, numbers, and hyphens without spaces",
+  })
+  keyword: string;
 }
 
 export class UpdateCategoryDto {
@@ -70,13 +80,15 @@ export class UpdateCategoryDto {
   isActive?: boolean;
 
   @IsInt()
+  @Min(0)
   @IsOptional()
   displayOrder?: number;
 
   @IsUUID()
   @IsOptional()
-  parentCategoryId?: string;
+  parentCategoryId?: string | null;
 
+  // SEO
   @IsString()
   @IsOptional()
   metaTitle?: string;
@@ -87,5 +99,12 @@ export class UpdateCategoryDto {
 
   @IsString()
   @IsOptional()
-  metaKeyword?: string;
+  metaKeywords?: string;
+
+  @IsString()
+  @Matches(keywordRegex, {
+    message: "Use lowercase letters, numbers, and hyphens without spaces",
+  })
+  @IsOptional()
+  keyword?: string;
 }

@@ -28,6 +28,10 @@ __decorate([
     __metadata("design:type", String)
 ], WholesaleOrderRequest.prototype, "id", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: "jsonb", default: [], select: false }),
+    __metadata("design:type", Array)
+], WholesaleOrderRequest.prototype, "inventoryReservations", void 0);
+__decorate([
     (0, typeorm_1.ManyToOne)(() => user_entity_1.User, (user) => user.wholesaleOrderRequests, {
         onDelete: "CASCADE",
     }),

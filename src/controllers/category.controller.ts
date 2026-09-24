@@ -7,8 +7,7 @@ import { validate } from "class-validator";
 import * as XLSX from "xlsx";
 
 const categoryRepository = AppDataSource.getRepository(Category);
-const parentCategoryRepository =
-  AppDataSource.getRepository(ParentCategory);
+const parentCategoryRepository = AppDataSource.getRepository(ParentCategory);
 
 type CategoryRow = Partial<{
   name: string;
@@ -45,42 +44,104 @@ const toMaybeString = (val: any): string | undefined => {
 
 export const CategoryController = {
   //Create Category (Admin only)
-  createCategory: async (req: Request, res: Response) => {
+  createCategory: async (req: Request, res: Response): Promise<void> => {
     try {
-      const categoryData = new CreateCategoryDto();
-      Object.assign(categoryData, req.body);
+      const categoryRepository = AppDataSource.getRepository(Category);
 
-      const errors = await validate(categoryData);
+      const parentCategoryRepository =
+        AppDataSource.getRepository(ParentCategory);
+
+      const categoryDto = new CreateCategoryDto();
+
+      Object.assign(categoryDto, req.body);
+
+      const errors = await validate(categoryDto);
+
       if (errors.length > 0) {
-        res.status(400).json({ errors });
+        res.status(400).json({
+          message: "Validation failed",
+          errors,
+        });
+        return;
+      }
+
+      const existingName = await categoryRepository.findOne({
+        where: {
+          name: categoryDto.name,
+        },
+      });
+
+      if (existingName) {
+        res.status(409).json({
+          message: "Category with this name already exists",
+        });
+        return;
+      }
+
+      const existingKeyword = await categoryRepository.findOne({
+        where: {
+          keyword: categoryDto.keyword,
+        },
+      });
+
+      if (existingKeyword) {
+        res.status(409).json({
+          message: "Category with this SEO keyword already exists",
+        });
         return;
       }
 
       let parentCategory: ParentCategory | null = null;
-      if (categoryData.parentCategoryId) {
+
+      if (categoryDto.parentCategoryId) {
         parentCategory = await parentCategoryRepository.findOne({
-          where: { id: categoryData.parentCategoryId },
+          where: {
+            id: categoryDto.parentCategoryId,
+          },
         });
 
         if (!parentCategory) {
-          res.status(404).json({ message: "Parent category not found" });
+          res.status(400).json({
+            message: "Parent category not found",
+          });
           return;
         }
       }
 
-      const category = categoryRepository.create(categoryData);
-      category.parentCategory = parentCategory;
-      await categoryRepository.save(category);
+      const category = categoryRepository.create({
+        name: categoryDto.name,
+        description: categoryDto.description ?? null,
+        image: categoryDto.image ?? null,
+        isActive: categoryDto.isActive ?? true,
+        displayOrder: categoryDto.displayOrder ?? 0,
+        parentCategoryId: categoryDto.parentCategoryId ?? null,
 
-      const createdCategory = await categoryRepository.findOne({
-        where: { id: category.id },
-        relations: ["parentCategory"],
+        metaTitle: categoryDto.metaTitle,
+        metaDescription: categoryDto.metaDescription ?? null,
+        metaKeywords: categoryDto.metaKeywords ?? null,
+        keyword: categoryDto.keyword,
+
+        parentCategory,
       });
 
-      res.status(201).json(createdCategory ?? category);
+      const savedCategory = await categoryRepository.save(category);
+
+      const result = await categoryRepository.findOne({
+        where: {
+          id: savedCategory.id,
+        },
+        relations: {
+          parentCategory: true,
+        },
+      });
+
+      res.status(201).json(result);
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: "Internal server error" });
+      console.error("Create category error:", error);
+
+      res.status(500).json({
+        message: "Failed to create category",
+      });
     }
   },
 
@@ -118,7 +179,7 @@ export const CategoryController = {
       });
     } catch (error) {
       console.error(error);
-        res.status(500).json({ message: "Internal server error" });
+      res.status(500).json({ message: "Internal server error" });
     }
   },
 
@@ -212,68 +273,155 @@ export const CategoryController = {
   },
 
   // Update Category (Admin only)
-  updateCategory: async (req: Request, res: Response) => {
+  updateCategory: async (req: Request, res: Response): Promise<void> => {
     try {
+      const categoryRepository = AppDataSource.getRepository(Category);
+
+      const parentCategoryRepository =
+        AppDataSource.getRepository(ParentCategory);
+
       const category = await categoryRepository.findOne({
-        where: { id: req.params.id },
-        relations: ["parentCategory"],
+        where: {
+          id: req.params.id,
+        },
+        relations: {
+          parentCategory: true,
+        },
       });
 
       if (!category) {
-        res.status(404).json({ message: "Category not found" });
+        res.status(404).json({
+          message: "Category not found",
+        });
         return;
       }
 
-      const updateData = new UpdateCategoryDto();
-      Object.assign(updateData, req.body);
+      const categoryDto = new UpdateCategoryDto();
 
-      const errors = await validate(updateData);
+      Object.assign(categoryDto, req.body);
+
+      const errors = await validate(categoryDto);
+
       if (errors.length > 0) {
-        res.status(400).json({ errors });
+        res.status(400).json({
+          message: "Validation failed",
+          errors,
+        });
         return;
       }
 
-      let parentCategory = category.parentCategory;
-      if (
-        Object.prototype.hasOwnProperty.call(req.body, "parentCategoryId")
-      ) {
-        const parentId = req.body.parentCategoryId;
-        if (parentId === null || parentId === undefined || parentId === "") {
-          parentCategory = null;
-        } else {
-          parentCategory = await parentCategoryRepository.findOne({
-            where: { id: parentId },
-          });
-
-          if (!parentCategory) {
-            res.status(404).json({ message: "Parent category not found" });
-            return;
-          }
-        }
-      } else if (updateData.parentCategoryId) {
-        parentCategory = await parentCategoryRepository.findOne({
-          where: { id: updateData.parentCategoryId },
+      // Check duplicate category name
+      if (categoryDto.name !== undefined) {
+        const existingName = await categoryRepository.findOne({
+          where: {
+            name: categoryDto.name,
+          },
         });
 
-        if (!parentCategory) {
-          res.status(404).json({ message: "Parent category not found" });
+        if (existingName && existingName.id !== category.id) {
+          res.status(409).json({
+            message: "Category with this name already exists",
+          });
           return;
         }
       }
 
-      Object.assign(category, updateData);
-      category.parentCategory = parentCategory;
-      await categoryRepository.save(category);
+      // Check duplicate SEO keyword
+      if (categoryDto.keyword !== undefined) {
+        const existingKeyword = await categoryRepository.findOne({
+          where: {
+            keyword: categoryDto.keyword,
+          },
+        });
 
-      const updatedCategory = await categoryRepository.findOne({
-        where: { id: category.id },
-        relations: ["parentCategory"],
+        if (existingKeyword && existingKeyword.id !== category.id) {
+          res.status(409).json({
+            message: "Category with this SEO keyword already exists",
+          });
+          return;
+        }
+      }
+
+      // Parent category
+      if (categoryDto.parentCategoryId !== undefined) {
+        if (categoryDto.parentCategoryId === null) {
+          category.parentCategory = null;
+          category.parentCategoryId = null;
+        } else {
+          const parentCategory = await parentCategoryRepository.findOne({
+            where: {
+              id: categoryDto.parentCategoryId,
+            },
+          });
+
+          if (!parentCategory) {
+            res.status(400).json({
+              message: "Parent category not found",
+            });
+            return;
+          }
+
+          category.parentCategory = parentCategory;
+          category.parentCategoryId = categoryDto.parentCategoryId;
+        }
+      }
+
+      // General fields
+      if (categoryDto.name !== undefined) {
+        category.name = categoryDto.name;
+      }
+
+      if (categoryDto.description !== undefined) {
+        category.description = categoryDto.description || null;
+      }
+
+      if (categoryDto.image !== undefined) {
+        category.image = categoryDto.image || null;
+      }
+
+      if (categoryDto.isActive !== undefined) {
+        category.isActive = categoryDto.isActive;
+      }
+
+      if (categoryDto.displayOrder !== undefined) {
+        category.displayOrder = categoryDto.displayOrder;
+      }
+
+      // SEO fields
+      if (categoryDto.metaTitle !== undefined) {
+        category.metaTitle = categoryDto.metaTitle;
+      }
+
+      if (categoryDto.metaDescription !== undefined) {
+        category.metaDescription = categoryDto.metaDescription || null;
+      }
+
+      if (categoryDto.metaKeywords !== undefined) {
+        category.metaKeywords = categoryDto.metaKeywords || null;
+      }
+
+      if (categoryDto.keyword !== undefined) {
+        category.keyword = categoryDto.keyword;
+      }
+
+      const updatedCategory = await categoryRepository.save(category);
+
+      const result = await categoryRepository.findOne({
+        where: {
+          id: updatedCategory.id,
+        },
+        relations: {
+          parentCategory: true,
+        },
       });
 
-      res.status(200).json(updatedCategory ?? category);
+      res.status(200).json(result);
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: "Internal server error" });
+      console.error("Update category error:", error);
+
+      res.status(500).json({
+        message: "Failed to update category",
+      });
     }
   },
 
@@ -366,8 +514,12 @@ export const CategoryController = {
             .replace(/[^a-z0-9]+/g, "-")
             .replace(/(^-|-$)/g, "");
 
-        const isActive = row.hasOwnProperty("isActive") ? toBool(row.isActive) : undefined;
-        const displayOrder = row.hasOwnProperty("displayOrder") ? toInt(row.displayOrder) : undefined;
+        const isActive = row.hasOwnProperty("isActive")
+          ? toBool(row.isActive)
+          : undefined;
+        const displayOrder = row.hasOwnProperty("displayOrder")
+          ? toInt(row.displayOrder)
+          : undefined;
 
         const description = toMaybeString(row.description);
         const image = toMaybeString(row.image);
@@ -382,13 +534,17 @@ export const CategoryController = {
         if (existing) {
           existing.name = name;
           existing.slug = slug;
-          if (description !== undefined) existing.description = description || null;
+          if (description !== undefined)
+            existing.description = description || null;
           if (image !== undefined) existing.image = image || null;
           if (isActive !== undefined) existing.isActive = isActive;
           if (displayOrder !== undefined) existing.displayOrder = displayOrder;
           if (metaTitle !== undefined) existing.metaTitle = metaTitle || null;
-          if (metaDescription !== undefined) existing.metaDescription = metaDescription || null;
-          if (metaKeyword !== undefined) existing.metaKeyword = metaKeyword || null;
+          if (metaDescription !== undefined)
+            existing.metaDescription = metaDescription || null;
+          if (metaKeyword !== undefined) {
+            existing.metaKeywords = metaKeyword || null;
+          }
           if (parentCategoryId !== null) {
             existing.parentCategory = parentCategory;
           }
@@ -405,12 +561,15 @@ export const CategoryController = {
             displayOrder: displayOrder ?? 0,
             metaTitle: metaTitle || null,
             metaDescription: metaDescription || null,
-            metaKeyword: metaKeyword || null,
+            metaKeywords: metaKeyword,
             parentCategory,
           });
           await categoryRepository.save(newCategory);
           created += 1;
-          createdCategories.push({ name: newCategory.name, id: newCategory.id });
+          createdCategories.push({
+            name: newCategory.name,
+            id: newCategory.id,
+          });
         }
       }
 

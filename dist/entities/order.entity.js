@@ -34,6 +34,10 @@ __decorate([
     __metadata("design:type", String)
 ], Order.prototype, "id", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: "jsonb", default: [], select: false }),
+    __metadata("design:type", Array)
+], Order.prototype, "inventoryReservations", void 0);
+__decorate([
     (0, typeorm_1.ManyToOne)(() => user_entity_1.User, (user) => user.orders),
     __metadata("design:type", user_entity_1.User)
 ], Order.prototype, "user", void 0);

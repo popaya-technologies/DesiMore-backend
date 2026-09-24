@@ -31,6 +31,9 @@ export class Order {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
+  @Column({ type: "jsonb", default: [], select: false })
+  inventoryReservations: import("../services/inventory.service").InventoryReservation[];
+
   @ManyToOne(() => User, (user) => user.orders)
   user: User;
 

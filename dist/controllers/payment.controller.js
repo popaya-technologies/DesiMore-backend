@@ -10,6 +10,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PaymentController = void 0;
+const order_service_1 = require("../services/order.service");
+const api_error_1 = require("../utils/api-error");
 const data_source_1 = require("../data-source");
 const order_entity_1 = require("../entities/order.entity");
 const payment_entity_1 = require("../entities/payment.entity");
@@ -17,211 +19,78 @@ const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
 const authorize_net_service_1 = require("../services/authorize-net.service");
 const payment_dto_1 = require("../dto/payment.dto");
-const cart_entity_1 = require("../entities/cart.entity");
-const cart_item_entity_1 = require("../entities/cart-item.entity");
-const product_entity_1 = require("../entities/product.entity");
-const order_item_entity_1 = require("../entities/order-item.entity");
-const reference_number_util_1 = require("../utils/reference-number.util");
 const orderRepository = data_source_1.AppDataSource.getRepository(order_entity_1.Order);
 const paymentRepository = data_source_1.AppDataSource.getRepository(payment_entity_1.Payment);
-const cartRepository = data_source_1.AppDataSource.getRepository(cart_entity_1.Cart);
-const cartItemRepository = data_source_1.AppDataSource.getRepository(cart_item_entity_1.CartItem);
-const productRepository = data_source_1.AppDataSource.getRepository(product_entity_1.Product);
 exports.PaymentController = {
     processPayment: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+        var _a;
+        let orderId = (_a = req.body) === null || _a === void 0 ? void 0 : _a.orderId;
         try {
-            const userId = req.user.id;
-            // Backward-compatible path (existing: order-first payment)
-            if (req.body && req.body.orderId) {
-                // Transform and validate DTO
-                const processPaymentDto = (0, class_transformer_1.plainToInstance)(payment_dto_1.ProcessPaymentDto, req.body);
-                const errors = yield (0, class_validator_1.validate)(processPaymentDto, {
-                    whitelist: true,
-                    forbidUnknownValues: true,
-                    validationError: { target: false },
-                });
-                if (errors.length > 0) {
-                    res.status(400).json({ errors });
-                    return;
-                }
-                // Verify user owns the order
-                const order = yield orderRepository.findOne({
-                    where: { id: processPaymentDto.orderId, userId },
-                    relations: ["items"], // Load items to see the calculation
-                });
-                if (!order) {
-                    res.status(404).json({ message: "Order not found" });
-                    return;
-                }
-                if (order.paymentStatus === payment_entity_1.PaymentStatus.COMPLETED) {
-                    res.status(400).json({ message: "Order already paid" });
-                    return;
-                }
-                // Process payment based on existing order total
-                const orderTotal = typeof order.total === "string" ? parseFloat(order.total) : order.total;
-                if (isNaN(orderTotal) || orderTotal <= 0) {
-                    res.status(400).json({
-                        message: "Invalid order total",
-                        orderTotal: order.total,
-                    });
-                    return;
-                }
-                const payment = yield authorize_net_service_1.AuthorizeNetService.createTransaction(processPaymentDto.orderId, {
-                    cardNumber: processPaymentDto.cardNumber,
-                    expirationDate: processPaymentDto.expirationDate,
-                    cardCode: processPaymentDto.cardCode,
-                    amount: orderTotal,
-                });
-                const isSuccess = payment.status === "completed";
-                res.status(isSuccess ? 200 : 400).json({
-                    success: isSuccess,
-                    payment,
-                    message: isSuccess
-                        ? "Payment processed successfully"
-                        : "Payment processing failed",
-                });
-                return;
-            }
-            // New path: pay-then-create (no pre-existing order)
-            const checkoutDto = (0, class_transformer_1.plainToInstance)(payment_dto_1.CheckoutPaymentDto, req.body);
-            const errors = yield (0, class_validator_1.validate)(checkoutDto, {
+            const dto = orderId
+                ? (0, class_transformer_1.plainToInstance)(payment_dto_1.ProcessPaymentDto, req.body)
+                : (0, class_transformer_1.plainToInstance)(payment_dto_1.CheckoutPaymentDto, req.body);
+            const errors = yield (0, class_validator_1.validate)(dto, {
                 whitelist: true,
-                forbidUnknownValues: true,
-                validationError: { target: false },
+                forbidNonWhitelisted: true,
+                validationError: { target: false, value: false },
             });
-            if (errors.length > 0) {
-                res.status(400).json({ errors });
-                return;
-            }
-            // Load user's cart
-            const cartWhere = checkoutDto.cartId
-                ? { id: checkoutDto.cartId, userId }
-                : { userId, type: cart_entity_1.CartType.REGULAR };
-            const cart = yield cartRepository.findOne({
-                where: cartWhere,
-                relations: ["items", "items.product"],
-            });
-            if (!cart || !cart.items || cart.items.length === 0) {
-                res.status(400).json({ message: "Cart is empty" });
-                return;
-            }
-            // Build order items & compute totals (without persisting yet)
-            const tempOrderItems = yield Promise.all(cart.items.map((cartItem) => __awaiter(void 0, void 0, void 0, function* () {
-                var _a;
-                const orderItem = new order_item_entity_1.OrderItem();
-                orderItem.productId = cartItem.productId;
-                orderItem.productName = cartItem.product.title;
-                orderItem.productImages = cartItem.product.images;
-                orderItem.quantity = cartItem.quantity;
-                const resolvedPrice = typeof cartItem.price === "string"
-                    ? parseFloat(cartItem.price)
-                    : (_a = cartItem.price) !== null && _a !== void 0 ? _a : (typeof cartItem.product.discountPrice === "string"
-                        ? parseFloat(cartItem.product.discountPrice)
-                        : typeof cartItem.product.discountPrice === "number"
-                            ? cartItem.product.discountPrice
-                            : typeof cartItem.product.price === "string"
-                                ? parseFloat(cartItem.product.price)
-                                : cartItem.product.price);
-                if (resolvedPrice === null ||
-                    resolvedPrice === undefined ||
-                    isNaN(resolvedPrice) ||
-                    resolvedPrice <= 0) {
-                    throw new Error(`Invalid product price for product ${cartItem.product.title}`);
-                }
-                orderItem.price = resolvedPrice;
-                if (cartItem.product.discountPrice) {
-                    const discountedPrice = typeof cartItem.product.discountPrice === "string"
-                        ? parseFloat(cartItem.product.discountPrice)
-                        : cartItem.product.discountPrice;
-                    if (!isNaN(discountedPrice) && discountedPrice > 0) {
-                        orderItem.discountedPrice = discountedPrice;
-                    }
-                }
-                orderItem.calculateTotal();
-                return orderItem;
-            })));
-            const subtotal = tempOrderItems.reduce((sum, item) => {
-                const itemTotal = typeof item.total === "string" ? parseFloat(item.total) : item.total;
-                return sum + (isNaN(itemTotal) ? 0 : itemTotal);
-            }, 0);
-            const tax = 0; // Tax disabled
-            const shipping = subtotal > 500 ? 0 : 50;
-            const total = subtotal + shipping;
-            if (isNaN(total) || total <= 0) {
-                res.status(400).json({ message: "Invalid cart total" });
-                return;
-            }
-            // Generate an invoice number with year + sequence
-            const invoiceNumber = yield (0, reference_number_util_1.generateOrderNumber)();
-            // Charge via Authorize.Net without a saved order
-            const chargeResult = yield authorize_net_service_1.AuthorizeNetService.createTransactionForCheckout({
-                userEmail: req.user.email,
-                cardNumber: checkoutDto.cardNumber,
-                expirationDate: checkoutDto.expirationDate,
-                cardCode: checkoutDto.cardCode,
-                amount: total,
-                invoiceNumber,
-                billingAddress: checkoutDto.billingAddress || checkoutDto.shippingAddress,
-                shippingAddress: checkoutDto.shippingAddress,
-            });
-            if (chargeResult.status !== "completed") {
-                res.status(400).json({
-                    success: false,
-                    message: chargeResult.failureMessage || "Payment processing failed",
-                    details: chargeResult.authorizeNetResponse,
+            if (errors.length)
+                throw new api_error_1.ApiError(400, "Invalid payment data", errors);
+            let order;
+            if (orderId) {
+                order = yield orderRepository.findOne({
+                    where: { id: orderId, userId: req.user.id },
                 });
-                return;
+                if (!order)
+                    throw new api_error_1.ApiError(404, "Order not found");
             }
-            // Create order now that payment is successful
-            const order = new order_entity_1.Order();
-            order.userId = userId;
-            order.orderNumber = invoiceNumber; // ensure consistency with payment invoice
-            order.shippingAddress = checkoutDto.shippingAddress;
-            order.billingAddress =
-                checkoutDto.billingAddress || checkoutDto.shippingAddress;
-            order.paymentMethod = checkoutDto.paymentMethod;
-            order.notes = checkoutDto.notes;
-            order.items = tempOrderItems;
-            order.subtotal = subtotal;
-            order.tax = tax;
-            order.shipping = shipping;
-            order.total = total;
-            order.paymentStatus = payment_entity_1.PaymentStatus.COMPLETED;
-            order.status = order_entity_1.OrderStatus.CONFIRMED;
-            order.transactionId = chargeResult.transactionId;
-            yield orderRepository.save(order);
-            // Clear cart
-            yield cartItemRepository.delete({ cartId: cart.id });
-            cart.total = 0;
-            cart.wholesaleTotal = 0;
-            cart.itemsCount = 0;
-            yield cartRepository.save(cart);
-            // Persist payment record linked to the newly created order
-            const payment = paymentRepository.create({
-                orderId: order.id,
-                amount: total,
-                currency: "USD",
-                status: payment_entity_1.PaymentStatus.COMPLETED,
-                paymentMethod: payment_entity_1.PaymentMethod.CREDIT_CARD,
-                transactionId: chargeResult.transactionId,
-                authCode: chargeResult.authCode,
-                paymentDetails: chargeResult.paymentDetails,
-                authorizeNetResponse: chargeResult.authorizeNetResponse,
+            else {
+                // Persist the pending order and reserve stock before contacting the gateway.
+                // A declined/unknown charge can be retried/reconciled against this order ID.
+                order = yield (0, order_service_1.createRetailOrder)(req.user.id, dto);
+                orderId = order.id;
+            }
+            if ([order_entity_1.OrderStatus.CANCELLED, order_entity_1.OrderStatus.REFUNDED].includes(order.status))
+                throw new api_error_1.ApiError(400, "Order cannot be paid");
+            if ([payment_entity_1.PaymentStatus.COMPLETED, payment_entity_1.PaymentStatus.PROCESSING].includes(order.paymentStatus))
+                throw new api_error_1.ApiError(409, "Payment already completed or processing");
+            const payment = yield authorize_net_service_1.AuthorizeNetService.createTransaction(order.id, {
+                cardNumber: dto.cardNumber,
+                expirationDate: dto.expirationDate,
+                cardCode: dto.cardCode,
+                amount: Number(order.total),
             });
-            yield paymentRepository.save(payment);
-            res.status(200).json({
-                success: true,
-                message: "Payment processed and order created successfully",
-                order,
+            const updated = yield orderRepository.findOne({
+                where: { id: order.id },
+                relations: ["items"],
+            });
+            const success = payment.status === payment_entity_1.PaymentStatus.COMPLETED;
+            res
+                .status(success ? 200 : 400)
+                .json({
+                success,
+                order: updated,
+                orderId,
                 payment,
+                message: success
+                    ? "Payment processed successfully"
+                    : "Payment failed; retry using orderId",
             });
         }
         catch (error) {
-            console.error("Payment processing error:", error);
-            res.status(500).json({
-                message: "Payment processing failed",
-                error: error.message,
-            });
+            if (orderId)
+                res.setHeader("X-Order-Id", orderId);
+            if (!(error instanceof api_error_1.ApiError) && orderId) {
+                console.error("Payment processing error", error);
+                res
+                    .status(502)
+                    .json({
+                    message: "Payment could not be confirmed. Check this order before retrying.",
+                    orderId,
+                });
+            }
+            else
+                (0, api_error_1.respondError)(res, error);
         }
     }),
     getPaymentStatus: (req, res) => __awaiter(void 0, void 0, void 0, function* () {

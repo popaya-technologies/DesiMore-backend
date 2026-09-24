@@ -5,19 +5,29 @@ import {
   IsArray,
   ValidateNested,
   IsOptional,
+  IsInt,
+  ArrayMaxSize,
 } from "class-validator";
+import { Type } from "class-transformer";
+import { SelectedOptionDto } from "./selected-option.dto";
 
 export class AddToCartDto {
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(100)
+  @ValidateNested({ each: true })
+  @Type(() => SelectedOptionDto)
+  selectedOptions?: SelectedOptionDto[];
   @IsUUID()
   productId: string;
 
-  @IsNumber()
+  @IsInt()
   @Min(1)
   quantity: number;
 }
 
 export class UpdateCartItemDto {
-  @IsNumber()
+  @IsInt()
   @Min(0) // Allow 0 to remove item
   quantity: number;
 }

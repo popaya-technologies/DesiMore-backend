@@ -10,13 +10,13 @@ router.get(
   "/admin",
   authenticate,
   checkPermission("order", "read"),
-  OrderController.adminGetAllOrders
+  OrderController.adminGetAllOrders,
 );
 router.get(
   "/admin/:id",
   authenticate,
   checkPermission("order", "read"),
-  OrderController.adminGetOrderById
+  OrderController.adminGetOrderById,
 );
 
 router.post("/", authenticate, OrderController.createOrder);
@@ -26,18 +26,19 @@ router.put(
   "/:id/status",
   authenticate,
   checkPermission("order", "update"),
-  OrderController.updateOrderStatus
+  OrderController.updateOrderStatus,
 );
 router.put(
   "/:id/payment-status",
   authenticate,
-  OrderController.updatePaymentStatus
+  checkPermission("order", "update"),
+  OrderController.updatePaymentStatus,
 );
 router.put(
   "/:id/tracking",
   authenticate,
   checkPermission("order", "update"),
-  OrderController.updateOrderTracking
+  OrderController.updateOrderTracking,
 );
 router.post("/:id/cancel", authenticate, OrderController.cancelOrder);
 

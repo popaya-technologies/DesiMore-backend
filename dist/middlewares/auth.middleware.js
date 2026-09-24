@@ -33,6 +33,7 @@ const authenticate = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
                 "email",
                 "phone",
                 "avatar",
+                "userRole",
             ],
         });
         if (!user) {

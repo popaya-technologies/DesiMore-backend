@@ -21,19 +21,15 @@ var __rest = (this && this.__rest) || function (s, e) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WholesaleOrderController = void 0;
+const wholesale_order_service_1 = require("../services/wholesale-order.service");
+const api_error_1 = require("../utils/api-error");
 const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
 const data_source_1 = require("../data-source");
 const wholesale_order_request_entity_1 = require("../entities/wholesale-order-request.entity");
-const wholesale_order_item_entity_1 = require("../entities/wholesale-order-item.entity");
-const cart_entity_1 = require("../entities/cart.entity");
-const cart_item_entity_1 = require("../entities/cart-item.entity");
 const wholesale_order_dto_1 = require("../dto/wholesale-order.dto");
 const typeorm_1 = require("typeorm");
-const reference_number_util_1 = require("../utils/reference-number.util");
 const wholesaleOrderRequestRepository = data_source_1.AppDataSource.getRepository(wholesale_order_request_entity_1.WholesaleOrderRequest);
-const cartRepository = data_source_1.AppDataSource.getRepository(cart_entity_1.Cart);
-const cartItemRepository = data_source_1.AppDataSource.getRepository(cart_item_entity_1.CartItem);
 const buildDateRange = (from, to) => {
     if (!from && !to)
         return undefined;
@@ -63,21 +59,6 @@ const toNumber = (value) => {
     const parsed = parseFloat(value);
     return isNaN(parsed) ? null : parsed;
 };
-const calcFreight = (amount) => {
-    if (amount >= 3500)
-        return 0;
-    if (amount >= 3000)
-        return 75;
-    if (amount >= 2500)
-        return 95;
-    if (amount >= 1500)
-        return 125;
-    if (amount >= 1200)
-        return 150;
-    if (amount >= 1)
-        return 199;
-    return 0;
-};
 const getPermission = (req, action) => {
     var _a, _b;
     return (_b = (_a = req.user) === null || _a === void 0 ? void 0 : _a.permissions) === null || _b === void 0 ? void 0 : _b.some((permission) => permission.resource === "wholesale-order-request" &&
@@ -93,85 +74,15 @@ const formatWholesaleRequestResponse = (request) => {
         total: toNumber(item.total) })));
     return Object.assign(Object.assign({}, rest), { subtotal: toNumber(rest.subtotal), tax: toNumber(rest.tax), shipping: toNumber(rest.shipping), discount: toNumber(rest.discount), total: toNumber(rest.total), items: normalizedItems });
 };
-const buildWholesaleItemsFromCart = (cartItems) => {
-    return cartItems.map((cartItem) => {
-        var _a, _b;
-        const product = cartItem.product;
-        const requestedBoxes = cartItem.quantity;
-        const unitsPerCarton = (_a = product.unitsPerCarton) !== null && _a !== void 0 ? _a : (product.wholesaleOrderQuantity
-            ? parseInt(product.wholesaleOrderQuantity, 10)
-            : null);
-        const wholesalePrice = toNumber(product.wholesalePrice);
-        const unitPrice = wholesalePrice !== null && wholesalePrice !== void 0 ? wholesalePrice : 0;
-        const item = new wholesale_order_item_entity_1.WholesaleOrderItem();
-        item.productId = product.id;
-        item.productName = product.title;
-        item.productImages = product.images || [];
-        item.requestedBoxes = requestedBoxes;
-        item.wholesaleOrderQuantity = (_b = product.wholesaleOrderQuantity) !== null && _b !== void 0 ? _b : null;
-        item.unitsPerCarton = unitsPerCarton;
-        item.wholesalePrice = wholesalePrice;
-        // compute total using unitPrice directly
-        item.effectivePricePerCarton = unitPrice;
-        item.calculateTotals();
-        return item;
-    });
-};
 exports.WholesaleOrderController = {
     createWholesaleOrderRequest: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         try {
-            const userId = req.user.id;
-            const createDto = (0, class_transformer_1.plainToInstance)(wholesale_order_dto_1.CreateWholesaleOrderRequestDto, req.body);
-            const errors = yield (0, class_validator_1.validate)(createDto, {
-                whitelist: true,
-                forbidUnknownValues: true,
-                validationError: { target: false },
-            });
-            if (errors.length > 0) {
-                res.status(400).json({ errors });
-                return;
-            }
-            const cartWhere = createDto.cartId
-                ? { id: createDto.cartId, userId }
-                : { userId, type: cart_entity_1.CartType.REGULAR };
-            const cart = yield cartRepository.findOne({
-                where: cartWhere,
-                relations: ["items", "items.product"],
-            });
-            if (!cart || !cart.items || cart.items.length === 0) {
-                res.status(400).json({ message: "Cart is empty" });
-                return;
-            }
-            const request = new wholesale_order_request_entity_1.WholesaleOrderRequest();
-            request.userId = userId;
-            request.requestNumber = yield (0, reference_number_util_1.generateWholesaleRequestNumber)();
-            request.shippingAddress = createDto.shippingAddress;
-            request.billingAddress =
-                createDto.billingAddress || createDto.shippingAddress;
-            request.notes = createDto.notes || null;
-            request.status = wholesale_order_request_entity_1.WholesaleOrderRequestStatus.PENDING;
-            request.items = buildWholesaleItemsFromCart(cart.items);
-            request.subtotal = request.items.reduce((sum, item) => sum + (toNumber(item.total) || 0), 0);
-            request.discount = Number((request.subtotal * 0.02).toFixed(2)); // 2% discount
-            const discountedSubtotal = Math.max(request.subtotal - request.discount, 0);
-            request.tax = 0;
-            request.shipping = calcFreight(discountedSubtotal);
-            request.total = Number((discountedSubtotal + request.shipping + request.tax).toFixed(2));
-            yield wholesaleOrderRequestRepository.save(request);
-            yield cartItemRepository.delete({ cartId: cart.id });
-            cart.total = 0;
-            cart.wholesaleTotal = 0;
-            cart.itemsCount = 0;
-            yield cartRepository.save(cart);
-            const savedRequest = yield wholesaleOrderRequestRepository.findOne({
-                where: { id: request.id },
-                relations: ["items"],
-            });
-            res.status(201).json(formatWholesaleRequestResponse(savedRequest));
+            res
+                .status(201)
+                .json(formatWholesaleRequestResponse(yield (0, wholesale_order_service_1.createWholesaleRequest)(req.user.id, req.body)));
         }
         catch (error) {
-            console.error("Wholesale order request error:", error);
-            res.status(500).json({ message: "Internal server error" });
+            (0, api_error_1.respondError)(res, error);
         }
     }),
     getMyRequests: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -194,9 +105,7 @@ exports.WholesaleOrderController = {
                 skip,
                 take,
             });
-            res
-                .status(200)
-                .json({
+            res.status(200).json({
                 data: requests.map((request) => formatWholesaleRequestResponse(request)),
                 meta: {
                     total,
@@ -257,7 +166,7 @@ exports.WholesaleOrderController = {
                 res.status(404).json({ message: "Wholesale order request not found" });
                 return;
             }
-            const canReadAll = !!getPermission(req, "read-all");
+            const canReadAll = req.user.userRole === "su" || !!getPermission(req, "read-all");
             const canReadOwn = !!getPermission(req, "read") && request.userId === req.user.id;
             if (!canReadAll && !canReadOwn) {
                 res.status(403).json({ message: "Forbidden" });
@@ -283,22 +192,11 @@ exports.WholesaleOrderController = {
                 res.status(400).json({ errors });
                 return;
             }
-            const request = yield wholesaleOrderRequestRepository.findOne({
-                where: { id },
-                relations: ["items"],
-            });
-            if (!request) {
-                res.status(404).json({ message: "Wholesale order request not found" });
-                return;
-            }
-            request.status = updateDto.status;
-            request.adminNotes = updateDto.adminNotes || request.adminNotes || null;
-            yield wholesaleOrderRequestRepository.save(request);
-            res.status(200).json(formatWholesaleRequestResponse(request));
+            const request = yield (0, wholesale_order_service_1.changeWholesaleStatus)(id, updateDto.status, updateDto.adminNotes);
+            res.json(formatWholesaleRequestResponse(request));
         }
         catch (error) {
-            console.error("Update wholesale request status error:", error);
-            res.status(500).json({ message: "Internal server error" });
+            (0, api_error_1.respondError)(res, error);
         }
     }),
 };

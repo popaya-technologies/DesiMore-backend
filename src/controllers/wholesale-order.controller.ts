@@ -1,23 +1,21 @@
 import { Request, Response } from "express";
+import {
+  createWholesaleRequest,
+  changeWholesaleStatus,
+} from "../services/wholesale-order.service";
+import { respondError } from "../utils/api-error";
 import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
 import { AppDataSource } from "../data-source";
-import { WholesaleOrderRequest, WholesaleOrderRequestStatus } from "../entities/wholesale-order-request.entity";
-import { WholesaleOrderItem } from "../entities/wholesale-order-item.entity";
-import { Cart, CartType } from "../entities/cart.entity";
-import { CartItem } from "../entities/cart-item.entity";
-import { CreateWholesaleOrderRequestDto, UpdateWholesaleOrderRequestStatusDto } from "../dto/wholesale-order.dto";
+import { WholesaleOrderRequest } from "../entities/wholesale-order-request.entity";
+import { UpdateWholesaleOrderRequestStatusDto } from "../dto/wholesale-order.dto";
 import { Between } from "typeorm";
-import { generateWholesaleRequestNumber } from "../utils/reference-number.util";
 
-const wholesaleOrderRequestRepository = AppDataSource.getRepository(WholesaleOrderRequest);
-const cartRepository = AppDataSource.getRepository(Cart);
-const cartItemRepository = AppDataSource.getRepository(CartItem);
+const wholesaleOrderRequestRepository = AppDataSource.getRepository(
+  WholesaleOrderRequest,
+);
 
-const buildDateRange = (
-  from?: any,
-  to?: any
-) => {
+const buildDateRange = (from?: any, to?: any) => {
   if (!from && !to) return undefined;
   const fromStr = Array.isArray(from) ? from[0] : from;
   const toStr = Array.isArray(to) ? to[0] : to;
@@ -49,25 +47,15 @@ const toNumber = (value?: string | number | null): number | null => {
   return isNaN(parsed) ? null : parsed;
 };
 
-const calcFreight = (amount: number) => {
-  if (amount >= 3500) return 0;
-  if (amount >= 3000) return 75;
-  if (amount >= 2500) return 95;
-  if (amount >= 1500) return 125;
-  if (amount >= 1200) return 150;
-  if (amount >= 1) return 199;
-  return 0;
-};
-
 const getPermission = (req: Request, action: string) =>
   req.user?.permissions?.some(
     (permission) =>
       permission.resource === "wholesale-order-request" &&
-      permission.action === action
+      permission.action === action,
   );
 
 const formatWholesaleRequestResponse = (
-  request: WholesaleOrderRequest | null
+  request: WholesaleOrderRequest | null,
 ) => {
   if (!request) {
     return null;
@@ -92,112 +80,18 @@ const formatWholesaleRequestResponse = (
   };
 };
 
-const buildWholesaleItemsFromCart = (cartItems: CartItem[]) => {
-  return cartItems.map((cartItem) => {
-    const product = cartItem.product;
-    const requestedBoxes = cartItem.quantity;
-    const unitsPerCarton =
-      product.unitsPerCarton ??
-      (product.wholesaleOrderQuantity
-        ? parseInt(product.wholesaleOrderQuantity, 10)
-        : null);
-
-    const wholesalePrice = toNumber(product.wholesalePrice);
-    const unitPrice = wholesalePrice ?? 0;
-
-    const item = new WholesaleOrderItem();
-    item.productId = product.id;
-    item.productName = product.title;
-    item.productImages = product.images || [];
-    item.requestedBoxes = requestedBoxes;
-    item.wholesaleOrderQuantity = product.wholesaleOrderQuantity ?? null;
-    item.unitsPerCarton = unitsPerCarton;
-    item.wholesalePrice = wholesalePrice;
-    // compute total using unitPrice directly
-    item.effectivePricePerCarton = unitPrice;
-    item.calculateTotals();
-
-    return item;
-  });
-};
-
 export const WholesaleOrderController = {
   createWholesaleOrderRequest: async (req: Request, res: Response) => {
     try {
-      const userId = req.user.id;
-      const createDto = plainToInstance(
-        CreateWholesaleOrderRequestDto,
-        req.body
-      );
-
-      const errors = await validate(createDto, {
-        whitelist: true,
-        forbidUnknownValues: true,
-        validationError: { target: false },
-      });
-
-      if (errors.length > 0) {
-        res.status(400).json({ errors });
-        return;
-      }
-
-      const cartWhere = createDto.cartId
-        ? { id: createDto.cartId, userId }
-        : { userId, type: CartType.REGULAR };
-
-      const cart = await cartRepository.findOne({
-        where: cartWhere,
-        relations: ["items", "items.product"],
-      });
-
-      if (!cart || !cart.items || cart.items.length === 0) {
-        res.status(400).json({ message: "Cart is empty" });
-        return;
-      }
-
-      const request = new WholesaleOrderRequest();
-      request.userId = userId;
-      request.requestNumber = await generateWholesaleRequestNumber();
-      request.shippingAddress = createDto.shippingAddress;
-      request.billingAddress =
-        createDto.billingAddress || createDto.shippingAddress;
-      request.notes = createDto.notes || null;
-      request.status = WholesaleOrderRequestStatus.PENDING;
-
-      request.items = buildWholesaleItemsFromCart(cart.items);
-
-      request.subtotal = request.items.reduce(
-        (sum, item) => sum + (toNumber(item.total) || 0),
-        0
-      );
-      request.discount = Number((request.subtotal * 0.02).toFixed(2)); // 2% discount
-      const discountedSubtotal = Math.max(
-        request.subtotal - request.discount,
-        0
-      );
-      request.tax = 0;
-      request.shipping = calcFreight(discountedSubtotal);
-      request.total = Number(
-        (discountedSubtotal + request.shipping + request.tax).toFixed(2)
-      );
-
-      await wholesaleOrderRequestRepository.save(request);
-
-      await cartItemRepository.delete({ cartId: cart.id });
-      cart.total = 0 as any;
-      cart.wholesaleTotal = 0 as any;
-      cart.itemsCount = 0;
-      await cartRepository.save(cart);
-
-      const savedRequest = await wholesaleOrderRequestRepository.findOne({
-        where: { id: request.id },
-        relations: ["items"],
-      });
-
-      res.status(201).json(formatWholesaleRequestResponse(savedRequest));
+      res
+        .status(201)
+        .json(
+          formatWholesaleRequestResponse(
+            await createWholesaleRequest(req.user.id, req.body),
+          ),
+        );
     } catch (error) {
-      console.error("Wholesale order request error:", error);
-      res.status(500).json({ message: "Internal server error" });
+      respondError(res, error);
     }
   },
 
@@ -215,25 +109,26 @@ export const WholesaleOrderController = {
         where.createdAt = dateRange;
       }
 
-      const [requests, total] = await wholesaleOrderRequestRepository.findAndCount({
-        where,
-        relations: ["items"],
-        order: { createdAt: "DESC" },
-        skip,
-        take,
-      });
-
-      res
-        .status(200)
-        .json({
-          data: requests.map((request) => formatWholesaleRequestResponse(request)),
-          meta: {
-            total,
-            page: Math.max(parseInt(page as string, 10) || 1, 1),
-            limit: take,
-            totalPages: Math.ceil(total / take),
-          },
+      const [requests, total] =
+        await wholesaleOrderRequestRepository.findAndCount({
+          where,
+          relations: ["items"],
+          order: { createdAt: "DESC" },
+          skip,
+          take,
         });
+
+      res.status(200).json({
+        data: requests.map((request) =>
+          formatWholesaleRequestResponse(request),
+        ),
+        meta: {
+          total,
+          page: Math.max(parseInt(page as string, 10) || 1, 1),
+          limit: take,
+          totalPages: Math.ceil(total / take),
+        },
+      });
     } catch (error) {
       console.error("Get wholesale requests error:", error);
       res.status(500).json({ message: "Internal server error" });
@@ -254,16 +149,19 @@ export const WholesaleOrderController = {
         where.createdAt = dateRange;
       }
 
-      const [requests, total] = await wholesaleOrderRequestRepository.findAndCount({
-        where,
-        relations: ["items", "user"],
-        order: { createdAt: "DESC" },
-        skip,
-        take,
-      });
+      const [requests, total] =
+        await wholesaleOrderRequestRepository.findAndCount({
+          where,
+          relations: ["items", "user"],
+          order: { createdAt: "DESC" },
+          skip,
+          take,
+        });
 
       res.status(200).json({
-        data: requests.map((request) => formatWholesaleRequestResponse(request)),
+        data: requests.map((request) =>
+          formatWholesaleRequestResponse(request),
+        ),
         meta: {
           total,
           page: Math.max(parseInt(page as string, 10) || 1, 1),
@@ -290,7 +188,8 @@ export const WholesaleOrderController = {
         return;
       }
 
-      const canReadAll = !!getPermission(req, "read-all");
+      const canReadAll =
+        req.user.userRole === "su" || !!getPermission(req, "read-all");
       const canReadOwn =
         !!getPermission(req, "read") && request.userId === req.user.id;
 
@@ -311,7 +210,7 @@ export const WholesaleOrderController = {
       const { id } = req.params;
       const updateDto = plainToInstance(
         UpdateWholesaleOrderRequestStatusDto,
-        req.body
+        req.body,
       );
 
       const errors = await validate(updateDto, {
@@ -325,25 +224,14 @@ export const WholesaleOrderController = {
         return;
       }
 
-      const request = await wholesaleOrderRequestRepository.findOne({
-        where: { id },
-        relations: ["items"],
-      });
-
-      if (!request) {
-        res.status(404).json({ message: "Wholesale order request not found" });
-        return;
-      }
-
-      request.status = updateDto.status;
-      request.adminNotes = updateDto.adminNotes || request.adminNotes || null;
-
-      await wholesaleOrderRequestRepository.save(request);
-
-      res.status(200).json(formatWholesaleRequestResponse(request));
+      const request = await changeWholesaleStatus(
+        id,
+        updateDto.status,
+        updateDto.adminNotes,
+      );
+      res.json(formatWholesaleRequestResponse(request));
     } catch (error) {
-      console.error("Update wholesale request status error:", error);
-      res.status(500).json({ message: "Internal server error" });
+      respondError(res, error);
     }
   },
 };

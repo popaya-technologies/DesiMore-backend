@@ -11,20 +11,46 @@ import { Product } from "./product.entity";
 @Entity("brands")
 export class Brand {
   @PrimaryGeneratedColumn("uuid")
-  id: string;
+  id!: string;
 
-  @Column({ type: "varchar", length: 255, unique: true })
-  name: string;
+  @Column({
+    type: "varchar",
+    length: 255,
+    unique: true,
+  })
+  name!: string;
 
-  @Column({ type: "text", nullable: true })
-  description: string | null;
+  @Column({
+    type: "text",
+    nullable: true,
+  })
+  description!: string | null;
+
+  @Column({
+    type: "text",
+    nullable: true,
+  })
+  image!: string | null;
+
+  @Column({
+    type: "integer",
+    default: 0,
+  })
+  sortOrder!: number;
+
+  @Column({
+    type: "varchar",
+    length: 255,
+    unique: true,
+  })
+  keyword!: string;
 
   @OneToMany(() => Product, (product) => product.brand)
-  products: Product[];
+  products!: Product[];
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt!: Date;
 }

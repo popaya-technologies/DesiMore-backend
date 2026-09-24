@@ -9,6 +9,7 @@ import {
   ManyToOne,
   JoinColumn,
 } from "typeorm";
+
 import { Product } from "./product.entity";
 import { ParentCategory } from "./parent-category.entity";
 
@@ -17,51 +18,120 @@ export class Category {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
-  @Column({ type: "varchar", length: 255, unique: true })
+  // =========================================================
+  // GENERAL
+  // =========================================================
+
+  @Column({
+    type: "varchar",
+    length: 255,
+    unique: true,
+  })
   name: string;
 
-  @Column({ type: "varchar", length: 255, unique: true })
+  @Column({
+    type: "varchar",
+    length: 255,
+    unique: true,
+  })
   slug: string;
 
-  @Column({ type: "text", nullable: true })
+  @Column({
+    type: "text",
+    nullable: true,
+  })
   description: string | null;
 
-  @Column({ type: "varchar", length: 255, nullable: true })
+  @Column({
+    type: "varchar",
+    length: 255,
+    nullable: true,
+  })
   image: string | null;
 
-  @Column({ type: "boolean", default: true })
+  @Column({
+    type: "boolean",
+    default: true,
+  })
   isActive: boolean;
 
-  @Column({ type: "integer", default: 0 })
+  @Column({
+    type: "integer",
+    default: 0,
+  })
   displayOrder: number;
 
-  @Column({ type: "varchar", length: 255, nullable: true })
+  // =========================================================
+  // SEO
+  // =========================================================
+
+  @Column({
+    type: "varchar",
+    length: 255,
+    nullable: true,
+  })
   metaTitle: string | null;
 
-  @Column({ type: "varchar", length: 255, nullable: true })
+  @Column({
+    type: "varchar",
+    length: 255,
+    nullable: true,
+  })
   metaDescription: string | null;
 
-  @Column({ type: "varchar", length: 255, nullable: true })
-  metaKeyword: string | null;
+  @Column({
+    type: "text",
+    nullable: true,
+  })
+  metaKeywords: string | null;
+
+  @Column({
+    type: "varchar",
+    length: 255,
+    unique: true,
+    nullable: true,
+  })
+  keyword: string | null;
+
+  // =========================================================
+  // PRODUCTS
+  // =========================================================
 
   @ManyToMany(() => Product, (product) => product.categories)
   products: Product[];
+
+  // =========================================================
+  // PARENT CATEGORY
+  // =========================================================
 
   @ManyToOne(() => ParentCategory, (parent) => parent.categories, {
     nullable: true,
     onDelete: "SET NULL",
   })
-  @JoinColumn({ name: "parentCategoryId" })
+  @JoinColumn({
+    name: "parentCategoryId",
+  })
   parentCategory: ParentCategory | null;
 
-  @Column({ type: "uuid", nullable: true })
+  @Column({
+    type: "uuid",
+    nullable: true,
+  })
   parentCategoryId: string | null;
+
+  // =========================================================
+  // TIMESTAMPS
+  // =========================================================
 
   @CreateDateColumn()
   createdAt: Date;
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  // =========================================================
+  // SLUG
+  // =========================================================
 
   @BeforeInsert()
   generateSlug() {

@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const multer_1 = __importDefault(require("multer"));
+const crypto_1 = require("crypto");
 const auth_middleware_1 = require("../middlewares/auth.middleware");
 const upload_config_1 = require("../utils/upload-config");
 (0, upload_config_1.ensureUploadDir)();
@@ -13,7 +14,7 @@ const storage = multer_1.default.diskStorage({
     filename: (_req, file, cb) => {
         const originalName = file.originalname || "file";
         const safeName = originalName.replace(/[^a-zA-Z0-9._-]/g, "_");
-        cb(null, safeName);
+        cb(null, (0, crypto_1.randomUUID)() + "-" + safeName);
     },
 });
 const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
@@ -27,7 +28,7 @@ const fileFilter = (_req, file, cb) => {
 const upload = (0, multer_1.default)({
     storage,
     fileFilter,
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+    limits: { fileSize: 5 * 1024 * 1024, files: 10 }, // 5MB per file
 });
 const router = (0, express_1.Router)();
 router.post("/image", auth_middleware_1.authenticate, upload.fields([
@@ -67,5 +68,8 @@ router.post("/images", auth_middleware_1.authenticate, upload.any(), // accept a
         mimetype: file.mimetype,
     }));
     res.status(201).json(result);
+});
+router.use((error, _req, res, _next) => {
+    res.status(400).json({ message: error.message || "Invalid upload" });
 });
 exports.default = router;

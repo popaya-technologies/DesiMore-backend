@@ -18,7 +18,7 @@ const userRepository = AppDataSource.getRepository(User);
 export const authenticate = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const accessToken = req.cookies.accessToken;
@@ -39,6 +39,7 @@ export const authenticate = async (
         "email",
         "phone",
         "avatar",
+        "userRole",
       ],
     });
 
