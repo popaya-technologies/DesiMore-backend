@@ -12,9 +12,15 @@ router.post(
   VoucherThemeController.createVoucherTheme,
 );
 
-router.get("/", VoucherThemeController.getVoucherThemes);
+router.get(
+  "/",
+  VoucherThemeController.getVoucherThemes,
+);
 
-router.get("/:id", VoucherThemeController.getVoucherThemeById);
+router.get(
+  "/:id",
+  VoucherThemeController.getVoucherThemeById,
+);
 
 router.put(
   "/:id",
