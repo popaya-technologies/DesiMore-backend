@@ -18,6 +18,7 @@ import downloadRoutes from "./routes/download.routes";
 import faqRoutes from "./routes/faq.routes";
 import carrierRoutes from "./routes/carrier.routes";
 import giftVoucherRoutes from "./routes/gift_voucher.routes";
+import voucherThemeRoutes from "./routes/voucher_theme.routes";
 import { authenticate } from "./middlewares/auth.middleware";
 import { checkPermission } from "./middlewares/rbac.middleware";
 import cors from "cors";
@@ -79,6 +80,7 @@ app.use("/api/downloads", downloadRoutes);
 app.use("/api/faqs", faqRoutes);
 app.use("/api/carriers", carrierRoutes);
 app.use("/api/gift-vouchers", giftVoucherRoutes);
+app.use("/api/voucher-themes", voucherThemeRoutes);
 
 // Example protected route with RBAC
 app.get(
