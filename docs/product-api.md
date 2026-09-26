@@ -53,7 +53,7 @@ Ordinary customer product-read permission does not grant access to product edito
 | Discount | `discounts: [{id?,customerGroup,quantity,priority,price,dateStart?,dateEnd?}]` |
 | Image | `imageDetails: [{id?,url,isMain,sortOrder}]` |
 
-Create requires title, model, metaTitle, price, quantity, wholesalePrice, wholesaleQuantity, manufacturer/brand, and at least one category. Description is optional and defaults to an empty string.
+Create requires title, model, metaTitle, price, quantity, and at least one category. Description is optional and defaults to an empty string. Wholesale price, wholesale quantity, and manufacturer/brand are optional: omitted wholesalePrice remains null, wholesaleQuantity defaults to 0, and the Brand relation remains null. Supplied values still undergo the existing validation. PATCH can disable a product with only `{ "isActive": false }`; omitted wholesale and brand fields remain unchanged.
 
 Accepted aliases: `productName → title`, `description → summary`, `manufacturerId → brandId`, `boxQuantity → unitsPerCarton`. Conflicting aliases are rejected. The existing `discountPrice`, `inStock`, `images`, and `package` fields remain supported.
 
@@ -160,4 +160,3 @@ Use Node.js 22.8+ for the test runner's isolation flag. The test suite requires 
 20 integration tests passed against PostgreSQL 18: migration down/up and legacy backfill, all-tab creation/read/edit, permissions, nested rollback, validation, imports, global sorting, uploads/download access, option pricing, minimum quantities, Buy Now, wholesale stock and rejection, concurrent checkout, deletion, and payment retry/unknown-outcome handling.
 
 Authorize.Net controllers are replaced with simulated responses in payment tests. No external charge, email, or production-database write is made. Live Authorize.Net sandbox verification and frontend end-to-end testing remain separate deployment checks.
-

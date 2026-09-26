@@ -183,9 +183,6 @@ const validateProductInput = (input, creating) => __awaiter(void 0, void 0, void
             "metaTitle",
             "price",
             "quantity",
-            "wholesalePrice",
-            "wholesaleQuantity",
-            "brandId",
             "categoryIds",
         ]) {
             if (dto[field] === undefined ||
