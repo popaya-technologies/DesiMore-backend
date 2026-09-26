@@ -141,7 +141,7 @@ before(async () => {
     throw error;
   }
   await runner.release();
-  brand = await db.getRepository(Brand).save({ name: "Test Brand" });
+  brand = await db.getRepository(Brand).save({ name: "Test Brand", keyword: "test-brand" });
   category = await db
     .getRepository(Category)
     .save({ name: "Test Category", slug: "test-category" });
@@ -312,6 +312,34 @@ test("partial updates preserve omitted data, switch main image, and clear nested
   assert.deepEqual(cleared.body.attributes, []);
   assert.equal(cleared.body.brandId, null);
 });
+test("optional wholesale and brand fields preserve defaults and partial update behavior", async () => {
+  for (const field of ["wholesalePrice", "wholesaleQuantity", "brandId"]) {
+    const product = await create({ [field]: undefined });
+    assert.equal(product[field], field === "wholesaleQuantity" ? 0 : null);
+  }
+  const response = await call("post", "/api/products").send({
+    title: "Retail only", model: "RETAIL-ONLY", metaTitle: "Retail only",
+    price: 20, quantity: 10, categoryIds: [category.id],
+  });
+  assert.equal(response.status, 201, JSON.stringify(response.body));
+  const retail = response.body;
+  assert.equal(retail.wholesalePrice, null);
+  assert.equal(retail.wholesaleQuantity, 0);
+  assert.equal(retail.brandId, null);
+  const full = await create();
+  for (const product of [retail, full]) {
+    const disabled = await call("patch", "/api/products/" + product.id)
+      .send({ isActive: false });
+    assert.equal(disabled.status, 200, JSON.stringify(disabled.body));
+    const saved = await db.getRepository(Product).findOneOrFail({
+      where: { id: product.id }, relations: ["brand"],
+    });
+    assert.equal(saved.isActive, false);
+    assert.equal(saved.wholesalePrice, product.wholesalePrice);
+    assert.equal(saved.wholesaleQuantity, product.wholesaleQuantity);
+    assert.equal(saved.brand?.id ?? null, product.brandId);
+  }
+});
 test("validation rejects malformed fields, missing required fields, aliases and invalid dates", async () => {
   const invalid = [
     { title: "" },
@@ -321,7 +349,10 @@ test("validation rejects malformed fields, missing required fields, aliases and 
     { quantity: 1.5 },
     { wholesaleQuantity: -1 },
     { price: -1 },
-    { wholesalePrice: undefined },
+    { wholesalePrice: -1 },
+    ...["title", "model", "metaTitle", "price", "quantity", "categoryIds"]
+      .map((field) => ({ [field]: undefined })),
+    { categoryIds: [] },
     { boxQuantity: 0 },
     { manufacturerId: randomUUID() },
     { brandId: randomUUID() },

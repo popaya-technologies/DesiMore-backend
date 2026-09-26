@@ -164,9 +164,6 @@ export const validateProductInput = async (input: any, creating: boolean) => {
       "metaTitle",
       "price",
       "quantity",
-      "wholesalePrice",
-      "wholesaleQuantity",
-      "brandId",
       "categoryIds",
     ]) {
       if (

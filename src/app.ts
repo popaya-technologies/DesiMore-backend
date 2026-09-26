@@ -15,6 +15,12 @@ import parentCategoryRoutes from "./routes/parent-category.routes";
 import uploadRoutes from "./routes/upload.routes";
 import messageRoutes from "./routes/message.routes";
 import downloadRoutes from "./routes/download.routes";
+import faqRoutes from "./routes/faq.routes";
+import carrierRoutes from "./routes/carrier.routes";
+import giftVoucherRoutes from "./routes/gift_voucher.routes";
+import voucherThemeRoutes from "./routes/voucher_theme.routes";
+import couponRoutes from "./routes/coupon.routes";
+import reviewRoutes from "./routes/review.routes";
 import { authenticate } from "./middlewares/auth.middleware";
 import { checkPermission } from "./middlewares/rbac.middleware";
 import cors from "cors";
@@ -73,6 +79,12 @@ app.use("/api/wholesale-orders", wholesaleOrderRoutes);
 app.use("/api/uploads", uploadRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/downloads", downloadRoutes);
+app.use("/api/faqs", faqRoutes);
+app.use("/api/carriers", carrierRoutes);
+app.use("/api/gift-vouchers", giftVoucherRoutes);
+app.use("/api/voucher-themes", voucherThemeRoutes);
+app.use("/api/coupons", couponRoutes);
+app.use("/api/reviews", reviewRoutes);
 
 // Example protected route with RBAC
 app.get(
