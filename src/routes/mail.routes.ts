@@ -1,0 +1,10 @@
+import { Router } from "express";
+import { authenticate } from "../middlewares/auth.middleware";
+import { checkPermission } from "../middlewares/rbac.middleware";
+import { MailController } from "../controllers/mail.controller";
+const router = Router();
+router.use(authenticate, checkPermission("mail", "send"));
+router.get("/form-options", MailController.options);
+router.post("/send", MailController.send);
+router.get("/requests/:requestId", MailController.status);
+export default router;
