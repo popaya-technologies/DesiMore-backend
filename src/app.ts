@@ -21,6 +21,9 @@ import giftVoucherRoutes from "./routes/gift_voucher.routes";
 import voucherThemeRoutes from "./routes/voucher_theme.routes";
 import couponRoutes from "./routes/coupon.routes";
 import reviewRoutes from "./routes/review.routes";
+import mailRoutes from "./routes/mail.routes";
+import bannerRoutes from "./routes/banner.routes";
+import seoUrlRoutes from "./routes/seo-url.routes";
 import { authenticate } from "./middlewares/auth.middleware";
 import { checkPermission } from "./middlewares/rbac.middleware";
 import cors from "cors";
@@ -85,6 +88,9 @@ app.use("/api/gift-vouchers", giftVoucherRoutes);
 app.use("/api/voucher-themes", voucherThemeRoutes);
 app.use("/api/coupons", couponRoutes);
 app.use("/api/reviews", reviewRoutes);
+app.use("/api/mail", mailRoutes);
+app.use("/api/banners", bannerRoutes);
+app.use("/api/seo-urls", seoUrlRoutes);
 
 // Example protected route with RBAC
 app.get(

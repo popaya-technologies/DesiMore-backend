@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const auth_middleware_1 = require("../middlewares/auth.middleware");
+const rbac_middleware_1 = require("../middlewares/rbac.middleware");
+const mail_controller_1 = require("../controllers/mail.controller");
+const router = (0, express_1.Router)();
+router.use(auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("mail", "send"));
+router.get("/form-options", mail_controller_1.MailController.options);
+router.post("/send", mail_controller_1.MailController.send);
+router.get("/requests/:requestId", mail_controller_1.MailController.status);
+exports.default = router;
