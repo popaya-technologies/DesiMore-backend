@@ -22,6 +22,7 @@ const message_routes_1 = __importDefault(require("./routes/message.routes"));
 const download_routes_1 = __importDefault(require("./routes/download.routes"));
 const mail_routes_1 = __importDefault(require("./routes/mail.routes"));
 const banner_routes_1 = __importDefault(require("./routes/banner.routes"));
+const language_editor_routes_1 = __importDefault(require("./routes/language-editor.routes"));
 const auth_middleware_1 = require("./middlewares/auth.middleware");
 const rbac_middleware_1 = require("./middlewares/rbac.middleware");
 const cors_1 = __importDefault(require("cors"));
@@ -69,6 +70,7 @@ app.use("/api/messages", message_routes_1.default);
 app.use("/api/downloads", download_routes_1.default);
 app.use("/api/mail", mail_routes_1.default);
 app.use("/api/banners", banner_routes_1.default);
+app.use("/api/language-editor", language_editor_routes_1.default);
 // Example protected route with RBAC
 app.get("/api/admin/dashboard", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("dashboard", "read"), (req, res) => {
     res.json({ message: "Welcome to admin dashboard" });
