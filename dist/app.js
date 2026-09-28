@@ -20,8 +20,15 @@ const parent_category_routes_1 = __importDefault(require("./routes/parent-catego
 const upload_routes_1 = __importDefault(require("./routes/upload.routes"));
 const message_routes_1 = __importDefault(require("./routes/message.routes"));
 const download_routes_1 = __importDefault(require("./routes/download.routes"));
+const faq_routes_1 = __importDefault(require("./routes/faq.routes"));
+const carrier_routes_1 = __importDefault(require("./routes/carrier.routes"));
+const gift_voucher_routes_1 = __importDefault(require("./routes/gift_voucher.routes"));
+const voucher_theme_routes_1 = __importDefault(require("./routes/voucher_theme.routes"));
+const coupon_routes_1 = __importDefault(require("./routes/coupon.routes"));
+const review_routes_1 = __importDefault(require("./routes/review.routes"));
 const mail_routes_1 = __importDefault(require("./routes/mail.routes"));
 const banner_routes_1 = __importDefault(require("./routes/banner.routes"));
+const seo_url_routes_1 = __importDefault(require("./routes/seo-url.routes"));
 const language_editor_routes_1 = __importDefault(require("./routes/language-editor.routes"));
 const auth_middleware_1 = require("./middlewares/auth.middleware");
 const rbac_middleware_1 = require("./middlewares/rbac.middleware");
@@ -68,8 +75,15 @@ app.use("/api/wholesale-orders", wholesale_order_routes_1.default);
 app.use("/api/uploads", upload_routes_1.default);
 app.use("/api/messages", message_routes_1.default);
 app.use("/api/downloads", download_routes_1.default);
+app.use("/api/faqs", faq_routes_1.default);
+app.use("/api/carriers", carrier_routes_1.default);
+app.use("/api/gift-vouchers", gift_voucher_routes_1.default);
+app.use("/api/voucher-themes", voucher_theme_routes_1.default);
+app.use("/api/coupons", coupon_routes_1.default);
+app.use("/api/reviews", review_routes_1.default);
 app.use("/api/mail", mail_routes_1.default);
 app.use("/api/banners", banner_routes_1.default);
+app.use("/api/seo-urls", seo_url_routes_1.default);
 app.use("/api/language-editor", language_editor_routes_1.default);
 // Example protected route with RBAC
 app.get("/api/admin/dashboard", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("dashboard", "read"), (req, res) => {

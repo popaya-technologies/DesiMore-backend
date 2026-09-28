@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const carrier_controller_1 = require("../controllers/carrier.controller");
+const auth_middleware_1 = require("../middlewares/auth.middleware");
+const rbac_middleware_1 = require("../middlewares/rbac.middleware");
+const router = (0, express_1.Router)();
+router.post("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("carrier", "create"), carrier_controller_1.CarrierController.createCarrier);
+router.get("/", carrier_controller_1.CarrierController.getCarriers);
+router.get("/:id", carrier_controller_1.CarrierController.getCarrierById);
+router.put("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("carrier", "update"), carrier_controller_1.CarrierController.updateCarrier);
+router.delete("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("carrier", "delete"), carrier_controller_1.CarrierController.deleteCarrier);
+exports.default = router;

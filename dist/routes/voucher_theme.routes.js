@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const voucher_theme_controller_1 = require("../controllers/voucher_theme.controller");
+const auth_middleware_1 = require("../middlewares/auth.middleware");
+const rbac_middleware_1 = require("../middlewares/rbac.middleware");
+const router = (0, express_1.Router)();
+router.post("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("voucher_theme", "create"), voucher_theme_controller_1.VoucherThemeController.createVoucherTheme);
+router.get("/", voucher_theme_controller_1.VoucherThemeController.getVoucherThemes);
+router.get("/:id", voucher_theme_controller_1.VoucherThemeController.getVoucherThemeById);
+router.put("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("voucher_theme", "update"), voucher_theme_controller_1.VoucherThemeController.updateVoucherTheme);
+router.delete("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("voucher_theme", "delete"), voucher_theme_controller_1.VoucherThemeController.deleteVoucherTheme);
+exports.default = router;
