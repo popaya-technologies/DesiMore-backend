@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const seo_url_controller_1 = require("../controllers/seo-url.controller");
+const auth_middleware_1 = require("../middlewares/auth.middleware");
+const rbac_middleware_1 = require("../middlewares/rbac.middleware");
+const router = (0, express_1.Router)();
+router.post("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("seo_url", "create"), seo_url_controller_1.SeoUrlController.createSeoUrl);
+router.get("/", seo_url_controller_1.SeoUrlController.getSeoUrls);
+router.get("/:id", seo_url_controller_1.SeoUrlController.getSeoUrlById);
+router.put("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("seo_url", "update"), seo_url_controller_1.SeoUrlController.updateSeoUrl);
+router.delete("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("seo_url", "delete"), seo_url_controller_1.SeoUrlController.deleteSeoUrl);
+exports.default = router;

@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const gift_voucher_controller_1 = require("../controllers/gift_voucher.controller");
+const auth_middleware_1 = require("../middlewares/auth.middleware");
+const rbac_middleware_1 = require("../middlewares/rbac.middleware");
+const router = (0, express_1.Router)();
+router.post("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("gift_voucher", "create"), gift_voucher_controller_1.GiftVoucherController.createGiftVoucher);
+router.get("/", gift_voucher_controller_1.GiftVoucherController.getGiftVouchers);
+router.get("/:id", gift_voucher_controller_1.GiftVoucherController.getGiftVoucherById);
+router.put("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("gift_voucher", "update"), gift_voucher_controller_1.GiftVoucherController.updateGiftVoucher);
+router.delete("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("gift_voucher", "delete"), gift_voucher_controller_1.GiftVoucherController.deleteGiftVoucher);
+exports.default = router;

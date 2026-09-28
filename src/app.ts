@@ -24,6 +24,7 @@ import reviewRoutes from "./routes/review.routes";
 import mailRoutes from "./routes/mail.routes";
 import bannerRoutes from "./routes/banner.routes";
 import seoUrlRoutes from "./routes/seo-url.routes";
+import languageEditorRoutes from "./routes/language-editor.routes";
 import { authenticate } from "./middlewares/auth.middleware";
 import { checkPermission } from "./middlewares/rbac.middleware";
 import cors from "cors";
@@ -91,6 +92,7 @@ app.use("/api/reviews", reviewRoutes);
 app.use("/api/mail", mailRoutes);
 app.use("/api/banners", bannerRoutes);
 app.use("/api/seo-urls", seoUrlRoutes);
+app.use("/api/language-editor", languageEditorRoutes);
 
 // Example protected route with RBAC
 app.get(
