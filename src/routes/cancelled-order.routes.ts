@@ -1,0 +1,11 @@
+import { Router } from "express";
+import { authenticate } from "../middlewares/auth.middleware";
+import { checkPermission } from "../middlewares/rbac.middleware";
+import { CancelledOrderController as controller } from "../controllers/cancelled-order.controller";
+const router = Router();
+router.use(authenticate);
+router.get("/", checkPermission("cancelled-order", "read"), controller.list);
+router.delete("/bulk", checkPermission("cancelled-order", "delete"), controller.bulk);
+router.get("/:id", checkPermission("cancelled-order", "read"), controller.detail);
+router.post("/:id/history", checkPermission("cancelled-order", "update"), controller.history);
+export default router;

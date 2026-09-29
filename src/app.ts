@@ -8,6 +8,7 @@ import categoryRoutes from "./routes/category.routes";
 import brandRoutes from "./routes/brand.routes";
 import cartRoutes from "./routes/cart.routes";
 import orderRoutes from "./routes/order.routes";
+import cancelledOrderRoutes from "./routes/cancelled-order.routes";
 import paymentRoutes from "./routes/payment.routes";
 import wishlistRoutes from "./routes/wishlist.routes";
 import wholesaleOrderRoutes from "./routes/wholesale-order.routes";
@@ -28,6 +29,8 @@ import languageEditorRoutes from "./routes/language-editor.routes";
 import attributeRoutes from "./routes/attribute.routes";
 import attributeGroupRoutes from "./routes/attribute-group.routes";
 import optionRoutes from "./routes/option.routes";
+import filterRoutes from "./routes/filter.routes";
+import productReturnRoutes from "./routes/product-return.routes";
 import { authenticate } from "./middlewares/auth.middleware";
 import { checkPermission } from "./middlewares/rbac.middleware";
 import cors from "cors";
@@ -81,6 +84,7 @@ app.use("/api/brands", brandRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/wishlist", wishlistRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/cancelled-orders", cancelledOrderRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/wholesale-orders", wholesaleOrderRoutes);
 app.use("/api/uploads", uploadRoutes);
@@ -99,6 +103,8 @@ app.use("/api/language-editor", languageEditorRoutes);
 app.use("/api/attributes", attributeRoutes);
 app.use("/api/attribute-groups", attributeGroupRoutes);
 app.use("/api/options", optionRoutes);
+app.use("/api/filters", filterRoutes);
+app.use("/api/product-returns", productReturnRoutes);
 
 // Example protected route with RBAC
 app.get(

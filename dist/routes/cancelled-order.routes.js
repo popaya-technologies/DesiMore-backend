@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const auth_middleware_1 = require("../middlewares/auth.middleware");
+const rbac_middleware_1 = require("../middlewares/rbac.middleware");
+const cancelled_order_controller_1 = require("../controllers/cancelled-order.controller");
+const router = (0, express_1.Router)();
+router.use(auth_middleware_1.authenticate);
+router.get("/", (0, rbac_middleware_1.checkPermission)("cancelled-order", "read"), cancelled_order_controller_1.CancelledOrderController.list);
+router.delete("/bulk", (0, rbac_middleware_1.checkPermission)("cancelled-order", "delete"), cancelled_order_controller_1.CancelledOrderController.bulk);
+router.get("/:id", (0, rbac_middleware_1.checkPermission)("cancelled-order", "read"), cancelled_order_controller_1.CancelledOrderController.detail);
+router.post("/:id/history", (0, rbac_middleware_1.checkPermission)("cancelled-order", "update"), cancelled_order_controller_1.CancelledOrderController.history);
+exports.default = router;

@@ -13,6 +13,7 @@ const category_routes_1 = __importDefault(require("./routes/category.routes"));
 const brand_routes_1 = __importDefault(require("./routes/brand.routes"));
 const cart_routes_1 = __importDefault(require("./routes/cart.routes"));
 const order_routes_1 = __importDefault(require("./routes/order.routes"));
+const cancelled_order_routes_1 = __importDefault(require("./routes/cancelled-order.routes"));
 const payment_routes_1 = __importDefault(require("./routes/payment.routes"));
 const wishlist_routes_1 = __importDefault(require("./routes/wishlist.routes"));
 const wholesale_order_routes_1 = __importDefault(require("./routes/wholesale-order.routes"));
@@ -33,6 +34,8 @@ const language_editor_routes_1 = __importDefault(require("./routes/language-edit
 const attribute_routes_1 = __importDefault(require("./routes/attribute.routes"));
 const attribute_group_routes_1 = __importDefault(require("./routes/attribute-group.routes"));
 const option_routes_1 = __importDefault(require("./routes/option.routes"));
+const filter_routes_1 = __importDefault(require("./routes/filter.routes"));
+const product_return_routes_1 = __importDefault(require("./routes/product-return.routes"));
 const auth_middleware_1 = require("./middlewares/auth.middleware");
 const rbac_middleware_1 = require("./middlewares/rbac.middleware");
 const cors_1 = __importDefault(require("cors"));
@@ -73,6 +76,7 @@ app.use("/api/brands", brand_routes_1.default);
 app.use("/api/cart", cart_routes_1.default);
 app.use("/api/wishlist", wishlist_routes_1.default);
 app.use("/api/orders", order_routes_1.default);
+app.use("/api/cancelled-orders", cancelled_order_routes_1.default);
 app.use("/api/payments", payment_routes_1.default);
 app.use("/api/wholesale-orders", wholesale_order_routes_1.default);
 app.use("/api/uploads", upload_routes_1.default);
@@ -91,6 +95,8 @@ app.use("/api/language-editor", language_editor_routes_1.default);
 app.use("/api/attributes", attribute_routes_1.default);
 app.use("/api/attribute-groups", attribute_group_routes_1.default);
 app.use("/api/options", option_routes_1.default);
+app.use("/api/filters", filter_routes_1.default);
+app.use("/api/product-returns", product_return_routes_1.default);
 // Example protected route with RBAC
 app.get("/api/admin/dashboard", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("dashboard", "read"), (req, res) => {
     res.json({ message: "Welcome to admin dashboard" });
