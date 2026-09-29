@@ -15,6 +15,7 @@
     "test:language-editor": "node --test --test-isolation=none -r ts-node/register tests/language-editor-api.test.js",
     "test:attributes": "node --test --test-isolation=none -r ts-node/register tests/attribute-api.test.js",
     "test:attribute-groups": "node --test --test-isolation=none -r ts-node/register tests/attribute-group-api.test.js",
+    "test:options": "node --test --test-isolation=none -r ts-node/register tests/option-api.test.js",
     "migration:show": "ts-node ./node_modules/typeorm/cli.js migration:show -d src/data-source.ts",
     "migration:run": "ts-node ./node_modules/typeorm/cli.js migration:run -d src/data-source.ts",
     "migration:revert": "ts-node ./node_modules/typeorm/cli.js migration:revert -d src/data-source.ts"

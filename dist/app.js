@@ -32,6 +32,7 @@ const seo_url_routes_1 = __importDefault(require("./routes/seo-url.routes"));
 const language_editor_routes_1 = __importDefault(require("./routes/language-editor.routes"));
 const attribute_routes_1 = __importDefault(require("./routes/attribute.routes"));
 const attribute_group_routes_1 = __importDefault(require("./routes/attribute-group.routes"));
+const option_routes_1 = __importDefault(require("./routes/option.routes"));
 const auth_middleware_1 = require("./middlewares/auth.middleware");
 const rbac_middleware_1 = require("./middlewares/rbac.middleware");
 const cors_1 = __importDefault(require("cors"));
@@ -89,6 +90,7 @@ app.use("/api/seo-urls", seo_url_routes_1.default);
 app.use("/api/language-editor", language_editor_routes_1.default);
 app.use("/api/attributes", attribute_routes_1.default);
 app.use("/api/attribute-groups", attribute_group_routes_1.default);
+app.use("/api/options", option_routes_1.default);
 // Example protected route with RBAC
 app.get("/api/admin/dashboard", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("dashboard", "read"), (req, res) => {
     res.json({ message: "Welcome to admin dashboard" });
