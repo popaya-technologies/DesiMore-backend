@@ -36,6 +36,7 @@ const attribute_group_routes_1 = __importDefault(require("./routes/attribute-gro
 const option_routes_1 = __importDefault(require("./routes/option.routes"));
 const filter_routes_1 = __importDefault(require("./routes/filter.routes"));
 const product_return_routes_1 = __importDefault(require("./routes/product-return.routes"));
+const recipe_routes_1 = __importDefault(require("./routes/recipe.routes"));
 const auth_middleware_1 = require("./middlewares/auth.middleware");
 const rbac_middleware_1 = require("./middlewares/rbac.middleware");
 const cors_1 = __importDefault(require("cors"));
@@ -97,6 +98,7 @@ app.use("/api/attribute-groups", attribute_group_routes_1.default);
 app.use("/api/options", option_routes_1.default);
 app.use("/api/filters", filter_routes_1.default);
 app.use("/api/product-returns", product_return_routes_1.default);
+app.use("/api/recipes", recipe_routes_1.default);
 // Example protected route with RBAC
 app.get("/api/admin/dashboard", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("dashboard", "read"), (req, res) => {
     res.json({ message: "Welcome to admin dashboard" });
