@@ -79,6 +79,22 @@ function seed() {
             { name: "read-user", resource: "user", action: "read" },
             { name: "update-user", resource: "user", action: "update" },
             { name: "delete-user", resource: "user", action: "delete" },
+            // Customer Approval permissions
+            {
+                name: "create-customer-approval",
+                resource: "customer-approval",
+                action: "create",
+            },
+            {
+                name: "read-customer-approval",
+                resource: "customer-approval",
+                action: "read",
+            },
+            {
+                name: "update-customer-approval",
+                resource: "customer-approval",
+                action: "update",
+            },
             // User-Role permissions
             { name: "create-user-role", resource: "user-role", action: "create" },
             { name: "read-user-role", resource: "user-role", action: "read" },
@@ -170,12 +186,14 @@ function seed() {
         const permissionMap = new Map(createdPermissions.map((permission) => [permission.name, permission]));
         yield assignPermissionsToRole(adminRole.id, createdPermissions.map((permission) => permission.id));
         const basicCustomerPerms = createdPermissions.filter((p) => (p.resource === "product" && p.action === "read") ||
-            (p.resource === "order" && ["create", "read"].includes(p.action)));
+            (p.resource === "order" && ["create", "read"].includes(p.action)) ||
+            (p.resource === "customer-approval" && p.action === "create"));
         yield assignPermissionsToRole(customerRole.id, basicCustomerPerms.map((permission) => permission.id));
         const wholesalerPermissionNames = [
             "read-product",
             "create-wholesale-order-request",
             "read-wholesale-order-request",
+            "create-customer-approval",
         ];
         const wholesalerPermissionIds = wholesalerPermissionNames
             .map((name) => permissionMap.get(name))

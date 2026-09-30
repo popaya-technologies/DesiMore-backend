@@ -5,6 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 // app.ts
 const express_1 = __importDefault(require("express"));
+const customer_group_routes_1 = __importDefault(require("./routes/customer-group.routes"));
+const customer_approval_routes_1 = __importDefault(require("./routes/customer-approval.routes"));
 const cookie_parser_1 = __importDefault(require("cookie-parser"));
 const auth_routes_1 = __importDefault(require("./routes/auth.routes"));
 const rbac_routes_1 = __importDefault(require("./routes/rbac.routes"));
@@ -37,6 +39,7 @@ const option_routes_1 = __importDefault(require("./routes/option.routes"));
 const filter_routes_1 = __importDefault(require("./routes/filter.routes"));
 const product_return_routes_1 = __importDefault(require("./routes/product-return.routes"));
 const recipe_routes_1 = __importDefault(require("./routes/recipe.routes"));
+const recipe_category_routes_1 = __importDefault(require("./routes/recipe-category.routes"));
 const auth_middleware_1 = require("./middlewares/auth.middleware");
 const rbac_middleware_1 = require("./middlewares/rbac.middleware");
 const cors_1 = __importDefault(require("cors"));
@@ -68,6 +71,8 @@ if (fs_1.default.existsSync(CATALOG_DIR)) {
     }));
 }
 // Routes
+app.use("/api/customer-groups", customer_group_routes_1.default);
+app.use("/api/customer-approvals", customer_approval_routes_1.default);
 app.use("/api/auth", auth_routes_1.default);
 app.use("/api/rbac", rbac_routes_1.default);
 app.use("/api/products", product_routes_1.default);
@@ -99,6 +104,7 @@ app.use("/api/options", option_routes_1.default);
 app.use("/api/filters", filter_routes_1.default);
 app.use("/api/product-returns", product_return_routes_1.default);
 app.use("/api/recipes", recipe_routes_1.default);
+app.use("/api/recipe-categories", recipe_category_routes_1.default);
 // Example protected route with RBAC
 app.get("/api/admin/dashboard", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("dashboard", "read"), (req, res) => {
     res.json({ message: "Welcome to admin dashboard" });

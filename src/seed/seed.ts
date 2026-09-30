@@ -8,8 +8,7 @@ import { UserRole } from "../entities/user-role.entity";
 
 async function seed() {
   await AppDataSource.initialize();
-  const rolePermissionRepository =
-    AppDataSource.getRepository(RolePermission);
+  const rolePermissionRepository = AppDataSource.getRepository(RolePermission);
   const userRoleRepository = AppDataSource.getRepository(UserRole);
 
   const ensureRole = async (name: string, description?: string) => {
@@ -37,13 +36,13 @@ async function seed() {
       name,
       resource,
       action,
-      `Permission to ${action} ${resource}`
+      `Permission to ${action} ${resource}`,
     );
   };
 
   const assignPermissionsToRole = async (
     roleId: string,
-    permissionIds: string[]
+    permissionIds: string[],
   ) => {
     if (!permissionIds.length) {
       return;
@@ -72,15 +71,9 @@ async function seed() {
   };
 
   // Create basic roles
-  const adminRole = await ensureRole(
-    "admin",
-    "Administrator with full access"
-  );
+  const adminRole = await ensureRole("admin", "Administrator with full access");
   const customerRole = await ensureRole("customer", "Regular customer");
-  const wholesalerRole = await ensureRole(
-    "wholesaler",
-    "Wholesale customer"
-  );
+  const wholesalerRole = await ensureRole("wholesaler", "Wholesale customer");
 
   // Create permissions
   const permissions = [
@@ -101,6 +94,23 @@ async function seed() {
     { name: "read-user", resource: "user", action: "read" },
     { name: "update-user", resource: "user", action: "update" },
     { name: "delete-user", resource: "user", action: "delete" },
+
+    // Customer Approval permissions
+    {
+      name: "create-customer-approval",
+      resource: "customer-approval",
+      action: "create",
+    },
+    {
+      name: "read-customer-approval",
+      resource: "customer-approval",
+      action: "read",
+    },
+    {
+      name: "update-customer-approval",
+      resource: "customer-approval",
+      action: "update",
+    },
 
     // User-Role permissions
     { name: "create-user-role", resource: "user-role", action: "create" },
@@ -200,34 +210,36 @@ async function seed() {
   }
 
   const permissionMap = new Map(
-    createdPermissions.map((permission) => [permission.name, permission])
+    createdPermissions.map((permission) => [permission.name, permission]),
   );
 
   await assignPermissionsToRole(
     adminRole.id,
-    createdPermissions.map((permission) => permission.id)
+    createdPermissions.map((permission) => permission.id),
   );
 
   const basicCustomerPerms = createdPermissions.filter(
     (p) =>
       (p.resource === "product" && p.action === "read") ||
-      (p.resource === "order" && ["create", "read"].includes(p.action))
+      (p.resource === "order" && ["create", "read"].includes(p.action)) ||
+      (p.resource === "customer-approval" && p.action === "create"),
   );
 
   await assignPermissionsToRole(
     customerRole.id,
-    basicCustomerPerms.map((permission) => permission.id)
+    basicCustomerPerms.map((permission) => permission.id),
   );
 
   const wholesalerPermissionNames = [
     "read-product",
     "create-wholesale-order-request",
     "read-wholesale-order-request",
+    "create-customer-approval",
   ];
   const wholesalerPermissionIds = wholesalerPermissionNames
     .map((name) => permissionMap.get(name))
-    .filter((permission): permission is typeof createdPermissions[number] =>
-      Boolean(permission)
+    .filter((permission): permission is (typeof createdPermissions)[number] =>
+      Boolean(permission),
     )
     .map((permission) => permission.id);
   await assignPermissionsToRole(wholesalerRole.id, wholesalerPermissionIds);
