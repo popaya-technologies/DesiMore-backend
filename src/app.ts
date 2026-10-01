@@ -36,6 +36,7 @@ import productReturnRoutes from "./routes/product-return.routes";
 import recipeRoutes from "./routes/recipe.routes";
 import recipeCategoryRoutes from "./routes/recipe-category.routes";
 import storeRoutes from "./routes/store.routes";
+import systemUserRoutes from "./routes/system-user.routes";
 import { authenticate } from "./middlewares/auth.middleware";
 import { checkPermission } from "./middlewares/rbac.middleware";
 import cors from "cors";
@@ -115,6 +116,7 @@ app.use("/api/product-returns", productReturnRoutes);
 app.use("/api/recipes", recipeRoutes);
 app.use("/api/recipe-categories", recipeCategoryRoutes);
 app.use("/api/stores", storeRoutes);
+app.use("/api/system-users", systemUserRoutes);
 
 // Example protected route with RBAC
 app.get(
