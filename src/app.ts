@@ -42,6 +42,7 @@ import storeLocationRoutes from "./routes/store-location.routes";
 import systemLanguageRoutes from "./routes/system-language.routes";
 import currencyRoutes from "./routes/currency.routes";
 import stockStatusRoutes from "./routes/stock-status.routes";
+import orderStatusRoutes from "./routes/order-status.routes";
 import { authenticate } from "./middlewares/auth.middleware";
 import { checkPermission } from "./middlewares/rbac.middleware";
 import cors from "cors";
@@ -127,6 +128,7 @@ app.use("/api/store-locations", storeLocationRoutes);
 app.use("/api/system-languages", systemLanguageRoutes);
 app.use("/api/currencies", currencyRoutes);
 app.use("/api/stock-statuses", stockStatusRoutes);
+app.use("/api/order-statuses", orderStatusRoutes);
 
 // Example protected route with RBAC
 app.get(
