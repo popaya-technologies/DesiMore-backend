@@ -39,6 +39,7 @@ import storeRoutes from "./routes/store.routes";
 import systemUserRoutes from "./routes/system-user.routes";
 import systemUserGroupRoutes from "./routes/system-user-group.routes";
 import storeLocationRoutes from "./routes/store-location.routes";
+import systemLanguageRoutes from "./routes/system-language.routes";
 import { authenticate } from "./middlewares/auth.middleware";
 import { checkPermission } from "./middlewares/rbac.middleware";
 import cors from "cors";
@@ -121,6 +122,7 @@ app.use("/api/stores", storeRoutes);
 app.use("/api/system-users", systemUserRoutes);
 app.use("/api/system-user-groups", systemUserGroupRoutes);
 app.use("/api/store-locations", storeLocationRoutes);
+app.use("/api/system-languages", systemLanguageRoutes);
 
 // Example protected route with RBAC
 app.get(
