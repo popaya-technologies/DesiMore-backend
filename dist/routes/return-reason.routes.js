@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const return_reason_controller_1 = require("../controllers/return-reason.controller");
+const auth_middleware_1 = require("../middlewares/auth.middleware");
+const rbac_middleware_1 = require("../middlewares/rbac.middleware");
+const router = (0, express_1.Router)();
+router.post("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("return-reason", "create"), return_reason_controller_1.ReturnReasonController.createReturnReason);
+router.get("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("return-reason", "read"), return_reason_controller_1.ReturnReasonController.getReturnReasons);
+router.get("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("return-reason", "read"), return_reason_controller_1.ReturnReasonController.getReturnReasonById);
+router.put("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("return-reason", "update"), return_reason_controller_1.ReturnReasonController.updateReturnReason);
+router.delete("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("return-reason", "delete"), return_reason_controller_1.ReturnReasonController.deleteReturnReason);
+exports.default = router;

@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const currency_controller_1 = require("../controllers/currency.controller");
+const auth_middleware_1 = require("../middlewares/auth.middleware");
+const rbac_middleware_1 = require("../middlewares/rbac.middleware");
+const router = (0, express_1.Router)();
+router.post("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("currency", "create"), currency_controller_1.CurrencyController.createCurrency);
+router.get("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("currency", "read"), currency_controller_1.CurrencyController.getCurrencies);
+router.get("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("currency", "read"), currency_controller_1.CurrencyController.getCurrencyById);
+router.put("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("currency", "update"), currency_controller_1.CurrencyController.updateCurrency);
+router.delete("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("currency", "delete"), currency_controller_1.CurrencyController.deleteCurrency);
+exports.default = router;

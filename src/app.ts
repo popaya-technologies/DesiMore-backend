@@ -46,6 +46,9 @@ import stockStatusRoutes from "./routes/stock-status.routes";
 import orderStatusRoutes from "./routes/order-status.routes";
 import returnActionRoutes from "./routes/return-action.routes";
 import returnReasonRoutes from "./routes/return-reason.routes";
+import countryRoutes from "./routes/country.routes";
+import zoneRoutes from "./routes/zone.routes";
+import geoZoneRoutes from "./routes/geo_zone.routes";
 import { authenticate } from "./middlewares/auth.middleware";
 import { checkPermission } from "./middlewares/rbac.middleware";
 import cors from "cors";
@@ -135,6 +138,9 @@ app.use("/api/stock-statuses", stockStatusRoutes);
 app.use("/api/order-statuses", orderStatusRoutes);
 app.use("/api/return-actions", returnActionRoutes);
 app.use("/api/return-reasons", returnReasonRoutes);
+app.use("/api/countries", countryRoutes);
+app.use("/api/zones", zoneRoutes);
+app.use("/api/geo-zones", geoZoneRoutes);
 
 // Example protected route with RBAC
 app.get(

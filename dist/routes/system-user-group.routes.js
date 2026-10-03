@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const system_user_group_controller_1 = require("../controllers/system-user-group.controller");
+const auth_middleware_1 = require("../middlewares/auth.middleware");
+const rbac_middleware_1 = require("../middlewares/rbac.middleware");
+const router = (0, express_1.Router)();
+router.post("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("system-user-group", "create"), system_user_group_controller_1.SystemUserGroupController.createSystemUserGroup);
+router.get("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("system-user-group", "read"), system_user_group_controller_1.SystemUserGroupController.getSystemUserGroups);
+router.get("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("system-user-group", "read"), system_user_group_controller_1.SystemUserGroupController.getSystemUserGroupById);
+router.put("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("system-user-group", "update"), system_user_group_controller_1.SystemUserGroupController.updateSystemUserGroup);
+router.delete("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("system-user-group", "delete"), system_user_group_controller_1.SystemUserGroupController.deleteSystemUserGroup);
+exports.default = router;

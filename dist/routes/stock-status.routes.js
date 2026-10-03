@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const stock_status_controller_1 = require("../controllers/stock-status.controller");
+const auth_middleware_1 = require("../middlewares/auth.middleware");
+const rbac_middleware_1 = require("../middlewares/rbac.middleware");
+const router = (0, express_1.Router)();
+router.post("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("stock-status", "create"), stock_status_controller_1.StockStatusController.createStockStatus);
+router.get("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("stock-status", "read"), stock_status_controller_1.StockStatusController.getStockStatuses);
+router.get("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("stock-status", "read"), stock_status_controller_1.StockStatusController.getStockStatusById);
+router.put("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("stock-status", "update"), stock_status_controller_1.StockStatusController.updateStockStatus);
+router.delete("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("stock-status", "delete"), stock_status_controller_1.StockStatusController.deleteStockStatus);
+exports.default = router;

@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const return_action_controller_1 = require("../controllers/return-action.controller");
+const auth_middleware_1 = require("../middlewares/auth.middleware");
+const rbac_middleware_1 = require("../middlewares/rbac.middleware");
+const router = (0, express_1.Router)();
+router.post("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("return-action", "create"), return_action_controller_1.ReturnActionController.createReturnAction);
+router.get("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("return-action", "read"), return_action_controller_1.ReturnActionController.getReturnActions);
+router.get("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("return-action", "read"), return_action_controller_1.ReturnActionController.getReturnActionById);
+router.put("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("return-action", "update"), return_action_controller_1.ReturnActionController.updateReturnAction);
+router.delete("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("return-action", "delete"), return_action_controller_1.ReturnActionController.deleteReturnAction);
+exports.default = router;

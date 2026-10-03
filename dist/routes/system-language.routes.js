@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const system_language_controller_1 = require("../controllers/system-language.controller");
+const auth_middleware_1 = require("../middlewares/auth.middleware");
+const rbac_middleware_1 = require("../middlewares/rbac.middleware");
+const router = (0, express_1.Router)();
+router.post("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("system-language", "create"), system_language_controller_1.SystemLanguageController.createSystemLanguage);
+router.get("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("system-language", "read"), system_language_controller_1.SystemLanguageController.getSystemLanguages);
+router.get("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("system-language", "read"), system_language_controller_1.SystemLanguageController.getSystemLanguageById);
+router.put("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("system-language", "update"), system_language_controller_1.SystemLanguageController.updateSystemLanguage);
+router.delete("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("system-language", "delete"), system_language_controller_1.SystemLanguageController.deleteSystemLanguage);
+exports.default = router;

@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const system_user_controller_1 = require("../controllers/system-user.controller");
+const auth_middleware_1 = require("../middlewares/auth.middleware");
+const rbac_middleware_1 = require("../middlewares/rbac.middleware");
+const router = (0, express_1.Router)();
+router.post("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("system-user", "create"), system_user_controller_1.SystemUserController.createSystemUser);
+router.get("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("system-user", "read"), system_user_controller_1.SystemUserController.getSystemUsers);
+router.get("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("system-user", "read"), system_user_controller_1.SystemUserController.getSystemUserById);
+router.patch("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("system-user", "update"), system_user_controller_1.SystemUserController.updateSystemUser);
+router.delete("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("system-user", "delete"), system_user_controller_1.SystemUserController.deleteSystemUser);
+exports.default = router;

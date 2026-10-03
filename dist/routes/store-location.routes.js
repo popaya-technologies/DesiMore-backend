@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const store_location_controller_1 = require("../controllers/store-location.controller");
+const auth_middleware_1 = require("../middlewares/auth.middleware");
+const rbac_middleware_1 = require("../middlewares/rbac.middleware");
+const router = (0, express_1.Router)();
+router.post("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("store-location", "create"), store_location_controller_1.StoreLocationController.createStoreLocation);
+router.get("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("store-location", "read"), store_location_controller_1.StoreLocationController.getStoreLocations);
+router.get("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("store-location", "read"), store_location_controller_1.StoreLocationController.getStoreLocationById);
+router.put("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("store-location", "update"), store_location_controller_1.StoreLocationController.updateStoreLocation);
+router.delete("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("store-location", "delete"), store_location_controller_1.StoreLocationController.deleteStoreLocation);
+exports.default = router;

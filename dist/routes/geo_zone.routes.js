@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const geo_zone_controller_1 = require("../controllers/geo_zone.controller");
+const auth_middleware_1 = require("../middlewares/auth.middleware");
+const rbac_middleware_1 = require("../middlewares/rbac.middleware");
+const router = (0, express_1.Router)();
+router.post("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("geo-zone", "create"), geo_zone_controller_1.GeoZoneController.createGeoZone);
+router.get("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("geo-zone", "read"), geo_zone_controller_1.GeoZoneController.getGeoZones);
+router.get("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("geo-zone", "read"), geo_zone_controller_1.GeoZoneController.getGeoZoneById);
+router.put("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("geo-zone", "update"), geo_zone_controller_1.GeoZoneController.updateGeoZone);
+router.delete("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("geo-zone", "delete"), geo_zone_controller_1.GeoZoneController.deleteGeoZone);
+exports.default = router;
