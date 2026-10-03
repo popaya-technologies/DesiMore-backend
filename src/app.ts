@@ -1,5 +1,6 @@
 // app.ts
 import express from "express";
+import returnStatusRoutes from "./routes/return-status.routes";
 import customerGroupRoutes from "./routes/customer-group.routes";
 import customerApprovalRoutes from "./routes/customer-approval.routes";
 import cookieParser from "cookie-parser";
@@ -87,6 +88,7 @@ if (fs.existsSync(CATALOG_DIR)) {
 }
 
 // Routes
+app.use("/api/return-statuses", returnStatusRoutes);
 app.use("/api/customer-groups", customerGroupRoutes);
 app.use("/api/customer-approvals", customerApprovalRoutes);
 app.use("/api/auth", authRoutes);

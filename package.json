@@ -9,6 +9,7 @@
     "start": "node dist/server.js",
     "typeorm": "ts-node ./node_modules/typeorm/cli.js",
     "typecheck": "tsc --noEmit",
+    "test:return-statuses": "node --test --test-isolation=none -r ts-node/register tests/return-status-api.test.js",
     "test:customer-groups": "node --test --test-isolation=none -r ts-node/register tests/customer-group-api.test.js",
     "test:cancelled-orders": "node --test --test-isolation=none -r ts-node/register tests/cancelled-order-api.test.js",
     "test:products": "node --test --test-isolation=none -r ts-node/register tests/product-api.test.js",
