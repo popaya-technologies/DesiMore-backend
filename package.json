@@ -9,6 +9,7 @@
     "start": "node dist/server.js",
     "typeorm": "ts-node ./node_modules/typeorm/cli.js",
     "typecheck": "tsc --noEmit",
+    "test:tax-rates": "node --test --test-isolation=none -r ts-node/register tests/tax-rate-api.test.js",
     "test:tax-classes": "node --test --test-isolation=none -r ts-node/register tests/tax-class-api.test.js",
     "test:return-statuses": "node --test --test-isolation=none -r ts-node/register tests/return-status-api.test.js",
     "test:customer-groups": "node --test --test-isolation=none -r ts-node/register tests/customer-group-api.test.js",

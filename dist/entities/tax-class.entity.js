@@ -11,9 +11,25 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TaxClassRule = exports.TaxClass = exports.TaxRate = void 0;
 const typeorm_1 = require("typeorm");
+const geo_zone_entity_1 = require("./geo_zone.entity");
+const customer_group_entity_1 = require("./customer-group.entity");
 let TaxRate = class TaxRate {
 };
 exports.TaxRate = TaxRate;
+__decorate([
+    (0, typeorm_1.Column)({ type: "uuid", nullable: true }),
+    __metadata("design:type", String)
+], TaxRate.prototype, "geoZoneId", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => geo_zone_entity_1.GeoZone, { nullable: true, onDelete: "RESTRICT" }),
+    (0, typeorm_1.JoinColumn)({ name: "geoZoneId" }),
+    __metadata("design:type", geo_zone_entity_1.GeoZone)
+], TaxRate.prototype, "geoZone", void 0);
+__decorate([
+    (0, typeorm_1.ManyToMany)(() => customer_group_entity_1.CustomerGroup, { onDelete: "CASCADE" }),
+    (0, typeorm_1.JoinTable)({ name: "tax_rate_customer_groups", joinColumn: { name: "taxRateId" }, inverseJoinColumn: { name: "customerGroupId" } }),
+    __metadata("design:type", Array)
+], TaxRate.prototype, "customerGroups", void 0);
 __decorate([
     (0, typeorm_1.PrimaryGeneratedColumn)("uuid"),
     __metadata("design:type", String)

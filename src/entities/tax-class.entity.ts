@@ -1,7 +1,14 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, ManyToOne, JoinColumn, Index } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, ManyToOne, ManyToMany, JoinTable, JoinColumn, Index } from "typeorm";
+import { GeoZone } from "./geo_zone.entity";
+import { CustomerGroup } from "./customer-group.entity";
 
 @Entity("tax_rates")
 export class TaxRate {
+  @Column({ type: "uuid", nullable: true }) geoZoneId: string | null;
+  @ManyToOne(() => GeoZone, { nullable: true, onDelete: "RESTRICT" })
+  @JoinColumn({ name: "geoZoneId" }) geoZone: GeoZone | null;
+  @ManyToMany(() => CustomerGroup, { onDelete: "CASCADE" })
+  @JoinTable({ name: "tax_rate_customer_groups", joinColumn: { name: "taxRateId" }, inverseJoinColumn: { name: "customerGroupId" } }) customerGroups: CustomerGroup[];
   @PrimaryGeneratedColumn("uuid") id: string;
   @Column({ type: "varchar", length: 255, unique: true }) name: string;
   @Column({ type: "numeric", precision: 12, scale: 4 }) rate: string;
