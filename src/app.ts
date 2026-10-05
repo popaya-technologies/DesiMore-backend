@@ -1,5 +1,6 @@
 // app.ts
 import express from "express";
+import taxClassRoutes from "./routes/tax-class.routes";
 import returnStatusRoutes from "./routes/return-status.routes";
 import customerGroupRoutes from "./routes/customer-group.routes";
 import customerApprovalRoutes from "./routes/customer-approval.routes";
@@ -93,6 +94,7 @@ if (fs.existsSync(CATALOG_DIR)) {
 }
 
 // Routes
+app.use("/api/tax-classes", taxClassRoutes);
 app.use("/api/return-statuses", returnStatusRoutes);
 app.use("/api/customer-groups", customerGroupRoutes);
 app.use("/api/customer-approvals", customerApprovalRoutes);

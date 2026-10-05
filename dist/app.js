@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 // app.ts
+const tax_class_routes_1 = __importDefault(require("./routes/tax-class.routes"));
 const express_1 = __importDefault(require("express"));
 const return_status_routes_1 = __importDefault(require("./routes/return-status.routes"));
 const customer_group_routes_1 = __importDefault(require("./routes/customer-group.routes"));
@@ -85,6 +86,7 @@ if (fs_1.default.existsSync(CATALOG_DIR)) {
     }));
 }
 // Routes
+app.use("/api/tax-classes", tax_class_routes_1.default);
 app.use("/api/return-statuses", return_status_routes_1.default);
 app.use("/api/customer-groups", customer_group_routes_1.default);
 app.use("/api/customer-approvals", customer_approval_routes_1.default);
