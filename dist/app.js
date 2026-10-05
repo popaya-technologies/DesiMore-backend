@@ -4,9 +4,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 // app.ts
+const express_1 = __importDefault(require("express"));
 const tax_rate_routes_1 = __importDefault(require("./routes/tax-rate.routes"));
 const tax_class_routes_1 = __importDefault(require("./routes/tax-class.routes"));
-const express_1 = __importDefault(require("express"));
+const backup_routes_1 = __importDefault(require("./routes/backup.routes"));
+const weight_class_routes_1 = __importDefault(require("./routes/weight-class.routes"));
+const length_class_routes_1 = __importDefault(require("./routes/length-class.routes"));
 const return_status_routes_1 = __importDefault(require("./routes/return-status.routes"));
 const customer_group_routes_1 = __importDefault(require("./routes/customer-group.routes"));
 const customer_approval_routes_1 = __importDefault(require("./routes/customer-approval.routes"));
@@ -90,6 +93,9 @@ if (fs_1.default.existsSync(CATALOG_DIR)) {
 app.use("/api/tax-rates", tax_rate_routes_1.default);
 app.use("/api/tax-classes", tax_class_routes_1.default);
 app.use("/api/return-statuses", return_status_routes_1.default);
+app.use("/api/length-classes", length_class_routes_1.default);
+app.use("/api/weight-classes", weight_class_routes_1.default);
+app.use("/api/backup", backup_routes_1.default);
 app.use("/api/customer-groups", customer_group_routes_1.default);
 app.use("/api/customer-approvals", customer_approval_routes_1.default);
 app.use("/api/auth", auth_routes_1.default);
