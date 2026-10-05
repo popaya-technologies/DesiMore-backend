@@ -24,7 +24,8 @@
     "test:filters": "node --test --test-isolation=none -r ts-node/register tests/filter-api.test.js",
     "migration:show": "ts-node ./node_modules/typeorm/cli.js migration:show -d src/data-source.ts",
     "migration:run": "ts-node ./node_modules/typeorm/cli.js migration:run -d src/data-source.ts",
-    "migration:revert": "ts-node ./node_modules/typeorm/cli.js migration:revert -d src/data-source.ts"
+    "migration:revert": "ts-node ./node_modules/typeorm/cli.js migration:revert -d src/data-source.ts",
+    "test:length-classes": "node --test --test-isolation=none -r ts-node/register tests/length-class-api.test.js"
   },
   "keywords": [],
   "author": "",

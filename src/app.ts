@@ -2,6 +2,7 @@
 import express from "express";
 import taxRateRoutes from "./routes/tax-rate.routes";
 import taxClassRoutes from "./routes/tax-class.routes";
+import lengthClassRoutes from "./routes/length-class.routes";
 import returnStatusRoutes from "./routes/return-status.routes";
 import customerGroupRoutes from "./routes/customer-group.routes";
 import customerApprovalRoutes from "./routes/customer-approval.routes";
@@ -98,6 +99,7 @@ if (fs.existsSync(CATALOG_DIR)) {
 app.use("/api/tax-rates", taxRateRoutes);
 app.use("/api/tax-classes", taxClassRoutes);
 app.use("/api/return-statuses", returnStatusRoutes);
+app.use("/api/length-classes", lengthClassRoutes);
 app.use("/api/customer-groups", customerGroupRoutes);
 app.use("/api/customer-approvals", customerApprovalRoutes);
 app.use("/api/auth", authRoutes);
