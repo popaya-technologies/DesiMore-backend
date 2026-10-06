@@ -1,5 +1,6 @@
 // app.ts
 import express from "express";
+import errorLogRoutes from "./routes/error-log.routes";
 import taxRateRoutes from "./routes/tax-rate.routes";
 import taxClassRoutes from "./routes/tax-class.routes";
 import backupRoutes from "./routes/backup.routes";
@@ -60,8 +61,10 @@ import cors from "cors";
 import { ensureUploadDir, UPLOAD_DIR } from "./utils/upload-config";
 import path from "path";
 import fs from "fs";
+import { installErrorLogger } from "./utils/error-logger";
 
 const app = express();
+installErrorLogger();
 
 // Middleware
 app.use(express.json({ limit: "2mb" }));
@@ -104,6 +107,7 @@ app.use("/api/return-statuses", returnStatusRoutes);
 app.use("/api/length-classes", lengthClassRoutes);
 app.use("/api/weight-classes", weightClassRoutes);
 app.use("/api/backup", backupRoutes);
+app.use("/api/error-logs", errorLogRoutes);
 app.use("/api/customer-groups", customerGroupRoutes);
 app.use("/api/customer-approvals", customerApprovalRoutes);
 app.use("/api/auth", authRoutes);
@@ -161,5 +165,13 @@ app.get(
     res.json({ message: "Welcome to admin dashboard" });
   },
 );
+
+app.use((error: any, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const requestedStatus = Number(error.status || error.statusCode);
+  const status = Number.isInteger(requestedStatus) && requestedStatus >= 400 && requestedStatus <= 599 ? requestedStatus : 500;
+  if (status >= 500) console.error(error);
+  if (res.headersSent) { next(error); return; }
+  res.status(status).json({ message: status >= 500 ? "Internal server error" : "Invalid request" });
+});
 
 export default app;

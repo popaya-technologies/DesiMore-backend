@@ -2,8 +2,10 @@
 import app from "./app";
 import { AppDataSource } from "./data-source";
 import * as dotenv from "dotenv";
+import { installErrorLogger } from "./utils/error-logger";
 
 dotenv.config();
+installErrorLogger();
 
 const PORT = process.env.PORT || 3000;
 
