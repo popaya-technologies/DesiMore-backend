@@ -204,6 +204,10 @@ async function seed() {
   ];
 
   const createdPermissions = [];
+  permissions.push(
+    { name: "read-upload", resource: "upload", action: "read" },
+    { name: "delete-upload", resource: "upload", action: "delete" },
+  );
   for (const perm of permissions) {
     const permission = await ensurePermission(perm);
     createdPermissions.push(permission);
