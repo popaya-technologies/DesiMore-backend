@@ -7,6 +7,8 @@ const express_1 = require("express");
 const multer_1 = __importDefault(require("multer"));
 const crypto_1 = require("crypto");
 const auth_middleware_1 = require("../middlewares/auth.middleware");
+const rbac_middleware_1 = require("../middlewares/rbac.middleware");
+const upload_management_controller_1 = require("../controllers/upload-management.controller");
 const upload_config_1 = require("../utils/upload-config");
 (0, upload_config_1.ensureUploadDir)();
 const storage = multer_1.default.diskStorage({
@@ -31,6 +33,8 @@ const upload = (0, multer_1.default)({
     limits: { fileSize: 5 * 1024 * 1024, files: 10 }, // 5MB per file
 });
 const router = (0, express_1.Router)();
+router.get("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("upload", "read"), upload_management_controller_1.UploadManagementController.list);
+router.delete("/bulk", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("upload", "delete"), upload_management_controller_1.UploadManagementController.remove);
 router.post("/image", auth_middleware_1.authenticate, upload.fields([
     { name: "file", maxCount: 1 },
     { name: "image", maxCount: 1 },

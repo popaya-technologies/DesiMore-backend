@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 // app.ts
 const express_1 = __importDefault(require("express"));
+const error_log_routes_1 = __importDefault(require("./routes/error-log.routes"));
 const tax_rate_routes_1 = __importDefault(require("./routes/tax-rate.routes"));
 const tax_class_routes_1 = __importDefault(require("./routes/tax-class.routes"));
 const backup_routes_1 = __importDefault(require("./routes/backup.routes"));
@@ -65,7 +66,9 @@ const cors_1 = __importDefault(require("cors"));
 const upload_config_1 = require("./utils/upload-config");
 const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
+const error_logger_1 = require("./utils/error-logger");
 const app = (0, express_1.default)();
+(0, error_logger_1.installErrorLogger)();
 // Middleware
 app.use(express_1.default.json({ limit: "2mb" }));
 app.use((0, cookie_parser_1.default)());
@@ -96,6 +99,7 @@ app.use("/api/return-statuses", return_status_routes_1.default);
 app.use("/api/length-classes", length_class_routes_1.default);
 app.use("/api/weight-classes", weight_class_routes_1.default);
 app.use("/api/backup", backup_routes_1.default);
+app.use("/api/error-logs", error_log_routes_1.default);
 app.use("/api/customer-groups", customer_group_routes_1.default);
 app.use("/api/customer-approvals", customer_approval_routes_1.default);
 app.use("/api/auth", auth_routes_1.default);
@@ -146,5 +150,16 @@ app.use("/api/geo-zones", geo_zone_routes_1.default);
 // Example protected route with RBAC
 app.get("/api/admin/dashboard", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("dashboard", "read"), (req, res) => {
     res.json({ message: "Welcome to admin dashboard" });
+});
+app.use((error, _req, res, next) => {
+    const requestedStatus = Number(error.status || error.statusCode);
+    const status = Number.isInteger(requestedStatus) && requestedStatus >= 400 && requestedStatus <= 599 ? requestedStatus : 500;
+    if (status >= 500)
+        console.error(error);
+    if (res.headersSent) {
+        next(error);
+        return;
+    }
+    res.status(status).json({ message: status >= 500 ? "Internal server error" : "Invalid request" });
 });
 exports.default = app;

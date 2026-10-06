@@ -40,7 +40,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const app_1 = __importDefault(require("./app"));
 const data_source_1 = require("./data-source");
 const dotenv = __importStar(require("dotenv"));
+const error_logger_1 = require("./utils/error-logger");
 dotenv.config();
+(0, error_logger_1.installErrorLogger)();
 const PORT = process.env.PORT || 3000;
 // Initialize database and start server
 data_source_1.AppDataSource.initialize()

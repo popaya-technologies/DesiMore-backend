@@ -3,6 +3,8 @@ import multer from "multer";
 import path from "path";
 import { randomUUID } from "crypto";
 import { authenticate } from "../middlewares/auth.middleware";
+import { checkPermission } from "../middlewares/rbac.middleware";
+import { UploadManagementController } from "../controllers/upload-management.controller";
 import { ensureUploadDir, UPLOAD_DIR } from "../utils/upload-config";
 
 type UploadedRequest = Request & {
@@ -40,6 +42,9 @@ const upload = multer({
 });
 
 const router = Router();
+
+router.get("/", authenticate, checkPermission("upload", "read"), UploadManagementController.list);
+router.delete("/bulk", authenticate, checkPermission("upload", "delete"), UploadManagementController.remove);
 
 router.post(
   "/image",
