@@ -17,6 +17,7 @@
     "test:products": "node --test --test-isolation=none -r ts-node/register tests/product-api.test.js",
     "test:mail": "node --test --test-isolation=none -r ts-node/register tests/mail-api.test.js",
     "test:banners": "node --test --test-isolation=none -r ts-node/register tests/banner-api.test.js",
+    "test:pages": "node --test --test-isolation=none -r ts-node/register tests/page-api.test.js",
     "test:language-editor": "node --test --test-isolation=none -r ts-node/register tests/language-editor-api.test.js",
     "test:attributes": "node --test --test-isolation=none -r ts-node/register tests/attribute-api.test.js",
     "test:attribute-groups": "node --test --test-isolation=none -r ts-node/register tests/attribute-group-api.test.js",
