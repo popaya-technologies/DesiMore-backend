@@ -37,6 +37,7 @@ const voucher_theme_routes_1 = __importDefault(require("./routes/voucher_theme.r
 const coupon_routes_1 = __importDefault(require("./routes/coupon.routes"));
 const review_routes_1 = __importDefault(require("./routes/review.routes"));
 const mail_routes_1 = __importDefault(require("./routes/mail.routes"));
+const page_routes_1 = __importDefault(require("./routes/page.routes"));
 const banner_routes_1 = __importDefault(require("./routes/banner.routes"));
 const seo_url_routes_1 = __importDefault(require("./routes/seo-url.routes"));
 const language_editor_routes_1 = __importDefault(require("./routes/language-editor.routes"));
@@ -125,6 +126,7 @@ app.use("/api/coupons", coupon_routes_1.default);
 app.use("/api/reviews", review_routes_1.default);
 app.use("/api/mail", mail_routes_1.default);
 app.use("/api/banners", banner_routes_1.default);
+app.use("/api/pages", page_routes_1.default);
 app.use("/api/seo-urls", seo_url_routes_1.default);
 app.use("/api/language-editor", language_editor_routes_1.default);
 app.use("/api/attributes", attribute_routes_1.default);
