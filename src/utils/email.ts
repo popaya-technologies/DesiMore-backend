@@ -9,67 +9,31 @@ interface EmailOptions {
   html: string;
 }
 
-// Prefer SendGrid (HTTP API over 443) when available; fallback to SMTP
-const hasSendgrid = !!process.env.SENDGRID_API_KEY;
-let sgMail: any = null;
-if (hasSendgrid) {
-  try {
-    // Use require to avoid type dependency at build time
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    sgMail = require("@sendgrid/mail");
-    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-  } catch (e) {
-    sgMail = null;
-  }
-}
-
 const fromEmail = process.env.FROM_EMAIL || process.env.SMTP_USER;
+const smtpPort = parseInt(process.env.SMTP_PORT || "587", 10);
 
-let transporter: nodemailer.Transporter | null = null;
-if (!sgMail) {
-  const smtpPort = parseInt(process.env.SMTP_PORT || "587");
-  transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: smtpPort,
-    secure: smtpPort === 465,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-    requireTLS: true,
-    tls: { minVersion: "TLSv1.2" },
-  });
-}
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: smtpPort,
+  secure: smtpPort === 465,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+  requireTLS: smtpPort !== 465,
+  tls: { minVersion: "TLSv1.2" },
+});
 
 export const sendEmail = async (options: EmailOptions): Promise<void> => {
-  if (sgMail) {
-    if (!fromEmail) {
-      throw new Error(
-        "FROM_EMAIL is required when using SendGrid. Set FROM_EMAIL in env."
-      );
-    }
-    try {
-      await sgMail.send({
-        to: options.to,
-        from: fromEmail,
-        subject: options.subject,
-        html: options.html,
-      });
-      return;
-    } catch (err: any) {
-      const sgErrors = err?.response?.body?.errors;
-      if (Array.isArray(sgErrors) && sgErrors.length > 0) {
-        const msg = sgErrors
-          .map((e: any) => `${e.message}${e.field ? ` [${e.field}]` : ""}`)
-          .join("; ");
-        throw new Error(`SendGrid error: ${msg}`);
-      }
-      throw err;
-    }
-  }
+  const missingConfig = ["SMTP_HOST", "SMTP_USER", "SMTP_PASS"].filter(
+    (name) => !process.env[name]
+  );
+  if (!fromEmail) missingConfig.push("FROM_EMAIL");
 
-  if (!transporter) {
-    throw new Error("Email transporter is not configured");
+  if (missingConfig.length > 0) {
+    throw new Error(
+      `SMTP is not configured. Missing environment variables: ${missingConfig.join(", ")}`
+    );
   }
 
   await transporter.sendMail({

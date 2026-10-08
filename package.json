@@ -35,7 +35,6 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@sendgrid/mail": "^8.1.6",
     "authorizenet": "^1.0.10",
     "bcryptjs": "^3.0.2",
     "class-transformer": "^0.5.1",
