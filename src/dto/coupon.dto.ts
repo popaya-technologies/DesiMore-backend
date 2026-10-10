@@ -7,6 +7,9 @@ import {
   IsString,
   MaxLength,
   Min,
+  IsArray,
+  IsUUID,
+  ArrayUnique,
 } from "class-validator";
 
 export class CreateCouponDto {
@@ -38,6 +41,18 @@ export class CreateCouponDto {
   @IsBoolean()
   @IsOptional()
   freeShipping?: boolean;
+
+  @IsArray()
+  @ArrayUnique()
+  @IsUUID(undefined, { each: true })
+  @IsOptional()
+  productIds?: string[];
+
+  @IsArray()
+  @ArrayUnique()
+  @IsUUID(undefined, { each: true })
+  @IsOptional()
+  categoryIds?: string[];
 
   @IsString()
   dateStart!: string;
@@ -92,6 +107,18 @@ export class UpdateCouponDto {
   @IsOptional()
   freeShipping?: boolean;
 
+  @IsArray()
+  @ArrayUnique()
+  @IsUUID(undefined, { each: true })
+  @IsOptional()
+  productIds?: string[];
+
+  @IsArray()
+  @ArrayUnique()
+  @IsUUID(undefined, { each: true })
+  @IsOptional()
+  categoryIds?: string[];
+
   @IsString()
   @IsOptional()
   dateStart?: string;
@@ -113,4 +140,14 @@ export class UpdateCouponDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+}
+
+export class ApplyCouponDto {
+  @IsString()
+  @MaxLength(255)
+  code!: string;
+
+  @IsIn(["regular", "buy-now"])
+  @IsOptional()
+  cartType?: "regular" | "buy-now";
 }

@@ -5,6 +5,8 @@ import { checkPermission } from "../middlewares/rbac.middleware";
 
 const router = Router();
 
+router.post("/apply", authenticate, CouponController.applyCoupon);
+
 router.post(
   "/",
   authenticate,

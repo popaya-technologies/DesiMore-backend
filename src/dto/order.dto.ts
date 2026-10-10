@@ -8,6 +8,7 @@ import {
   IsPhoneNumber,
   IsUUID,
   IsIn,
+  MaxLength,
 } from "class-validator";
 import { Type } from "class-transformer";
 import { OrderStatus, PaymentStatus } from "../entities/order.entity";
@@ -43,6 +44,11 @@ export class AddressDto {
 }
 
 export class CreateOrderDto {
+  @IsString()
+  @MaxLength(255)
+  @IsOptional()
+  couponCode?: string;
+
   @IsIn(UPS_SHIPPING_CODES)
   @IsOptional()
   shippingCode?: UpsShippingCode;

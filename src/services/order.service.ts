@@ -17,6 +17,8 @@ import {
   retailCartRequiresShipping,
 } from "./shipping.service";
 import { getMockShippingQuote } from "./shipping-quote.service";
+import { calculateCoupon } from "./coupon.service";
+import { CouponUsage } from "../entities/coupon-usage.entity";
 export const createRetailOrder = async (userId: string, input: any) => {
   const dto = plainToInstance(CreateOrderDto, input);
   const errors = await validate(dto, {
@@ -74,17 +76,34 @@ export const createRetailOrder = async (userId: string, input: any) => {
       order.items.reduce((sum, item) => sum + item.total, 0),
     );
     order.tax = 0;
+    const coupon = dto.couponCode
+      ? await calculateCoupon(manager, dto.couponCode, cart, userId, true)
+      : null;
+    order.couponCode = coupon?.couponCode || null;
+    order.discount = coupon?.discount || 0;
     const shippingRequired = retailCartRequiresShipping(cart);
     if (shippingRequired && !dto.shippingCode)
       throw new ApiError(400, "A shipping method is required");
     const shippingWeight = calculateRetailShippingWeight(cart);
     if (shippingRequired && shippingWeight <= 0)
       throw new ApiError(400, "Shipping weight is unavailable for this cart");
-    order.shipping = shippingRequired
+    order.shipping = shippingRequired && !coupon?.freeShipping
       ? getMockShippingQuote(shippingWeight, dto.shippingCode).price
       : 0;
-    order.total = roundMoney(order.subtotal + order.shipping);
+    order.total = roundMoney(
+      Math.max(0, order.subtotal - order.discount) + order.shipping,
+    );
     await manager.getRepository(Order).save(order);
+    if (coupon) {
+      await manager.getRepository(CouponUsage).save(
+        manager.getRepository(CouponUsage).create({
+          couponId: coupon.couponId,
+          userId,
+          orderId: order.id,
+          discount: coupon.discount,
+        }),
+      );
+    }
     await manager.getRepository(CartItem).delete({ cartId: cart.id });
     cart.items = [];
     cart.calculateTotal();

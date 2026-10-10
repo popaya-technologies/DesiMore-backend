@@ -55,6 +55,12 @@ export class Order {
   @Column({ type: "decimal", precision: 12, scale: 2, default: 0 })
   shipping: number;
 
+  @Column({ type: "decimal", precision: 12, scale: 2, default: 0 })
+  discount: number;
+
+  @Column({ type: "varchar", length: 255, nullable: true })
+  couponCode: string | null;
+
   @Column({ type: "decimal", precision: 12, scale: 2 })
   total: number;
 

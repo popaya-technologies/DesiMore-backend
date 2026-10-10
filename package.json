@@ -30,7 +30,8 @@
     "test:weight-classes": "node --test --test-isolation=none -r ts-node/register tests/weight-class-api.test.js",
     "test:backup": "node --test --test-isolation=none -r ts-node/register tests/backup-api.test.js",
     "test:shipping": "node --test --test-isolation=none -r ts-node/register tests/shipping-service.test.js",
-    "test:newsletter": "node --test --test-isolation=none -r ts-node/register tests/newsletter-service.test.js"
+    "test:newsletter": "node --test --test-isolation=none -r ts-node/register tests/newsletter-service.test.js",
+    "test:coupons": "node --test --test-isolation=none -r ts-node/register tests/coupon-service.test.js"
   },
   "keywords": [],
   "author": "",
