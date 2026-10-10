@@ -7,9 +7,11 @@ import {
   IsEmail,
   IsPhoneNumber,
   IsUUID,
+  IsIn,
 } from "class-validator";
 import { Type } from "class-transformer";
 import { OrderStatus, PaymentStatus } from "../entities/order.entity";
+import { UPS_SHIPPING_CODES, UpsShippingCode } from "../shipping.constants";
 
 export class AddressDto {
   @IsString()
@@ -41,6 +43,10 @@ export class AddressDto {
 }
 
 export class CreateOrderDto {
+  @IsIn(UPS_SHIPPING_CODES)
+  @IsOptional()
+  shippingCode?: UpsShippingCode;
+
   @ValidateNested()
   @Type(() => AddressDto)
   shippingAddress: AddressDto;

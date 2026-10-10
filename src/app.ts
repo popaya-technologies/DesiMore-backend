@@ -55,6 +55,8 @@ import returnActionRoutes from "./routes/return-action.routes";
 import returnReasonRoutes from "./routes/return-reason.routes";
 import countryRoutes from "./routes/country.routes";
 import zoneRoutes from "./routes/zone.routes";
+import shippingRoutes from "./routes/shipping.routes";
+import newsletterRoutes from "./routes/newsletter.routes";
 import geoZoneRoutes from "./routes/geo_zone.routes";
 import { authenticate } from "./middlewares/auth.middleware";
 import { checkPermission } from "./middlewares/rbac.middleware";
@@ -157,6 +159,8 @@ app.use("/api/return-reasons", returnReasonRoutes);
 app.use("/api/countries", countryRoutes);
 app.use("/api/zones", zoneRoutes);
 app.use("/api/geo-zones", geoZoneRoutes);
+app.use("/api/shipping", shippingRoutes);
+app.use("/api/newsletter", newsletterRoutes);
 
 // Example protected route with RBAC
 app.get(

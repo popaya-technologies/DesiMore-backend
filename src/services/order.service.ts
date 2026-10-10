@@ -12,6 +12,11 @@ import { cartRelations } from "./cart.service";
 import { reserveCartInventory, releaseInventory } from "./inventory.service";
 import { generateOrderNumber } from "../utils/reference-number.util";
 import { roundMoney } from "./product-pricing.service";
+import {
+  calculateRetailShippingWeight,
+  retailCartRequiresShipping,
+} from "./shipping.service";
+import { getMockShippingQuote } from "./shipping-quote.service";
 export const createRetailOrder = async (userId: string, input: any) => {
   const dto = plainToInstance(CreateOrderDto, input);
   const errors = await validate(dto, {
@@ -69,11 +74,15 @@ export const createRetailOrder = async (userId: string, input: any) => {
       order.items.reduce((sum, item) => sum + item.total, 0),
     );
     order.tax = 0;
-    order.shipping =
-      cart.items.some((i) => i.product.requiresShipping !== false) &&
-      order.subtotal <= 500
-        ? 50
-        : 0;
+    const shippingRequired = retailCartRequiresShipping(cart);
+    if (shippingRequired && !dto.shippingCode)
+      throw new ApiError(400, "A shipping method is required");
+    const shippingWeight = calculateRetailShippingWeight(cart);
+    if (shippingRequired && shippingWeight <= 0)
+      throw new ApiError(400, "Shipping weight is unavailable for this cart");
+    order.shipping = shippingRequired
+      ? getMockShippingQuote(shippingWeight, dto.shippingCode).price
+      : 0;
     order.total = roundMoney(order.subtotal + order.shipping);
     await manager.getRepository(Order).save(order);
     await manager.getRepository(CartItem).delete({ cartId: cart.id });
