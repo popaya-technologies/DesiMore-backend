@@ -4,12 +4,51 @@ import { GiftVoucher } from "../entities/gift_voucher.entity";
 import {
   CreateGiftVoucherDto,
   UpdateGiftVoucherDto,
+  ApplyGiftVoucherDto,
 } from "../dto/gift_voucher.dto";
 import { validate } from "class-validator";
+import { plainToInstance } from "class-transformer";
+import { ApiError, respondError } from "../utils/api-error";
+import { CartType } from "../entities/cart.entity";
+import { loadCart } from "../services/cart.service";
+import { calculateCoupon } from "../services/coupon.service";
+import { calculateGiftVoucher } from "../services/gift-voucher.service";
 
 const giftVoucherRepository = AppDataSource.getRepository(GiftVoucher);
 
 export const GiftVoucherController = {
+  applyGiftVoucher: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const dto = plainToInstance(ApplyGiftVoucherDto, req.body);
+      const errors = await validate(dto, {
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        validationError: { target: false, value: false },
+      });
+      if (errors.length) throw new ApiError(400, "Invalid gift voucher data", errors);
+
+      const result = await AppDataSource.transaction(async (manager) => {
+        const cart = await loadCart(
+          manager,
+          req.user.id,
+          dto.cartType === "buy-now" ? CartType.BUY_NOW : CartType.REGULAR,
+          false,
+        );
+        const coupon = dto.couponCode
+          ? await calculateCoupon(manager, dto.couponCode, cart, req.user.id)
+          : null;
+        return calculateGiftVoucher(manager, dto.code, cart, coupon?.discount || 0);
+      });
+
+      res.json({
+        message: "Success: Your gift voucher has been applied!",
+        ...result,
+      });
+    } catch (error) {
+      respondError(res, error);
+    }
+  },
+
   // Create Gift Voucher
   createGiftVoucher: async (req: Request, res: Response): Promise<void> => {
     try {

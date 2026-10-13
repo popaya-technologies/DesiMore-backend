@@ -6,6 +6,7 @@ import {
   IsString,
   MaxLength,
   Min,
+  IsIn,
 } from "class-validator";
 
 export class CreateGiftVoucherDto {
@@ -90,4 +91,18 @@ export class UpdateGiftVoucherDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+}
+
+export class ApplyGiftVoucherDto {
+  @IsString()
+  @MaxLength(255)
+  code!: string;
+
+  @IsIn(["regular", "buy-now"])
+  cartType!: "regular" | "buy-now";
+
+  @IsString()
+  @MaxLength(255)
+  @IsOptional()
+  couponCode?: string;
 }

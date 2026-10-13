@@ -19,6 +19,8 @@ import {
 import { getMockShippingQuote } from "./shipping-quote.service";
 import { calculateCoupon } from "./coupon.service";
 import { CouponUsage } from "../entities/coupon-usage.entity";
+import { GiftVoucher } from "../entities/gift_voucher.entity";
+import { calculateGiftVoucher } from "./gift-voucher.service";
 export const createRetailOrder = async (userId: string, input: any) => {
   const dto = plainToInstance(CreateOrderDto, input);
   const errors = await validate(dto, {
@@ -81,6 +83,17 @@ export const createRetailOrder = async (userId: string, input: any) => {
       : null;
     order.couponCode = coupon?.couponCode || null;
     order.discount = coupon?.discount || 0;
+    const giftVoucher = dto.giftVoucherCode
+      ? await calculateGiftVoucher(
+          manager,
+          dto.giftVoucherCode,
+          cart,
+          order.discount,
+          true,
+        )
+      : null;
+    order.giftVoucherCode = giftVoucher?.voucherCode || null;
+    order.giftVoucherAmount = giftVoucher?.discount || 0;
     const shippingRequired = retailCartRequiresShipping(cart);
     if (shippingRequired && !dto.shippingCode)
       throw new ApiError(400, "A shipping method is required");
@@ -91,9 +104,20 @@ export const createRetailOrder = async (userId: string, input: any) => {
       ? getMockShippingQuote(shippingWeight, dto.shippingCode).price
       : 0;
     order.total = roundMoney(
-      Math.max(0, order.subtotal - order.discount) + order.shipping,
+      Math.max(
+        0,
+        order.subtotal - order.discount - order.giftVoucherAmount,
+      ) + order.shipping,
     );
     await manager.getRepository(Order).save(order);
+    if (giftVoucher) {
+      const voucher = await manager.getRepository(GiftVoucher).findOneByOrFail({
+        id: giftVoucher.voucherId,
+      });
+      voucher.amount = giftVoucher.remainingBalance;
+      voucher.isActive = giftVoucher.remainingBalance > 0;
+      await manager.getRepository(GiftVoucher).save(voucher);
+    }
     if (coupon) {
       await manager.getRepository(CouponUsage).save(
         manager.getRepository(CouponUsage).create({
@@ -139,6 +163,23 @@ export const cancelRetailOrder = async (id: string, userId?: string) =>
         "This order cannot be cancelled; paid orders require a refund",
       );
     await releaseInventory(manager, order.inventoryReservations || []);
+    if (order.giftVoucherCode && Number(order.giftVoucherAmount) > 0) {
+      const voucher = await manager
+        .getRepository(GiftVoucher)
+        .createQueryBuilder("voucher")
+        .where("UPPER(voucher.code) = :code", {
+          code: order.giftVoucherCode.toUpperCase(),
+        })
+        .setLock("pessimistic_write")
+        .getOne();
+      if (voucher) {
+        voucher.amount = roundMoney(
+          Number(voucher.amount) + Number(order.giftVoucherAmount),
+        );
+        voucher.isActive = true;
+        await manager.getRepository(GiftVoucher).save(voucher);
+      }
+    }
     order.inventoryReservations = [];
     order.status = OrderStatus.CANCELLED;
     order.paymentStatus = PaymentStatus.CANCELLED;

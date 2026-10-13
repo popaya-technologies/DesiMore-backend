@@ -5,6 +5,8 @@ import { checkPermission } from "../middlewares/rbac.middleware";
 
 const router = Router();
 
+router.post("/apply", authenticate, GiftVoucherController.applyGiftVoucher);
+
 router.post(
   "/",
   authenticate,

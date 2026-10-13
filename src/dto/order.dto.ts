@@ -47,6 +47,11 @@ export class CreateOrderDto {
   @IsString()
   @MaxLength(255)
   @IsOptional()
+  giftVoucherCode?: string;
+
+  @IsString()
+  @MaxLength(255)
+  @IsOptional()
   couponCode?: string;
 
   @IsIn(UPS_SHIPPING_CODES)
