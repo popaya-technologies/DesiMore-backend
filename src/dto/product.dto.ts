@@ -41,6 +41,7 @@ const nullable = (_: unknown, value: unknown) =>
   value !== undefined && value !== null;
 export class AttributeDto {
   @ValidateIf(optional) @IsUUID() id?: string;
+  @IsUUID() attributeId: string;
   @IsString() @MaxLength(255) @Matches(/\S/) name: string;
   @IsString() @MaxLength(50000) text: string;
   @ValidateIf(optional) @IsInt() @Min(0) sortOrder?: number;

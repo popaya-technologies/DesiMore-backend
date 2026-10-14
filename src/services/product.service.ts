@@ -8,6 +8,7 @@ import { Product } from "../entities/product.entity";
 import { Category } from "../entities/category.entity";
 import { Brand } from "../entities/brand.entity";
 import { Download } from "../entities/download.entity";
+import { Attribute } from "../entities/attribute.entity";
 import { ProductAttribute } from "../entities/product-attribute.entity";
 import { ProductOption } from "../entities/product-option.entity";
 import { ProductDiscount } from "../entities/product-discount.entity";
@@ -19,6 +20,8 @@ export const PRODUCT_RELATIONS = [
   "categories",
   "brand",
   "attributes",
+  "attributes.attribute",
+  "attributes.attribute.attributeGroup",
   "options",
   "discounts",
   "imageDetails",
@@ -207,6 +210,12 @@ export const validateProductInput = async (input: any, creating: boolean) => {
     )
       throw new ApiError(400, "Duplicate option values");
   }
+  if (
+    dto.attributes &&
+    new Set(dto.attributes.map((attribute) => attribute.attributeId)).size !==
+      dto.attributes.length
+  )
+    throw new ApiError(400, "Duplicate product attributes");
   return dto;
 };
 export const productResponse = (product: Product, admin = false): any => {
@@ -241,6 +250,16 @@ export const productResponse = (product: Product, admin = false): any => {
     result.images = orderedImages.map((i) => i.url);
     result.mainImage = orderedImages.find((i) => i.isMain)?.url ?? null;
   } else result.mainImage = product.images?.[0] ?? null;
+  if (result.attributes)
+    result.attributes = result.attributes.map((row: ProductAttribute) => ({
+      id: row.id,
+      productId: row.productId,
+      attributeId: row.attributeId,
+      name: row.attribute?.name ?? row.name,
+      text: row.text,
+      sortOrder: row.sortOrder,
+      attribute: row.attribute ?? null,
+    }));
   for (const key of ["attributes", "options"])
     if (result[key])
       result[key] = [...result[key]].sort(
@@ -361,18 +380,29 @@ export const saveProduct = async (
       };
     }
     await repo.save(product);
-    if (dto.attributes !== undefined)
+    if (dto.attributes !== undefined) {
+      const masterAttributes = await resolveIds(
+        manager,
+        Attribute,
+        dto.attributes.map((row) => row.attributeId),
+        "attributeId",
+      );
+      const attributeById = new Map(
+        masterAttributes.map((attribute) => [attribute.id, attribute]),
+      );
       await replaceRows(
         manager,
         ProductAttribute,
         product.id,
         dto.attributes,
         (row, index) => ({
-          name: row.name.trim(),
+          attributeId: row.attributeId,
+          name: attributeById.get(row.attributeId).name,
           text: cleanRichText(row.text),
           sortOrder: row.sortOrder ?? index,
         }),
       );
+    }
     if (dto.discounts !== undefined)
       await replaceRows(
         manager,

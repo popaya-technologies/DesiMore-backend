@@ -42,6 +42,10 @@ __decorate([
     __metadata("design:type", String)
 ], AttributeDto.prototype, "id", void 0);
 __decorate([
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], AttributeDto.prototype, "attributeId", void 0);
+__decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.MaxLength)(255),
     (0, class_validator_1.Matches)(/\S/),

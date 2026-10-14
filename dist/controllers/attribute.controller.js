@@ -73,10 +73,17 @@ exports.AttributeController = {
         res.json(row);
     })),
     remove: handle((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-        const result = yield repo().delete(String(req.params.id));
-        if (!result.affected)
-            throw new api_error_1.ApiError(404, "Attribute not found");
-        res.json({ message: "Attribute deleted successfully" });
+        try {
+            const result = yield repo().delete(String(req.params.id));
+            if (!result.affected)
+                throw new api_error_1.ApiError(404, "Attribute not found");
+            res.json({ message: "Attribute deleted successfully" });
+        }
+        catch (error) {
+            if ((error === null || error === void 0 ? void 0 : error.code) === "23503")
+                throw new api_error_1.ApiError(409, "Attribute is assigned to one or more products and cannot be deleted");
+            throw error;
+        }
     })),
     options: handle((_req, res) => __awaiter(void 0, void 0, void 0, function* () {
         const attributeGroups = yield data_source_1.AppDataSource.getRepository(attribute_group_entity_1.AttributeGroup).find({

@@ -45,6 +45,7 @@
   "relatedProductIds": [],
   "attributes": [
     {
+      "attributeId": "REPLACE-WITH-ATTRIBUTE-UUID",
       "name": "Material",
       "text": "<p>Stainless steel</p>",
       "sortOrder": 0

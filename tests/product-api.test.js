@@ -25,6 +25,8 @@ const { AppDataSource: db } = require("../src/data-source");
 const { Product } = require("../src/entities/product.entity");
 const { Category } = require("../src/entities/category.entity");
 const { Brand } = require("../src/entities/brand.entity");
+const { Attribute } = require("../src/entities/attribute.entity");
+const { AttributeGroup } = require("../src/entities/attribute-group.entity");
 const { User } = require("../src/entities/user.entity");
 const { Role } = require("../src/entities/role.entity");
 const { UserRole } = require("../src/entities/user-role.entity");
@@ -43,6 +45,7 @@ let api,
   customer2Cookie,
   brand,
   category,
+  attribute,
   legacyId;
 const address = {
   firstName: "Test",
@@ -86,7 +89,7 @@ const payload = (overrides = {}) => ({
   wholesaleWeight: 1,
   wholesaleLengthClass: "inch",
   wholesaleWeightClass: "pound",
-  attributes: [{ name: "Material", text: "<p>Steel</p>", sortOrder: 0 }],
+  attributes: [{ attributeId: attribute.id, name: "Material", text: "<p>Steel</p>", sortOrder: 0 }],
   options: [],
   discounts: [],
   imageDetails: [
@@ -141,10 +144,21 @@ before(async () => {
     throw error;
   }
   await runner.release();
+  await db.query('ALTER TABLE "product_attributes" ADD COLUMN "attributeId" uuid REFERENCES "attributes"("id") ON DELETE RESTRICT');
+  await db.query('CREATE UNIQUE INDEX "UQ_product_attributes_product_attribute" ON "product_attributes" ("productId", "attributeId") WHERE "attributeId" IS NOT NULL');
   brand = await db.getRepository(Brand).save({ name: "Test Brand", keyword: "test-brand" });
   category = await db
     .getRepository(Category)
     .save({ name: "Test Category", slug: "test-category" });
+  const attributeGroup = await db.getRepository(AttributeGroup).save({
+    name: "Specifications",
+    sortOrder: 0,
+  });
+  attribute = await db.getRepository(Attribute).save({
+    name: "Material",
+    attributeGroupId: attributeGroup.id,
+    sortOrder: 0,
+  });
   async function user(role, i) {
     const u = new User();
     Object.assign(u, {
@@ -265,6 +279,9 @@ test("all form tabs round-trip; rich text is sanitized and related products are 
       !product.summary.includes("onerror"),
   );
   assert.ok(product.summary.includes("<strong>"));
+  assert.equal(product.attributes[0].attributeId, attribute.id);
+  assert.equal(product.attributes[0].name, "Material");
+  assert.equal(product.attributes[0].attribute.attributeGroup.name, "Specifications");
   assert.equal(product.options[0].values[0].price, 3);
   assert.equal(product.discounts.length, 1);
   const edit = await call("get", "/api/products/" + product.id + "/edit");
@@ -361,7 +378,14 @@ test("validation rejects malformed fields, missing required fields, aliases and 
     { weightClass: "invalid" },
     { dateAvailable: "2026-02-30" },
     { arbitraryField: true },
-    { attributes: [{ name: "X", text: 123 }] },
+    { attributes: [{ attributeId: attribute.id, name: "X", text: 123 }] },
+    { attributes: [{ attributeId: randomUUID(), name: "X", text: "Value" }] },
+    {
+      attributes: [
+        { attributeId: attribute.id, name: "Material", text: "One" },
+        { attributeId: attribute.id, name: "Material", text: "Two" },
+      ],
+    },
     { options: [{ name: "X", type: "checkbox", required: true, values: [] }] },
     {
       discounts: [
@@ -402,7 +426,7 @@ test("invalid nested ID rolls back scalar edits and related row deletion", async
   const product = await create();
   const result = await call("patch", "/api/products/" + product.id).send({
     title: "Must rollback",
-    attributes: [{ id: randomUUID(), name: "Bad", text: "Bad" }],
+    attributes: [{ id: randomUUID(), attributeId: attribute.id, name: "Bad", text: "Bad" }],
   });
   assert.equal(result.status, 400);
   const fetched = await call("get", "/api/products/" + product.id + "/edit");

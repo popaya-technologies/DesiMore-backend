@@ -34,6 +34,7 @@ const product_entity_1 = require("../entities/product.entity");
 const category_entity_1 = require("../entities/category.entity");
 const brand_entity_1 = require("../entities/brand.entity");
 const download_entity_1 = require("../entities/download.entity");
+const attribute_entity_1 = require("../entities/attribute.entity");
 const product_attribute_entity_1 = require("../entities/product-attribute.entity");
 const product_option_entity_1 = require("../entities/product-option.entity");
 const product_discount_entity_1 = require("../entities/product-discount.entity");
@@ -44,6 +45,8 @@ exports.PRODUCT_RELATIONS = [
     "categories",
     "brand",
     "attributes",
+    "attributes.attribute",
+    "attributes.attribute.attributeGroup",
     "options",
     "discounts",
     "imageDetails",
@@ -217,6 +220,10 @@ const validateProductInput = (input, creating) => __awaiter(void 0, void 0, void
             option.values.length)
             throw new api_error_1.ApiError(400, "Duplicate option values");
     }
+    if (dto.attributes &&
+        new Set(dto.attributes.map((attribute) => attribute.attributeId)).size !==
+            dto.attributes.length)
+        throw new api_error_1.ApiError(400, "Duplicate product attributes");
     return dto;
 });
 exports.validateProductInput = validateProductInput;
@@ -236,6 +243,19 @@ const productResponse = (product, admin = false) => {
     }
     else
         result.mainImage = (_h = (_g = product.images) === null || _g === void 0 ? void 0 : _g[0]) !== null && _h !== void 0 ? _h : null;
+    if (result.attributes)
+        result.attributes = result.attributes.map((row) => {
+            var _a, _b, _c;
+            return ({
+                id: row.id,
+                productId: row.productId,
+                attributeId: row.attributeId,
+                name: (_b = (_a = row.attribute) === null || _a === void 0 ? void 0 : _a.name) !== null && _b !== void 0 ? _b : row.name,
+                text: row.text,
+                sortOrder: row.sortOrder,
+                attribute: (_c = row.attribute) !== null && _c !== void 0 ? _c : null,
+            });
+        });
     for (const key of ["attributes", "options"])
         if (result[key])
             result[key] = [...result[key]].sort((a, b) => a.sortOrder - b.sortOrder || a.id.localeCompare(b.id));
@@ -322,15 +342,19 @@ const saveProduct = (input_1, id_1, ...args_1) => __awaiter(void 0, [input_1, id
             };
         }
         yield repo.save(product);
-        if (dto.attributes !== undefined)
+        if (dto.attributes !== undefined) {
+            const masterAttributes = yield resolveIds(manager, attribute_entity_1.Attribute, dto.attributes.map((row) => row.attributeId), "attributeId");
+            const attributeById = new Map(masterAttributes.map((attribute) => [attribute.id, attribute]));
             yield replaceRows(manager, product_attribute_entity_1.ProductAttribute, product.id, dto.attributes, (row, index) => {
                 var _a;
                 return ({
-                    name: row.name.trim(),
+                    attributeId: row.attributeId,
+                    name: attributeById.get(row.attributeId).name,
                     text: (0, exports.cleanRichText)(row.text),
                     sortOrder: (_a = row.sortOrder) !== null && _a !== void 0 ? _a : index,
                 });
             });
+        }
         if (dto.discounts !== undefined)
             yield replaceRows(manager, product_discount_entity_1.ProductDiscount, product.id, dto.discounts, (row) => (Object.assign(Object.assign({}, row), { dateStart: row.dateStart || null, dateEnd: row.dateEnd || null })));
         if (dto.options !== undefined)

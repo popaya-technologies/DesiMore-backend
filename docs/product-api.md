@@ -8,7 +8,7 @@ The API supports all eight tabs in the supplied product form. Source files remai
 - `wholesaleQuantity` is available wholesale stock, independent of retail `quantity`. Wholesale stock and order quantities are measured in **boxes**, consistent with the existing requested-boxes workflow.
 - `boxQuantity` is units per box. It aliases `unitsPerCarton`. The legacy `wholesaleOrderQuantity` remains a packaging alias; it is never wholesale stock.
 - Wholesale price remains **per box**, preserving existing pricing behavior. For 2 boxes at 100 each and 6 units per box: subtotal = 200, total units = 12. The existing 2% wholesale discount then applies.
-- Attributes and options are entered per product. No global attribute/option master is required.
+- Product attributes reference the global attribute master. The product row stores the selected `attributeId`, rich-text value, ordering, and a compatibility name snapshot.
 - Discount groups are `default` and `wholesaler`. A user's wholesale group is derived from authenticated roles, not a client-supplied group.
 - Option points and weight adjustments are stored and snapshotted. This change does not add a rewards-points account or carrier-rate integration.
 - Out-of-stock status is a display label; it does not enable backorders. Retail `inStock` remains a manual availability flag. `subtractStock=false` disables retail quantity limits/deduction; wholesale inventory is always tracked.
@@ -48,7 +48,7 @@ Ordinary customer product-read permission does not grant access to product edito
 | Data | `model`, `sku`, `mpn`, `price`, `quantity`, `minimumQuantity`, `subtractStock`, `outOfStockStatus`, `requiresShipping`, `dateAvailable`, `length`, `width`, `height`, `lengthClass`, `weight`, `weightClass`, `sortOrder`, `isActive` |
 | Wholesaler | `wholesalePrice`, `wholesaleQuantity`, `boxQuantity`, `wholesaleMinimumQuantity`, `wholesaleRequiresShipping`, `wholesaleDateAvailable`, `wholesaleLength`, `wholesaleWidth`, `wholesaleHeight`, `wholesaleLengthClass`, `wholesaleWeight`, `wholesaleWeightClass` |
 | Links | `brandId` or `manufacturerId`, `categoryIds`, `downloadIds`, `relatedProductIds` |
-| Attribute | `attributes: [{id?,name,text,sortOrder?}]` |
+| Attribute | `attributes: [{id?,attributeId,name,text,sortOrder?}]` (`name` is accepted for compatibility; the server stores the master attribute name) |
 | Option | `options: [{id?,name,type,required,sortOrder?,values:[...]}]` |
 | Discount | `discounts: [{id?,customerGroup,quantity,priority,price,dateStart?,dateEnd?}]` |
 | Image | `imageDetails: [{id?,url,isMain,sortOrder}]` |
@@ -130,6 +130,10 @@ Existing spreadsheets can still create products with title and price; the strict
 New scalar fields can be supplied as columns. Booleans accept true/false, yes/no, 1/0. ID lists accept comma-separated UUIDs or JSON arrays. Nested fields (`attributes`, `options`, `discounts`, `imageDetails`, `package`) accept JSON cell values. Images accept a single URL or JSON string array. Each valid row is transactional; invalid rows return row-numbered errors. Maximum 5,000 rows and 5 MB.
 
 ## Migration and rollout
+
+The Product-to-Attribute master link is installed manually with
+`docs/product-attribute-link.sql`; no TypeORM migration is provided for it.
+Run that SQL before deploying code that sends `attributeId`.
 
 Migration: `1790035200000-ExpandProductForm`.
 
