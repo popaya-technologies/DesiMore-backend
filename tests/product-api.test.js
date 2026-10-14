@@ -27,6 +27,7 @@ const { Category } = require("../src/entities/category.entity");
 const { Brand } = require("../src/entities/brand.entity");
 const { Attribute } = require("../src/entities/attribute.entity");
 const { AttributeGroup } = require("../src/entities/attribute-group.entity");
+const { CatalogOption } = require("../src/entities/option.entity");
 const { User } = require("../src/entities/user.entity");
 const { Role } = require("../src/entities/role.entity");
 const { UserRole } = require("../src/entities/user-role.entity");
@@ -46,6 +47,8 @@ let api,
   brand,
   category,
   attribute,
+  finishOption,
+  deliveryDateOption,
   legacyId;
 const address = {
   firstName: "Test",
@@ -146,6 +149,8 @@ before(async () => {
   await runner.release();
   await db.query('ALTER TABLE "product_attributes" ADD COLUMN "attributeId" uuid REFERENCES "attributes"("id") ON DELETE RESTRICT');
   await db.query('CREATE UNIQUE INDEX "UQ_product_attributes_product_attribute" ON "product_attributes" ("productId", "attributeId") WHERE "attributeId" IS NOT NULL');
+  await db.query('ALTER TABLE "product_options" ADD COLUMN IF NOT EXISTS "optionId" uuid REFERENCES "options"("id") ON DELETE RESTRICT');
+  await db.query('CREATE UNIQUE INDEX IF NOT EXISTS "UQ_product_options_product_option" ON "product_options" ("productId", "optionId") WHERE "optionId" IS NOT NULL');
   brand = await db.getRepository(Brand).save({ name: "Test Brand", keyword: "test-brand" });
   category = await db
     .getRepository(Category)
@@ -158,6 +163,18 @@ before(async () => {
     name: "Material",
     attributeGroupId: attributeGroup.id,
     sortOrder: 0,
+  });
+  finishOption = await db.getRepository(CatalogOption).save({
+    name: "Finish",
+    type: "checkbox",
+    sortOrder: 0,
+    values: [
+      { id: randomUUID(), name: "Premium", image: null, sortOrder: 0 },
+      { id: randomUUID(), name: "Basic", image: null, sortOrder: 1 },
+    ],
+  });
+  deliveryDateOption = await db.getRepository(CatalogOption).save({
+    name: "Delivery date", type: "date", sortOrder: 1, values: [],
   });
   async function user(role, i) {
     const u = new User();
@@ -244,11 +261,13 @@ test("all form tabs round-trip; rich text is sanitized and related products are 
     downloadIds: [download.body.id],
     options: [
       {
+        optionId: finishOption.id,
         name: "Finish",
         type: "checkbox",
         required: true,
         values: [
           {
+            optionValueId: finishOption.values.find(value => value.name === "Premium").id,
             value: "Premium",
             quantity: 10,
             subtractStock: true,
@@ -440,10 +459,11 @@ test("cart enforces required options, combined stock, tier prices and checkout s
     requiresShipping: false,
     options: [
       {
+        optionId: finishOption.id,
         name: "Finish",
         type: "checkbox",
         required: true,
-        values: [{ value: "Premium", quantity: 6, price: 3 }],
+        values: [{ optionValueId: finishOption.values.find(value => value.name === "Premium").id, value: "Premium", quantity: 6, price: 3 }],
       },
     ],
     discounts: [
@@ -941,18 +961,18 @@ test("option edits preserve IDs; date and signed adjustments are validated at ch
  await call("delete", "/api/cart", customerCookie);
  const product = await create({
   options: [
-   { name: "Finish", type: "radio", required: true, values: [{ value: "Basic", quantity: 10, pricePrefix: "-", price: 2, pointsPrefix: "-", points: 1, weightPrefix: "+", weight: 0.5 }] },
-   { name: "Delivery date", type: "date", required: true, values: [] }
+   { optionId: finishOption.id, name: "Finish", type: "checkbox", required: true, values: [{ optionValueId: finishOption.values.find(value => value.name === "Basic").id, value: "Basic", quantity: 10, pricePrefix: "-", price: 2, pointsPrefix: "-", points: 1, weightPrefix: "+", weight: 0.5 }] },
+   { optionId: deliveryDateOption.id, name: "Delivery date", type: "date", required: true, values: [] }
   ],
   discounts: [{ customerGroup: "default", quantity: 2, priority: 1, price: 16, dateStart: "2020-01-01", dateEnd: "2099-01-01" },
    { customerGroup: "default", quantity: 2, priority: 0, price: 15 },
    { customerGroup: "default", quantity: 2, priority: 0, price: 1, dateEnd: "2020-01-01" }]
  });
- const choice = product.options.find(o => o.type === "radio"), date = product.options.find(o => o.type === "date");
- const options = product.options.map(o => ({ id: o.id, name: o.name, type: o.type, required: o.required, sortOrder: o.sortOrder, values: o.values }));
+ const choice = product.options.find(o => o.type === "checkbox"), date = product.options.find(o => o.type === "date");
+ const options = product.options.map(o => ({ id: o.id, optionId: o.optionId, name: o.name, type: o.type, required: o.required, sortOrder: o.sortOrder, values: o.values }));
  const edit = await call("patch", "/api/products/" + product.id).send({ options });
  assert.equal(edit.status, 200, JSON.stringify(edit.body));
- assert.equal(edit.body.options.find(o => o.type === "radio").values[0].id, choice.values[0].id);
+ assert.equal(edit.body.options.find(o => o.type === "checkbox").values[0].id, choice.values[0].id);
  const selectedOptions = [{ optionId: choice.id, valueIds: [choice.values[0].id] }, { optionId: date.id, text: "2026-02-30" }];
  assert.equal((await call("post", "/api/cart/items", customerCookie).send({ productId: product.id, quantity: 2, selectedOptions })).status, 400);
  selectedOptions[1].text = "2026-12-25";

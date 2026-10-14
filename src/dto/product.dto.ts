@@ -31,6 +31,7 @@ export const OPTION_TYPES = [
   "radio",
   "text",
   "textarea",
+  "file",
   "date",
   "time",
   "datetime",
@@ -48,6 +49,7 @@ export class AttributeDto {
 }
 export class OptionValueDto {
   @ValidateIf(optional) @IsUUID() id?: string;
+  @ValidateIf(optional) @IsUUID() optionValueId?: string;
   @IsString() @MaxLength(255) @Matches(/\S/) value: string;
   @IsInt() @Min(0) @Max(2147483647) quantity: number;
   @ValidateIf(optional) @IsBoolean() subtractStock?: boolean;
@@ -68,6 +70,7 @@ export class OptionValueDto {
 }
 export class OptionDto {
   @ValidateIf(optional) @IsUUID() id?: string;
+  @IsUUID() optionId: string;
   @IsString() @MaxLength(255) @Matches(/\S/) name: string;
   @IsIn(OPTION_TYPES) type: string;
   @IsBoolean() required: boolean;

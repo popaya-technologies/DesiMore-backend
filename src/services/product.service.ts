@@ -11,6 +11,7 @@ import { Download } from "../entities/download.entity";
 import { Attribute } from "../entities/attribute.entity";
 import { ProductAttribute } from "../entities/product-attribute.entity";
 import { ProductOption } from "../entities/product-option.entity";
+import { CatalogOption } from "../entities/option.entity";
 import { ProductDiscount } from "../entities/product-discount.entity";
 import { ProductImage } from "../entities/product-image.entity";
 import { CreateProductDto } from "../dto/product.dto";
@@ -23,6 +24,7 @@ export const PRODUCT_RELATIONS = [
   "attributes.attribute",
   "attributes.attribute.attributeGroup",
   "options",
+  "options.option",
   "discounts",
   "imageDetails",
   "downloads",
@@ -205,11 +207,17 @@ export const validateProductInput = async (input: any, creating: boolean) => {
         "Text and date options cannot have choice values",
       );
     if (
-      new Set(option.values.map((v) => v.value.trim().toLowerCase())).size !==
+      new Set(option.values.map((v) => v.optionValueId)).size !==
       option.values.length
     )
       throw new ApiError(400, "Duplicate option values");
   }
+  if (
+    dto.options &&
+    new Set(dto.options.map((option) => option.optionId)).size !==
+      dto.options.length
+  )
+    throw new ApiError(400, "Duplicate product options");
   if (
     dto.attributes &&
     new Set(dto.attributes.map((attribute) => attribute.attributeId)).size !==
@@ -259,6 +267,18 @@ export const productResponse = (product: Product, admin = false): any => {
       text: row.text,
       sortOrder: row.sortOrder,
       attribute: row.attribute ?? null,
+    }));
+  if (result.options)
+    result.options = result.options.map((row: ProductOption) => ({
+      id: row.id,
+      productId: row.productId,
+      optionId: row.optionId,
+      name: row.option?.name ?? row.name,
+      type: row.option?.type ?? row.type,
+      required: row.required,
+      sortOrder: row.sortOrder,
+      values: row.values,
+      option: row.option ?? null,
     }));
   for (const key of ["attributes", "options"])
     if (result[key])
@@ -415,13 +435,38 @@ export const saveProduct = async (
           dateEnd: row.dateEnd || null,
         }),
       );
-    if (dto.options !== undefined)
+    if (dto.options !== undefined) {
+      const masterOptions = await resolveIds(
+        manager,
+        CatalogOption,
+        dto.options.map((row) => row.optionId),
+        "optionId",
+      );
+      const optionById = new Map<string, CatalogOption>(
+        masterOptions.map((option) => [option.id, option]),
+      );
       await replaceRows(
         manager,
         ProductOption,
         product.id,
         dto.options,
         (row, index, old) => {
+          const master = optionById.get(row.optionId);
+          if (!master) throw new ApiError(400, "Invalid optionId");
+          if (row.type !== master.type)
+            throw new ApiError(400, "Product option type does not match the master option");
+          const choice = ["checkbox", "select", "radio"].includes(master.type);
+          const masterValueById = new Map<string, CatalogOption["values"][number]>(
+            (master.values || []).map((value) => [value.id, value]),
+          );
+          if (
+            choice &&
+            row.values.some(
+              (value) =>
+                !value.optionValueId || !masterValueById.has(value.optionValueId),
+            )
+          )
+            throw new ApiError(400, "Invalid master option value");
           const oldIds = new Set((old?.values || []).map((v) => v.id));
           const incomingIds = row.values.filter((v) => v.id).map((v) => v.id);
           if (
@@ -430,8 +475,9 @@ export const saveProduct = async (
           )
             throw new ApiError(400, "Invalid or duplicate option value ID");
           return {
-            name: row.name.trim(),
-            type: row.type,
+            optionId: master.id,
+            name: master.name,
+            type: master.type,
             required: row.required,
             sortOrder: row.sortOrder ?? index,
             values: row.values.map((v) => ({
@@ -444,11 +490,16 @@ export const saveProduct = async (
               weightPrefix: "+",
               weight: 0,
               ...v,
+              optionValueId: v.optionValueId || null,
+              value: v.optionValueId
+                ? masterValueById.get(v.optionValueId).name
+                : v.value.trim(),
               id: v.id || randomUUID(),
             })),
           };
         },
       );
+    }
     const images =
       dto.imageDetails ??
       dto.images?.map((url, i) => ({ url, isMain: i === 0, sortOrder: i }));
