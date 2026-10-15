@@ -37,6 +37,7 @@ const download_entity_1 = require("../entities/download.entity");
 const attribute_entity_1 = require("../entities/attribute.entity");
 const product_attribute_entity_1 = require("../entities/product-attribute.entity");
 const product_option_entity_1 = require("../entities/product-option.entity");
+const option_entity_1 = require("../entities/option.entity");
 const product_discount_entity_1 = require("../entities/product-discount.entity");
 const product_image_entity_1 = require("../entities/product-image.entity");
 const product_dto_1 = require("../dto/product.dto");
@@ -48,6 +49,7 @@ exports.PRODUCT_RELATIONS = [
     "attributes.attribute",
     "attributes.attribute.attributeGroup",
     "options",
+    "options.option",
     "discounts",
     "imageDetails",
     "downloads",
@@ -216,10 +218,14 @@ const validateProductInput = (input, creating) => __awaiter(void 0, void 0, void
             throw new api_error_1.ApiError(400, "Choice options require values");
         if (!choice && option.values.length)
             throw new api_error_1.ApiError(400, "Text and date options cannot have choice values");
-        if (new Set(option.values.map((v) => v.value.trim().toLowerCase())).size !==
+        if (new Set(option.values.map((v) => v.optionValueId)).size !==
             option.values.length)
             throw new api_error_1.ApiError(400, "Duplicate option values");
     }
+    if (dto.options &&
+        new Set(dto.options.map((option) => option.optionId)).size !==
+            dto.options.length)
+        throw new api_error_1.ApiError(400, "Duplicate product options");
     if (dto.attributes &&
         new Set(dto.attributes.map((attribute) => attribute.attributeId)).size !==
             dto.attributes.length)
@@ -254,6 +260,21 @@ const productResponse = (product, admin = false) => {
                 text: row.text,
                 sortOrder: row.sortOrder,
                 attribute: (_c = row.attribute) !== null && _c !== void 0 ? _c : null,
+            });
+        });
+    if (result.options)
+        result.options = result.options.map((row) => {
+            var _a, _b, _c, _d, _e;
+            return ({
+                id: row.id,
+                productId: row.productId,
+                optionId: row.optionId,
+                name: (_b = (_a = row.option) === null || _a === void 0 ? void 0 : _a.name) !== null && _b !== void 0 ? _b : row.name,
+                type: (_d = (_c = row.option) === null || _c === void 0 ? void 0 : _c.type) !== null && _d !== void 0 ? _d : row.type,
+                required: row.required,
+                sortOrder: row.sortOrder,
+                values: row.values,
+                option: (_e = row.option) !== null && _e !== void 0 ? _e : null,
             });
         });
     for (const key of ["attributes", "options"])
@@ -357,22 +378,38 @@ const saveProduct = (input_1, id_1, ...args_1) => __awaiter(void 0, [input_1, id
         }
         if (dto.discounts !== undefined)
             yield replaceRows(manager, product_discount_entity_1.ProductDiscount, product.id, dto.discounts, (row) => (Object.assign(Object.assign({}, row), { dateStart: row.dateStart || null, dateEnd: row.dateEnd || null })));
-        if (dto.options !== undefined)
+        if (dto.options !== undefined) {
+            const masterOptions = yield resolveIds(manager, option_entity_1.CatalogOption, dto.options.map((row) => row.optionId), "optionId");
+            const optionById = new Map(masterOptions.map((option) => [option.id, option]));
             yield replaceRows(manager, product_option_entity_1.ProductOption, product.id, dto.options, (row, index, old) => {
                 var _a;
+                const master = optionById.get(row.optionId);
+                if (!master)
+                    throw new api_error_1.ApiError(400, "Invalid optionId");
+                if (row.type !== master.type)
+                    throw new api_error_1.ApiError(400, "Product option type does not match the master option");
+                const choice = ["checkbox", "select", "radio"].includes(master.type);
+                const masterValueById = new Map((master.values || []).map((value) => [value.id, value]));
+                if (choice &&
+                    row.values.some((value) => !value.optionValueId || !masterValueById.has(value.optionValueId)))
+                    throw new api_error_1.ApiError(400, "Invalid master option value");
                 const oldIds = new Set(((old === null || old === void 0 ? void 0 : old.values) || []).map((v) => v.id));
                 const incomingIds = row.values.filter((v) => v.id).map((v) => v.id);
                 if (new Set(incomingIds).size !== incomingIds.length ||
                     incomingIds.some((v) => !oldIds.has(v)))
                     throw new api_error_1.ApiError(400, "Invalid or duplicate option value ID");
                 return {
-                    name: row.name.trim(),
-                    type: row.type,
+                    optionId: master.id,
+                    name: master.name,
+                    type: master.type,
                     required: row.required,
                     sortOrder: (_a = row.sortOrder) !== null && _a !== void 0 ? _a : index,
-                    values: row.values.map((v) => (Object.assign(Object.assign({ quantity: 0, subtractStock: true, pricePrefix: "+", price: 0, pointsPrefix: "+", points: 0, weightPrefix: "+", weight: 0 }, v), { id: v.id || (0, crypto_1.randomUUID)() }))),
+                    values: row.values.map((v) => (Object.assign(Object.assign({ quantity: 0, subtractStock: true, pricePrefix: "+", price: 0, pointsPrefix: "+", points: 0, weightPrefix: "+", weight: 0 }, v), { optionValueId: v.optionValueId || null, value: v.optionValueId
+                            ? masterValueById.get(v.optionValueId).name
+                            : v.value.trim(), id: v.id || (0, crypto_1.randomUUID)() }))),
                 };
             });
+        }
         const images = (_c = dto.imageDetails) !== null && _c !== void 0 ? _c : (_d = dto.images) === null || _d === void 0 ? void 0 : _d.map((url, i) => ({ url, isMain: i === 0, sortOrder: i }));
         if (images !== undefined) {
             if (new Set(images.map((i) => i.url)).size !== images.length)

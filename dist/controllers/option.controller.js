@@ -61,10 +61,17 @@ exports.OptionController = {
     create: handle((req, res) => __awaiter(void 0, void 0, void 0, function* () { res.status(201).json(yield new option_service_1.OptionService().save(req.body)); })),
     update: handle((req, res) => __awaiter(void 0, void 0, void 0, function* () { res.json(yield new option_service_1.OptionService().save(req.body, String(req.params.id))); })),
     remove: handle((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-        const result = yield data_source_1.AppDataSource.getRepository(option_entity_1.CatalogOption).delete(String(req.params.id));
-        if (!result.affected)
-            throw new api_error_1.ApiError(404, "Option not found");
-        res.json({ message: "Option deleted successfully" });
+        try {
+            const result = yield data_source_1.AppDataSource.getRepository(option_entity_1.CatalogOption).delete(String(req.params.id));
+            if (!result.affected)
+                throw new api_error_1.ApiError(404, "Option not found");
+            res.json({ message: "Option deleted successfully" });
+        }
+        catch (error) {
+            if ((error === null || error === void 0 ? void 0 : error.code) === "23503")
+                throw new api_error_1.ApiError(409, "Option is assigned to products and cannot be deleted");
+            throw error;
+        }
     })),
     get: handle((req, res) => __awaiter(void 0, void 0, void 0, function* () {
         const row = yield data_source_1.AppDataSource.getRepository(option_entity_1.CatalogOption).findOneBy({ id: String(req.params.id) });

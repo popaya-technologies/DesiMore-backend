@@ -47,6 +47,14 @@ __decorate([
     __metadata("design:type", Boolean)
 ], Coupon.prototype, "freeShipping", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: "uuid", array: true, default: "{}" }),
+    __metadata("design:type", Array)
+], Coupon.prototype, "productIds", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "uuid", array: true, default: "{}" }),
+    __metadata("design:type", Array)
+], Coupon.prototype, "categoryIds", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: "date" }),
     __metadata("design:type", String)
 ], Coupon.prototype, "dateStart", void 0);

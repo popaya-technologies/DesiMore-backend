@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UpdateReviewDto = exports.CreateReviewDto = void 0;
+exports.SubmitProductReviewDto = exports.UpdateReviewDto = exports.CreateReviewDto = void 0;
 const class_validator_1 = require("class-validator");
 class CreateReviewDto {
 }
@@ -24,6 +24,13 @@ __decorate([
     (0, class_validator_1.IsUUID)(),
     __metadata("design:type", String)
 ], CreateReviewDto.prototype, "productId", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.MaxLength)(255),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateReviewDto.prototype, "title", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsNotEmpty)(),
@@ -62,6 +69,13 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.MaxLength)(255),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], UpdateReviewDto.prototype, "title", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], UpdateReviewDto.prototype, "text", void 0);
@@ -82,3 +96,23 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Boolean)
 ], UpdateReviewDto.prototype, "isActive", void 0);
+class SubmitProductReviewDto {
+}
+exports.SubmitProductReviewDto = SubmitProductReviewDto;
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.MaxLength)(255),
+    __metadata("design:type", String)
+], SubmitProductReviewDto.prototype, "title", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], SubmitProductReviewDto.prototype, "text", void 0);
+__decorate([
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(1),
+    (0, class_validator_1.Max)(5),
+    __metadata("design:type", Number)
+], SubmitProductReviewDto.prototype, "rating", void 0);

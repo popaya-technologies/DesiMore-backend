@@ -6,6 +6,14 @@ import { checkPermission } from "../middlewares/rbac.middleware";
 
 const router = Router();
 
+router.get("/product/:productId", ReviewController.getProductReviews);
+
+router.post(
+  "/product/:productId",
+  authenticate,
+  ReviewController.submitProductReview,
+);
+
 router.post(
   "/",
   authenticate,

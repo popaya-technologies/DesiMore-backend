@@ -39,6 +39,10 @@ __decorate([
     __metadata("design:type", String)
 ], Review.prototype, "text", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: "varchar", length: 255, nullable: true }),
+    __metadata("design:type", String)
+], Review.prototype, "title", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: "integer", default: 5 }),
     __metadata("design:type", Number)
 ], Review.prototype, "rating", void 0);

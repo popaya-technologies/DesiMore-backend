@@ -14,10 +14,16 @@ const data_source_1 = require("../data-source");
 const coupon_entity_1 = require("../entities/coupon.entity");
 const coupon_dto_1 = require("../dto/coupon.dto");
 const class_validator_1 = require("class-validator");
+const class_transformer_1 = require("class-transformer");
+const coupon_dto_2 = require("../dto/coupon.dto");
+const api_error_1 = require("../utils/api-error");
+const cart_entity_1 = require("../entities/cart.entity");
+const cart_service_1 = require("../services/cart.service");
+const coupon_service_1 = require("../services/coupon.service");
 const couponRepository = data_source_1.AppDataSource.getRepository(coupon_entity_1.Coupon);
 exports.CouponController = {
     createCoupon: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-        var _a, _b, _c, _d, _e, _f, _g, _h;
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
         try {
             const couponData = new coupon_dto_1.CreateCouponDto();
             Object.assign(couponData, req.body);
@@ -34,11 +40,13 @@ exports.CouponController = {
                 totalAmount: (_c = couponData.totalAmount) !== null && _c !== void 0 ? _c : 0,
                 customerLogin: (_d = couponData.customerLogin) !== null && _d !== void 0 ? _d : false,
                 freeShipping: (_e = couponData.freeShipping) !== null && _e !== void 0 ? _e : false,
+                productIds: (_f = couponData.productIds) !== null && _f !== void 0 ? _f : [],
+                categoryIds: (_g = couponData.categoryIds) !== null && _g !== void 0 ? _g : [],
                 dateStart: couponData.dateStart,
                 dateEnd: couponData.dateEnd,
-                usesPerCoupon: (_f = couponData.usesPerCoupon) !== null && _f !== void 0 ? _f : 1,
-                usesPerCustomer: (_g = couponData.usesPerCustomer) !== null && _g !== void 0 ? _g : 1,
-                isActive: (_h = couponData.isActive) !== null && _h !== void 0 ? _h : true,
+                usesPerCoupon: (_h = couponData.usesPerCoupon) !== null && _h !== void 0 ? _h : 1,
+                usesPerCustomer: (_j = couponData.usesPerCustomer) !== null && _j !== void 0 ? _j : 1,
+                isActive: (_k = couponData.isActive) !== null && _k !== void 0 ? _k : true,
             });
             yield couponRepository.save(coupon);
             res.status(201).json(coupon);
@@ -152,6 +160,12 @@ exports.CouponController = {
             if (updateData.freeShipping !== undefined) {
                 coupon.freeShipping = updateData.freeShipping;
             }
+            if (updateData.productIds !== undefined) {
+                coupon.productIds = updateData.productIds;
+            }
+            if (updateData.categoryIds !== undefined) {
+                coupon.categoryIds = updateData.categoryIds;
+            }
             if (updateData.dateStart !== undefined) {
                 coupon.dateStart = updateData.dateStart;
             }
@@ -200,6 +214,26 @@ exports.CouponController = {
             res.status(500).json({
                 message: "Internal server error",
             });
+        }
+    }),
+    applyCoupon: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+        try {
+            const dto = (0, class_transformer_1.plainToInstance)(coupon_dto_2.ApplyCouponDto, req.body);
+            const errors = yield (0, class_validator_1.validate)(dto, {
+                whitelist: true,
+                forbidNonWhitelisted: true,
+                validationError: { target: false, value: false },
+            });
+            if (errors.length)
+                throw new api_error_1.ApiError(400, "Invalid coupon data", errors);
+            const result = yield data_source_1.AppDataSource.transaction((manager) => __awaiter(void 0, void 0, void 0, function* () {
+                const cart = yield (0, cart_service_1.loadCart)(manager, req.user.id, dto.cartType === "buy-now" ? cart_entity_1.CartType.BUY_NOW : cart_entity_1.CartType.REGULAR, false);
+                return (0, coupon_service_1.calculateCoupon)(manager, dto.code, cart, req.user.id);
+            }));
+            res.json(Object.assign({ message: "Success: Your coupon discount has been applied!" }, result));
+        }
+        catch (error) {
+            (0, api_error_1.respondError)(res, error);
         }
     }),
 };

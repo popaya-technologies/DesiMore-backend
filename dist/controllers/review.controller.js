@@ -13,12 +13,14 @@ exports.ReviewController = void 0;
 const class_validator_1 = require("class-validator");
 const data_source_1 = require("../data-source");
 const review_entity_1 = require("../entities/review.entity");
+const product_entity_1 = require("../entities/product.entity");
 const review_dto_1 = require("../dto/review.dto");
 const reviewRepository = data_source_1.AppDataSource.getRepository(review_entity_1.Review);
+const productRepository = data_source_1.AppDataSource.getRepository(product_entity_1.Product);
 class ReviewController {
     static createReview(req, res) {
         return __awaiter(this, void 0, void 0, function* () {
-            var _a;
+            var _a, _b;
             try {
                 const dto = new review_dto_1.CreateReviewDto();
                 Object.assign(dto, req.body);
@@ -30,10 +32,11 @@ class ReviewController {
                 const review = reviewRepository.create({
                     author: dto.author.trim(),
                     productId: dto.productId,
+                    title: ((_a = dto.title) === null || _a === void 0 ? void 0 : _a.trim()) || null,
                     text: dto.text.trim(),
                     rating: dto.rating,
                     dateAdded: dto.dateAdded,
-                    isActive: (_a = dto.isActive) !== null && _a !== void 0 ? _a : true,
+                    isActive: (_b = dto.isActive) !== null && _b !== void 0 ? _b : true,
                 });
                 const savedReview = yield reviewRepository.save(review);
                 res.status(201).json(savedReview);
@@ -43,6 +46,69 @@ class ReviewController {
                 res.status(500).json({
                     message: "Failed to create review",
                 });
+            }
+        });
+    }
+    static getProductReviews(req, res) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const { productId } = req.params;
+                const page = Math.max(Number(req.query.page) || 1, 1);
+                const limit = Math.min(Math.max(Number(req.query.limit) || 10, 1), 50);
+                const [reviews, total] = yield reviewRepository.findAndCount({
+                    where: { productId, isActive: true },
+                    order: { dateAdded: "DESC", createdAt: "DESC" },
+                    skip: (page - 1) * limit,
+                    take: limit,
+                });
+                res.json({
+                    data: reviews,
+                    meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+                });
+            }
+            catch (error) {
+                console.error("Get product reviews error:", error);
+                res.status(500).json({ message: "Failed to get product reviews" });
+            }
+        });
+    }
+    static submitProductReview(req, res) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const { productId } = req.params;
+                const user = req.user;
+                if (!user) {
+                    res.status(401).json({ message: "Please sign in to write a review" });
+                    return;
+                }
+                const productExists = yield productRepository.exists({ where: { id: productId } });
+                if (!productExists) {
+                    res.status(404).json({ message: "Product not found" });
+                    return;
+                }
+                const dto = new review_dto_1.SubmitProductReviewDto();
+                Object.assign(dto, req.body);
+                const errors = yield (0, class_validator_1.validate)(dto);
+                if (errors.length > 0) {
+                    res.status(400).json({ message: "Please complete all required review fields", errors });
+                    return;
+                }
+                const author = [user.firstname, user.lastname].filter(Boolean).join(" ").trim() || user.username || user.email;
+                const review = reviewRepository.create({
+                    author,
+                    productId,
+                    title: dto.title.trim(),
+                    text: dto.text.trim(),
+                    rating: dto.rating,
+                    dateAdded: new Date().toISOString().slice(0, 10),
+                    isActive: false,
+                });
+                yield reviewRepository.save(review);
+                res.status(201).json({ message: "Your review was submitted for approval" });
+            }
+            catch (error) {
+                console.error("Submit product review error:", error);
+                res.status(500).json({ message: "Failed to submit review" });
             }
         });
     }
@@ -137,6 +203,9 @@ class ReviewController {
                 }
                 if (dto.productId !== undefined) {
                     review.productId = dto.productId;
+                }
+                if (dto.title !== undefined) {
+                    review.title = dto.title.trim();
                 }
                 if (dto.text !== undefined) {
                     review.text = dto.text.trim();

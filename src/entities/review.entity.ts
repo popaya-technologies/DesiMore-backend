@@ -30,6 +30,9 @@ export class Review {
   @Column({ type: "text" })
   text!: string;
 
+  @Column({ type: "varchar", length: 255, nullable: true })
+  title!: string | null;
+
   @Column({ type: "integer", default: 5 })
   rating!: number;
 

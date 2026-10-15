@@ -26,6 +26,7 @@ exports.OPTION_TYPES = [
     "radio",
     "text",
     "textarea",
+    "file",
     "date",
     "time",
     "datetime",
@@ -70,6 +71,11 @@ __decorate([
     (0, class_validator_1.IsUUID)(),
     __metadata("design:type", String)
 ], OptionValueDto.prototype, "id", void 0);
+__decorate([
+    (0, class_validator_1.ValidateIf)(optional),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], OptionValueDto.prototype, "optionValueId", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.MaxLength)(255),
@@ -131,6 +137,10 @@ __decorate([
     (0, class_validator_1.IsUUID)(),
     __metadata("design:type", String)
 ], OptionDto.prototype, "id", void 0);
+__decorate([
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], OptionDto.prototype, "optionId", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.MaxLength)(255),

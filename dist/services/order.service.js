@@ -24,6 +24,12 @@ const cart_service_1 = require("./cart.service");
 const inventory_service_1 = require("./inventory.service");
 const reference_number_util_1 = require("../utils/reference-number.util");
 const product_pricing_service_1 = require("./product-pricing.service");
+const shipping_service_1 = require("./shipping.service");
+const shipping_quote_service_1 = require("./shipping-quote.service");
+const coupon_service_1 = require("./coupon.service");
+const coupon_usage_entity_1 = require("../entities/coupon-usage.entity");
+const gift_voucher_entity_1 = require("../entities/gift_voucher.entity");
+const gift_voucher_service_1 = require("./gift-voucher.service");
 const createRetailOrder = (userId, input) => __awaiter(void 0, void 0, void 0, function* () {
     const dto = (0, class_transformer_1.plainToInstance)(order_dto_1.CreateOrderDto, input);
     const errors = yield (0, class_validator_1.validate)(dto, {
@@ -74,13 +80,43 @@ const createRetailOrder = (userId, input) => __awaiter(void 0, void 0, void 0, f
         }));
         order.subtotal = (0, product_pricing_service_1.roundMoney)(order.items.reduce((sum, item) => sum + item.total, 0));
         order.tax = 0;
-        order.shipping =
-            cart.items.some((i) => i.product.requiresShipping !== false) &&
-                order.subtotal <= 500
-                ? 50
-                : 0;
-        order.total = (0, product_pricing_service_1.roundMoney)(order.subtotal + order.shipping);
+        const coupon = dto.couponCode
+            ? yield (0, coupon_service_1.calculateCoupon)(manager, dto.couponCode, cart, userId, true)
+            : null;
+        order.couponCode = (coupon === null || coupon === void 0 ? void 0 : coupon.couponCode) || null;
+        order.discount = (coupon === null || coupon === void 0 ? void 0 : coupon.discount) || 0;
+        const giftVoucher = dto.giftVoucherCode
+            ? yield (0, gift_voucher_service_1.calculateGiftVoucher)(manager, dto.giftVoucherCode, cart, order.discount, true)
+            : null;
+        order.giftVoucherCode = (giftVoucher === null || giftVoucher === void 0 ? void 0 : giftVoucher.voucherCode) || null;
+        order.giftVoucherAmount = (giftVoucher === null || giftVoucher === void 0 ? void 0 : giftVoucher.discount) || 0;
+        const shippingRequired = (0, shipping_service_1.retailCartRequiresShipping)(cart);
+        if (shippingRequired && !dto.shippingCode)
+            throw new api_error_1.ApiError(400, "A shipping method is required");
+        const shippingWeight = (0, shipping_service_1.calculateRetailShippingWeight)(cart);
+        if (shippingRequired && shippingWeight <= 0)
+            throw new api_error_1.ApiError(400, "Shipping weight is unavailable for this cart");
+        order.shipping = shippingRequired && !(coupon === null || coupon === void 0 ? void 0 : coupon.freeShipping)
+            ? (0, shipping_quote_service_1.getMockShippingQuote)(shippingWeight, dto.shippingCode).price
+            : 0;
+        order.total = (0, product_pricing_service_1.roundMoney)(Math.max(0, order.subtotal - order.discount - order.giftVoucherAmount) + order.shipping);
         yield manager.getRepository(order_entity_1.Order).save(order);
+        if (giftVoucher) {
+            const voucher = yield manager.getRepository(gift_voucher_entity_1.GiftVoucher).findOneByOrFail({
+                id: giftVoucher.voucherId,
+            });
+            voucher.amount = giftVoucher.remainingBalance;
+            voucher.isActive = giftVoucher.remainingBalance > 0;
+            yield manager.getRepository(gift_voucher_entity_1.GiftVoucher).save(voucher);
+        }
+        if (coupon) {
+            yield manager.getRepository(coupon_usage_entity_1.CouponUsage).save(manager.getRepository(coupon_usage_entity_1.CouponUsage).create({
+                couponId: coupon.couponId,
+                userId,
+                orderId: order.id,
+                discount: coupon.discount,
+            }));
+        }
         yield manager.getRepository(cart_item_entity_1.CartItem).delete({ cartId: cart.id });
         cart.items = [];
         cart.calculateTotal();
@@ -112,6 +148,21 @@ const cancelRetailOrder = (id, userId) => __awaiter(void 0, void 0, void 0, func
             [order_entity_1.PaymentStatus.COMPLETED, order_entity_1.PaymentStatus.PROCESSING].includes(order.paymentStatus))
             throw new api_error_1.ApiError(400, "This order cannot be cancelled; paid orders require a refund");
         yield (0, inventory_service_1.releaseInventory)(manager, order.inventoryReservations || []);
+        if (order.giftVoucherCode && Number(order.giftVoucherAmount) > 0) {
+            const voucher = yield manager
+                .getRepository(gift_voucher_entity_1.GiftVoucher)
+                .createQueryBuilder("voucher")
+                .where("UPPER(voucher.code) = :code", {
+                code: order.giftVoucherCode.toUpperCase(),
+            })
+                .setLock("pessimistic_write")
+                .getOne();
+            if (voucher) {
+                voucher.amount = (0, product_pricing_service_1.roundMoney)(Number(voucher.amount) + Number(order.giftVoucherAmount));
+                voucher.isActive = true;
+                yield manager.getRepository(gift_voucher_entity_1.GiftVoucher).save(voucher);
+            }
+        }
         order.inventoryReservations = [];
         order.status = order_entity_1.OrderStatus.CANCELLED;
         order.paymentStatus = order_entity_1.PaymentStatus.CANCELLED;
