@@ -5,6 +5,7 @@ const recipe_category_controller_1 = require("../controllers/recipe-category.con
 const auth_middleware_1 = require("../middlewares/auth.middleware");
 const rbac_middleware_1 = require("../middlewares/rbac.middleware");
 const router = (0, express_1.Router)();
+router.get("/public", recipe_category_controller_1.RecipeCategoryController.publicList);
 router.get("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("recipe_category", "read"), recipe_category_controller_1.RecipeCategoryController.list);
 router.get("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("recipe_category", "read"), recipe_category_controller_1.RecipeCategoryController.get);
 router.post("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("recipe_category", "create"), recipe_category_controller_1.RecipeCategoryController.create);

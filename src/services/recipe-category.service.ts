@@ -274,6 +274,26 @@ export class RecipeCategoryService {
                 "Parent recipe category not found",
               );
             }
+
+            if (id) {
+              let ancestor: RecipeCategory | null = parent;
+              const visited = new Set<string>();
+              while (ancestor) {
+                if (ancestor.id === id) {
+                  throw new ApiError(
+                    400,
+                    "A recipe category cannot use one of its descendants as its parent",
+                  );
+                }
+                if (visited.has(ancestor.id)) {
+                  throw new ApiError(400, "Recipe category hierarchy contains a cycle");
+                }
+                visited.add(ancestor.id);
+                ancestor = ancestor.parent
+                  ? await repository.findOne({ where: { id: ancestor.parent } })
+                  : null;
+              }
+            }
           }
         }
 

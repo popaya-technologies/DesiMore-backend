@@ -5,6 +5,7 @@ import sanitizeHtml from "sanitize-html";
 import { AppDataSource } from "../data-source";
 import { CreateRecipeDto, UpdateRecipeDto } from "../dto/recipe.dto";
 import { Recipe } from "../entities/recipe.entity";
+import { RecipeCategory } from "../entities/recipe-category.entity";
 import { ApiError } from "../utils/api-error";
 
 const cleanText = (value: string, label: string) => {
@@ -43,10 +44,9 @@ export async function validateRecipe(input: unknown, creating: boolean) {
     image: cleanImage(row.image) as string,
     sortOrder: row.sortOrder ?? 0,
   }));
-  for (const key of ["categories", "relatedProducts"] as const) {
-    if (dto[key] !== undefined) {
-      dto[key] = [...new Set(dto[key].map(value => cleanText(value, key)).filter(Boolean))];
-    }
+  if (dto.categoryIds !== undefined) dto.categoryIds = [...new Set(dto.categoryIds)];
+  if (dto.relatedProducts !== undefined) {
+    dto.relatedProducts = [...new Set(dto.relatedProducts.map(value => cleanText(value, "relatedProducts")).filter(Boolean))];
   }
   return dto;
 }
@@ -59,6 +59,8 @@ export class RecipeService {
     try {
       return await this.db.transaction(async manager => {
         const repo = manager.getRepository(Recipe);
+        // Lock only the recipe row. PostgreSQL cannot apply FOR UPDATE to the
+        // nullable side of the LEFT JOIN generated when relations are loaded.
         const existing = id ? await repo.findOne({ where: { id }, lock: { mode: "pessimistic_write" } }) : null;
         if (id && !existing) throw new ApiError(404, "Recipe not found");
         const recipe = existing ?? repo.create({
@@ -66,7 +68,15 @@ export class RecipeService {
           image: null, additionalImages: [], categories: [], relatedProducts: [],
           seoKeyword: null,
         });
-        Object.assign(recipe, dto);
+        const { categoryIds, ...fields } = dto;
+        Object.assign(recipe, fields);
+        if (categoryIds !== undefined) {
+          const categories = categoryIds.length
+            ? await manager.getRepository(RecipeCategory).findByIds(categoryIds)
+            : [];
+          if (categories.length !== categoryIds.length) throw new ApiError(400, "One or more recipe categories do not exist");
+          recipe.categories = categories;
+        }
         recipe.additionalImages = [...(recipe.additionalImages ?? [])].sort((a, b) => a.sortOrder - b.sortOrder);
         return await repo.save(recipe);
       });
@@ -78,7 +88,7 @@ export class RecipeService {
 }
 
 export function recipeQuery(query: Record<string, unknown>) {
-  const allowed = ["search", "isActive", "date", "startDate", "endDate", "page", "limit", "sortBy", "sortOrder", "format"];
+  const allowed = ["search", "categoryId", "isActive", "date", "startDate", "endDate", "page", "limit", "sortBy", "sortOrder", "format"];
   if (Object.keys(query).some(key => !allowed.includes(key))) throw new ApiError(400, "Unknown query parameter");
   const integer = (value: unknown, fallback: number, max: number) => {
     if (value === undefined) return fallback;
@@ -86,7 +96,9 @@ export function recipeQuery(query: Record<string, unknown>) {
     return Number(value);
   };
   const page = integer(query.page, 1, 1000000), limit = integer(query.limit, 10, 100);
-  const qb = AppDataSource.getRepository(Recipe).createQueryBuilder("recipe");
+  const qb = AppDataSource.getRepository(Recipe).createQueryBuilder("recipe")
+    .leftJoinAndSelect("recipe.categories", "category")
+    .distinct(true);
   if (query.search !== undefined) {
     if (typeof query.search !== "string" || query.search.length > 255) throw new ApiError(400, "Invalid search");
     qb.andWhere("recipe.name ILIKE :search", { search: `%${query.search.trim().replace(/[\\%_]/g, "\\$&")}%` });
@@ -94,6 +106,11 @@ export function recipeQuery(query: Record<string, unknown>) {
   if (query.isActive !== undefined) {
     if (query.isActive !== "true" && query.isActive !== "false") throw new ApiError(400, "isActive must be true or false");
     qb.andWhere('recipe."isActive" = :isActive', { isActive: query.isActive === "true" });
+  }
+  if (query.categoryId !== undefined) {
+    if (typeof query.categoryId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(query.categoryId))
+      throw new ApiError(400, "Invalid recipe category ID");
+    qb.andWhere("category.id = :categoryId", { categoryId: query.categoryId });
   }
   if (query.date !== undefined && (query.startDate !== undefined || query.endDate !== undefined)) throw new ApiError(400, "Use date or startDate/endDate");
   const start = query.date ?? query.startDate, end = query.date ?? query.endDate;
@@ -103,6 +120,12 @@ export function recipeQuery(query: Record<string, unknown>) {
   if (end) qb.andWhere('recipe."createdAt" < CAST(:end AS date) + INTERVAL \'1 day\'', { end });
   const sortBy = query.sortBy ?? "sortOrder", direction = query.sortOrder ?? "ASC";
   if (!['name', 'sortOrder', 'isActive', 'createdAt'].includes(String(sortBy)) || !['ASC', 'DESC'].includes(String(direction))) throw new ApiError(400, "Invalid sorting");
-  qb.orderBy(`recipe."${sortBy}"`, direction as "ASC" | "DESC").addOrderBy("recipe.id", "ASC");
+  const sortColumns: Record<string, string> = {
+    name: "recipe.name",
+    sortOrder: "recipe.sortOrder",
+    isActive: "recipe.isActive",
+    createdAt: "recipe.createdAt",
+  };
+  qb.orderBy(sortColumns[String(sortBy)], direction as "ASC" | "DESC").addOrderBy("recipe.id", "ASC");
   return { qb, page, limit };
 }

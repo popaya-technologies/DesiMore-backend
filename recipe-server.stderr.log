@@ -1,0 +1,385 @@
+QueryFailedError: FOR UPDATE cannot be applied to the nullable side of an outer join
+    at PostgresQueryRunner.query (C:\DesiMore-backend\DesiMore-backend\node_modules\typeorm\src\driver\postgres\PostgresQueryRunner.ts:325:19)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async SelectQueryBuilder.loadRawResults (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:3808:25)
+    at async SelectQueryBuilder.getRawMany (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1627:29)
+    at async SelectQueryBuilder.executeEntitiesAndRawResults (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:3470:26)
+    at async SelectQueryBuilder.getRawAndEntities (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1671:29)
+    at async SelectQueryBuilder.getOne (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1698:25) {
+  query: 'SELECT DISTINCT "distinctAlias"."Recipe_id" AS "ids_Recipe_id" FROM (SELECT "Recipe"."id" AS "Recipe_id", "Recipe"."name" AS "Recipe_name", "Recipe"."description" AS "Recipe_description", "Recipe"."metaTitle" AS "Recipe_metaTitle", "Recipe"."metaDescription" AS "Recipe_metaDescription", "Recipe"."metaKeywords" AS "Recipe_metaKeywords", "Recipe"."sortOrder" AS "Recipe_sortOrder", "Recipe"."isActive" AS "Recipe_isActive", "Recipe"."image" AS "Recipe_image", "Recipe"."additionalImages" AS "Recipe_additionalImages", "Recipe"."relatedProducts" AS "Recipe_relatedProducts", "Recipe"."seoKeyword" AS "Recipe_seoKeyword", "Recipe"."createdAt" AS "Recipe_createdAt", "Recipe"."updatedAt" AS "Recipe_updatedAt", "Recipe__Recipe_categories"."id" AS "Recipe__Recipe_categories_id", "Recipe__Recipe_categories"."name" AS "Recipe__Recipe_categories_name", "Recipe__Recipe_categories"."description" AS "Recipe__Recipe_categories_description", "Recipe__Recipe_categories"."metaTitle" AS "Recipe__Recipe_categories_metaTitle", "Recipe__Recipe_categories"."metaDescription" AS "Recipe__Recipe_categories_metaDescription", "Recipe__Recipe_categories"."metaKeywords" AS "Recipe__Recipe_categories_metaKeywords", "Recipe__Recipe_categories"."parent" AS "Recipe__Recipe_categories_parent", "Recipe__Recipe_categories"."image" AS "Recipe__Recipe_categories_image", "Recipe__Recipe_categories"."top" AS "Recipe__Recipe_categories_top", "Recipe__Recipe_categories"."columns" AS "Recipe__Recipe_categories_columns", "Recipe__Recipe_categories"."sortOrder" AS "Recipe__Recipe_categories_sortOrder", "Recipe__Recipe_categories"."isActive" AS "Recipe__Recipe_categories_isActive", "Recipe__Recipe_categories"."seoKeyword" AS "Recipe__Recipe_categories_seoKeyword", "Recipe__Recipe_categories"."createdAt" AS "Recipe__Recipe_categories_createdAt", "Recipe__Recipe_categories"."updatedAt" AS "Recipe__Recipe_categories_updatedAt" FROM "recipes" "Recipe" LEFT JOIN "recipe_category_assignments" "Recipe_Recipe__Recipe_categories" ON "Recipe_Recipe__Recipe_categories"."recipeId"="Recipe"."id" LEFT JOIN "recipe_categories" "Recipe__Recipe_categories" ON "Recipe__Recipe_categories"."id"="Recipe_Recipe__Recipe_categories"."categoryId" WHERE (("Recipe"."id" = $1)) FOR UPDATE) "distinctAlias" ORDER BY "Recipe_id" ASC LIMIT 1',
+  parameters: [ '7a3c1cf6-9702-4edd-9900-9d64c2d88f78' ],
+  driverError: error: FOR UPDATE cannot be applied to the nullable side of an outer join
+      at C:\DesiMore-backend\DesiMore-backend\node_modules\pg\lib\client.js:545:17
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async PostgresQueryRunner.query (C:\DesiMore-backend\DesiMore-backend\node_modules\typeorm\src\driver\postgres\PostgresQueryRunner.ts:254:25)
+      at async SelectQueryBuilder.loadRawResults (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:3808:25)
+      at async SelectQueryBuilder.getRawMany (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1627:29)
+      at async SelectQueryBuilder.executeEntitiesAndRawResults (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:3470:26)
+      at async SelectQueryBuilder.getRawAndEntities (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1671:29)
+      at async SelectQueryBuilder.getOne (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1698:25) {
+    length: 133,
+    severity: 'ERROR',
+    code: '0A000',
+    detail: undefined,
+    hint: undefined,
+    position: undefined,
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: undefined,
+    schema: undefined,
+    table: undefined,
+    column: undefined,
+    dataType: undefined,
+    constraint: undefined,
+    file: 'initsplan.c',
+    line: '1807',
+    routine: 'make_outerjoininfo'
+  },
+  length: 133,
+  severity: 'ERROR',
+  code: '0A000',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'initsplan.c',
+  line: '1807',
+  routine: 'make_outerjoininfo'
+}
+QueryFailedError: FOR UPDATE cannot be applied to the nullable side of an outer join
+    at PostgresQueryRunner.query (C:\DesiMore-backend\DesiMore-backend\node_modules\typeorm\src\driver\postgres\PostgresQueryRunner.ts:325:19)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async SelectQueryBuilder.loadRawResults (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:3808:25)
+    at async SelectQueryBuilder.getRawMany (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1627:29)
+    at async SelectQueryBuilder.executeEntitiesAndRawResults (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:3470:26)
+    at async SelectQueryBuilder.getRawAndEntities (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1671:29)
+    at async SelectQueryBuilder.getOne (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1698:25) {
+  query: 'SELECT DISTINCT "distinctAlias"."Recipe_id" AS "ids_Recipe_id" FROM (SELECT "Recipe"."id" AS "Recipe_id", "Recipe"."name" AS "Recipe_name", "Recipe"."description" AS "Recipe_description", "Recipe"."metaTitle" AS "Recipe_metaTitle", "Recipe"."metaDescription" AS "Recipe_metaDescription", "Recipe"."metaKeywords" AS "Recipe_metaKeywords", "Recipe"."sortOrder" AS "Recipe_sortOrder", "Recipe"."isActive" AS "Recipe_isActive", "Recipe"."image" AS "Recipe_image", "Recipe"."additionalImages" AS "Recipe_additionalImages", "Recipe"."relatedProducts" AS "Recipe_relatedProducts", "Recipe"."seoKeyword" AS "Recipe_seoKeyword", "Recipe"."createdAt" AS "Recipe_createdAt", "Recipe"."updatedAt" AS "Recipe_updatedAt", "Recipe__Recipe_categories"."id" AS "Recipe__Recipe_categories_id", "Recipe__Recipe_categories"."name" AS "Recipe__Recipe_categories_name", "Recipe__Recipe_categories"."description" AS "Recipe__Recipe_categories_description", "Recipe__Recipe_categories"."metaTitle" AS "Recipe__Recipe_categories_metaTitle", "Recipe__Recipe_categories"."metaDescription" AS "Recipe__Recipe_categories_metaDescription", "Recipe__Recipe_categories"."metaKeywords" AS "Recipe__Recipe_categories_metaKeywords", "Recipe__Recipe_categories"."parent" AS "Recipe__Recipe_categories_parent", "Recipe__Recipe_categories"."image" AS "Recipe__Recipe_categories_image", "Recipe__Recipe_categories"."top" AS "Recipe__Recipe_categories_top", "Recipe__Recipe_categories"."columns" AS "Recipe__Recipe_categories_columns", "Recipe__Recipe_categories"."sortOrder" AS "Recipe__Recipe_categories_sortOrder", "Recipe__Recipe_categories"."isActive" AS "Recipe__Recipe_categories_isActive", "Recipe__Recipe_categories"."seoKeyword" AS "Recipe__Recipe_categories_seoKeyword", "Recipe__Recipe_categories"."createdAt" AS "Recipe__Recipe_categories_createdAt", "Recipe__Recipe_categories"."updatedAt" AS "Recipe__Recipe_categories_updatedAt" FROM "recipes" "Recipe" LEFT JOIN "recipe_category_assignments" "Recipe_Recipe__Recipe_categories" ON "Recipe_Recipe__Recipe_categories"."recipeId"="Recipe"."id" LEFT JOIN "recipe_categories" "Recipe__Recipe_categories" ON "Recipe__Recipe_categories"."id"="Recipe_Recipe__Recipe_categories"."categoryId" WHERE (("Recipe"."id" = $1)) FOR UPDATE) "distinctAlias" ORDER BY "Recipe_id" ASC LIMIT 1',
+  parameters: [ '7a3c1cf6-9702-4edd-9900-9d64c2d88f78' ],
+  driverError: error: FOR UPDATE cannot be applied to the nullable side of an outer join
+      at C:\DesiMore-backend\DesiMore-backend\node_modules\pg\lib\client.js:545:17
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async PostgresQueryRunner.query (C:\DesiMore-backend\DesiMore-backend\node_modules\typeorm\src\driver\postgres\PostgresQueryRunner.ts:254:25)
+      at async SelectQueryBuilder.loadRawResults (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:3808:25)
+      at async SelectQueryBuilder.getRawMany (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1627:29)
+      at async SelectQueryBuilder.executeEntitiesAndRawResults (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:3470:26)
+      at async SelectQueryBuilder.getRawAndEntities (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1671:29)
+      at async SelectQueryBuilder.getOne (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1698:25) {
+    length: 133,
+    severity: 'ERROR',
+    code: '0A000',
+    detail: undefined,
+    hint: undefined,
+    position: undefined,
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: undefined,
+    schema: undefined,
+    table: undefined,
+    column: undefined,
+    dataType: undefined,
+    constraint: undefined,
+    file: 'initsplan.c',
+    line: '1807',
+    routine: 'make_outerjoininfo'
+  },
+  length: 133,
+  severity: 'ERROR',
+  code: '0A000',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'initsplan.c',
+  line: '1807',
+  routine: 'make_outerjoininfo'
+}
+QueryFailedError: FOR UPDATE cannot be applied to the nullable side of an outer join
+    at PostgresQueryRunner.query (C:\DesiMore-backend\DesiMore-backend\node_modules\typeorm\src\driver\postgres\PostgresQueryRunner.ts:325:19)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async SelectQueryBuilder.loadRawResults (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:3808:25)
+    at async SelectQueryBuilder.getRawMany (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1627:29)
+    at async SelectQueryBuilder.executeEntitiesAndRawResults (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:3470:26)
+    at async SelectQueryBuilder.getRawAndEntities (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1671:29)
+    at async SelectQueryBuilder.getOne (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1698:25) {
+  query: 'SELECT DISTINCT "distinctAlias"."Recipe_id" AS "ids_Recipe_id" FROM (SELECT "Recipe"."id" AS "Recipe_id", "Recipe"."name" AS "Recipe_name", "Recipe"."description" AS "Recipe_description", "Recipe"."metaTitle" AS "Recipe_metaTitle", "Recipe"."metaDescription" AS "Recipe_metaDescription", "Recipe"."metaKeywords" AS "Recipe_metaKeywords", "Recipe"."sortOrder" AS "Recipe_sortOrder", "Recipe"."isActive" AS "Recipe_isActive", "Recipe"."image" AS "Recipe_image", "Recipe"."additionalImages" AS "Recipe_additionalImages", "Recipe"."relatedProducts" AS "Recipe_relatedProducts", "Recipe"."seoKeyword" AS "Recipe_seoKeyword", "Recipe"."createdAt" AS "Recipe_createdAt", "Recipe"."updatedAt" AS "Recipe_updatedAt", "Recipe__Recipe_categories"."id" AS "Recipe__Recipe_categories_id", "Recipe__Recipe_categories"."name" AS "Recipe__Recipe_categories_name", "Recipe__Recipe_categories"."description" AS "Recipe__Recipe_categories_description", "Recipe__Recipe_categories"."metaTitle" AS "Recipe__Recipe_categories_metaTitle", "Recipe__Recipe_categories"."metaDescription" AS "Recipe__Recipe_categories_metaDescription", "Recipe__Recipe_categories"."metaKeywords" AS "Recipe__Recipe_categories_metaKeywords", "Recipe__Recipe_categories"."parent" AS "Recipe__Recipe_categories_parent", "Recipe__Recipe_categories"."image" AS "Recipe__Recipe_categories_image", "Recipe__Recipe_categories"."top" AS "Recipe__Recipe_categories_top", "Recipe__Recipe_categories"."columns" AS "Recipe__Recipe_categories_columns", "Recipe__Recipe_categories"."sortOrder" AS "Recipe__Recipe_categories_sortOrder", "Recipe__Recipe_categories"."isActive" AS "Recipe__Recipe_categories_isActive", "Recipe__Recipe_categories"."seoKeyword" AS "Recipe__Recipe_categories_seoKeyword", "Recipe__Recipe_categories"."createdAt" AS "Recipe__Recipe_categories_createdAt", "Recipe__Recipe_categories"."updatedAt" AS "Recipe__Recipe_categories_updatedAt" FROM "recipes" "Recipe" LEFT JOIN "recipe_category_assignments" "Recipe_Recipe__Recipe_categories" ON "Recipe_Recipe__Recipe_categories"."recipeId"="Recipe"."id" LEFT JOIN "recipe_categories" "Recipe__Recipe_categories" ON "Recipe__Recipe_categories"."id"="Recipe_Recipe__Recipe_categories"."categoryId" WHERE (("Recipe"."id" = $1)) FOR UPDATE) "distinctAlias" ORDER BY "Recipe_id" ASC LIMIT 1',
+  parameters: [ '7a3c1cf6-9702-4edd-9900-9d64c2d88f78' ],
+  driverError: error: FOR UPDATE cannot be applied to the nullable side of an outer join
+      at C:\DesiMore-backend\DesiMore-backend\node_modules\pg\lib\client.js:545:17
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async PostgresQueryRunner.query (C:\DesiMore-backend\DesiMore-backend\node_modules\typeorm\src\driver\postgres\PostgresQueryRunner.ts:254:25)
+      at async SelectQueryBuilder.loadRawResults (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:3808:25)
+      at async SelectQueryBuilder.getRawMany (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1627:29)
+      at async SelectQueryBuilder.executeEntitiesAndRawResults (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:3470:26)
+      at async SelectQueryBuilder.getRawAndEntities (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1671:29)
+      at async SelectQueryBuilder.getOne (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1698:25) {
+    length: 133,
+    severity: 'ERROR',
+    code: '0A000',
+    detail: undefined,
+    hint: undefined,
+    position: undefined,
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: undefined,
+    schema: undefined,
+    table: undefined,
+    column: undefined,
+    dataType: undefined,
+    constraint: undefined,
+    file: 'initsplan.c',
+    line: '1807',
+    routine: 'make_outerjoininfo'
+  },
+  length: 133,
+  severity: 'ERROR',
+  code: '0A000',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'initsplan.c',
+  line: '1807',
+  routine: 'make_outerjoininfo'
+}
+QueryFailedError: FOR UPDATE cannot be applied to the nullable side of an outer join
+    at PostgresQueryRunner.query (C:\DesiMore-backend\DesiMore-backend\node_modules\typeorm\src\driver\postgres\PostgresQueryRunner.ts:325:19)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async SelectQueryBuilder.loadRawResults (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:3808:25)
+    at async SelectQueryBuilder.getRawMany (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1627:29)
+    at async SelectQueryBuilder.executeEntitiesAndRawResults (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:3470:26)
+    at async SelectQueryBuilder.getRawAndEntities (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1671:29)
+    at async SelectQueryBuilder.getOne (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1698:25) {
+  query: 'SELECT DISTINCT "distinctAlias"."Recipe_id" AS "ids_Recipe_id" FROM (SELECT "Recipe"."id" AS "Recipe_id", "Recipe"."name" AS "Recipe_name", "Recipe"."description" AS "Recipe_description", "Recipe"."metaTitle" AS "Recipe_metaTitle", "Recipe"."metaDescription" AS "Recipe_metaDescription", "Recipe"."metaKeywords" AS "Recipe_metaKeywords", "Recipe"."sortOrder" AS "Recipe_sortOrder", "Recipe"."isActive" AS "Recipe_isActive", "Recipe"."image" AS "Recipe_image", "Recipe"."additionalImages" AS "Recipe_additionalImages", "Recipe"."relatedProducts" AS "Recipe_relatedProducts", "Recipe"."seoKeyword" AS "Recipe_seoKeyword", "Recipe"."createdAt" AS "Recipe_createdAt", "Recipe"."updatedAt" AS "Recipe_updatedAt", "Recipe__Recipe_categories"."id" AS "Recipe__Recipe_categories_id", "Recipe__Recipe_categories"."name" AS "Recipe__Recipe_categories_name", "Recipe__Recipe_categories"."description" AS "Recipe__Recipe_categories_description", "Recipe__Recipe_categories"."metaTitle" AS "Recipe__Recipe_categories_metaTitle", "Recipe__Recipe_categories"."metaDescription" AS "Recipe__Recipe_categories_metaDescription", "Recipe__Recipe_categories"."metaKeywords" AS "Recipe__Recipe_categories_metaKeywords", "Recipe__Recipe_categories"."parent" AS "Recipe__Recipe_categories_parent", "Recipe__Recipe_categories"."image" AS "Recipe__Recipe_categories_image", "Recipe__Recipe_categories"."top" AS "Recipe__Recipe_categories_top", "Recipe__Recipe_categories"."columns" AS "Recipe__Recipe_categories_columns", "Recipe__Recipe_categories"."sortOrder" AS "Recipe__Recipe_categories_sortOrder", "Recipe__Recipe_categories"."isActive" AS "Recipe__Recipe_categories_isActive", "Recipe__Recipe_categories"."seoKeyword" AS "Recipe__Recipe_categories_seoKeyword", "Recipe__Recipe_categories"."createdAt" AS "Recipe__Recipe_categories_createdAt", "Recipe__Recipe_categories"."updatedAt" AS "Recipe__Recipe_categories_updatedAt" FROM "recipes" "Recipe" LEFT JOIN "recipe_category_assignments" "Recipe_Recipe__Recipe_categories" ON "Recipe_Recipe__Recipe_categories"."recipeId"="Recipe"."id" LEFT JOIN "recipe_categories" "Recipe__Recipe_categories" ON "Recipe__Recipe_categories"."id"="Recipe_Recipe__Recipe_categories"."categoryId" WHERE (("Recipe"."id" = $1)) FOR UPDATE) "distinctAlias" ORDER BY "Recipe_id" ASC LIMIT 1',
+  parameters: [ '7a3c1cf6-9702-4edd-9900-9d64c2d88f78' ],
+  driverError: error: FOR UPDATE cannot be applied to the nullable side of an outer join
+      at C:\DesiMore-backend\DesiMore-backend\node_modules\pg\lib\client.js:545:17
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async PostgresQueryRunner.query (C:\DesiMore-backend\DesiMore-backend\node_modules\typeorm\src\driver\postgres\PostgresQueryRunner.ts:254:25)
+      at async SelectQueryBuilder.loadRawResults (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:3808:25)
+      at async SelectQueryBuilder.getRawMany (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1627:29)
+      at async SelectQueryBuilder.executeEntitiesAndRawResults (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:3470:26)
+      at async SelectQueryBuilder.getRawAndEntities (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1671:29)
+      at async SelectQueryBuilder.getOne (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1698:25) {
+    length: 133,
+    severity: 'ERROR',
+    code: '0A000',
+    detail: undefined,
+    hint: undefined,
+    position: undefined,
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: undefined,
+    schema: undefined,
+    table: undefined,
+    column: undefined,
+    dataType: undefined,
+    constraint: undefined,
+    file: 'initsplan.c',
+    line: '1807',
+    routine: 'make_outerjoininfo'
+  },
+  length: 133,
+  severity: 'ERROR',
+  code: '0A000',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'initsplan.c',
+  line: '1807',
+  routine: 'make_outerjoininfo'
+}
+QueryFailedError: FOR UPDATE cannot be applied to the nullable side of an outer join
+    at PostgresQueryRunner.query (C:\DesiMore-backend\DesiMore-backend\node_modules\typeorm\src\driver\postgres\PostgresQueryRunner.ts:325:19)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async SelectQueryBuilder.loadRawResults (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:3808:25)
+    at async SelectQueryBuilder.getRawMany (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1627:29)
+    at async SelectQueryBuilder.executeEntitiesAndRawResults (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:3470:26)
+    at async SelectQueryBuilder.getRawAndEntities (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1671:29)
+    at async SelectQueryBuilder.getOne (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1698:25) {
+  query: 'SELECT DISTINCT "distinctAlias"."Recipe_id" AS "ids_Recipe_id" FROM (SELECT "Recipe"."id" AS "Recipe_id", "Recipe"."name" AS "Recipe_name", "Recipe"."description" AS "Recipe_description", "Recipe"."metaTitle" AS "Recipe_metaTitle", "Recipe"."metaDescription" AS "Recipe_metaDescription", "Recipe"."metaKeywords" AS "Recipe_metaKeywords", "Recipe"."sortOrder" AS "Recipe_sortOrder", "Recipe"."isActive" AS "Recipe_isActive", "Recipe"."image" AS "Recipe_image", "Recipe"."additionalImages" AS "Recipe_additionalImages", "Recipe"."relatedProducts" AS "Recipe_relatedProducts", "Recipe"."seoKeyword" AS "Recipe_seoKeyword", "Recipe"."createdAt" AS "Recipe_createdAt", "Recipe"."updatedAt" AS "Recipe_updatedAt", "Recipe__Recipe_categories"."id" AS "Recipe__Recipe_categories_id", "Recipe__Recipe_categories"."name" AS "Recipe__Recipe_categories_name", "Recipe__Recipe_categories"."description" AS "Recipe__Recipe_categories_description", "Recipe__Recipe_categories"."metaTitle" AS "Recipe__Recipe_categories_metaTitle", "Recipe__Recipe_categories"."metaDescription" AS "Recipe__Recipe_categories_metaDescription", "Recipe__Recipe_categories"."metaKeywords" AS "Recipe__Recipe_categories_metaKeywords", "Recipe__Recipe_categories"."parent" AS "Recipe__Recipe_categories_parent", "Recipe__Recipe_categories"."image" AS "Recipe__Recipe_categories_image", "Recipe__Recipe_categories"."top" AS "Recipe__Recipe_categories_top", "Recipe__Recipe_categories"."columns" AS "Recipe__Recipe_categories_columns", "Recipe__Recipe_categories"."sortOrder" AS "Recipe__Recipe_categories_sortOrder", "Recipe__Recipe_categories"."isActive" AS "Recipe__Recipe_categories_isActive", "Recipe__Recipe_categories"."seoKeyword" AS "Recipe__Recipe_categories_seoKeyword", "Recipe__Recipe_categories"."createdAt" AS "Recipe__Recipe_categories_createdAt", "Recipe__Recipe_categories"."updatedAt" AS "Recipe__Recipe_categories_updatedAt" FROM "recipes" "Recipe" LEFT JOIN "recipe_category_assignments" "Recipe_Recipe__Recipe_categories" ON "Recipe_Recipe__Recipe_categories"."recipeId"="Recipe"."id" LEFT JOIN "recipe_categories" "Recipe__Recipe_categories" ON "Recipe__Recipe_categories"."id"="Recipe_Recipe__Recipe_categories"."categoryId" WHERE (("Recipe"."id" = $1)) FOR UPDATE) "distinctAlias" ORDER BY "Recipe_id" ASC LIMIT 1',
+  parameters: [ '90c13cea-2803-4da9-8406-c7478a0e0240' ],
+  driverError: error: FOR UPDATE cannot be applied to the nullable side of an outer join
+      at C:\DesiMore-backend\DesiMore-backend\node_modules\pg\lib\client.js:545:17
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async PostgresQueryRunner.query (C:\DesiMore-backend\DesiMore-backend\node_modules\typeorm\src\driver\postgres\PostgresQueryRunner.ts:254:25)
+      at async SelectQueryBuilder.loadRawResults (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:3808:25)
+      at async SelectQueryBuilder.getRawMany (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1627:29)
+      at async SelectQueryBuilder.executeEntitiesAndRawResults (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:3470:26)
+      at async SelectQueryBuilder.getRawAndEntities (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1671:29)
+      at async SelectQueryBuilder.getOne (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1698:25) {
+    length: 133,
+    severity: 'ERROR',
+    code: '0A000',
+    detail: undefined,
+    hint: undefined,
+    position: undefined,
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: undefined,
+    schema: undefined,
+    table: undefined,
+    column: undefined,
+    dataType: undefined,
+    constraint: undefined,
+    file: 'initsplan.c',
+    line: '1807',
+    routine: 'make_outerjoininfo'
+  },
+  length: 133,
+  severity: 'ERROR',
+  code: '0A000',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'initsplan.c',
+  line: '1807',
+  routine: 'make_outerjoininfo'
+}
+QueryFailedError: FOR UPDATE cannot be applied to the nullable side of an outer join
+    at PostgresQueryRunner.query (C:\DesiMore-backend\DesiMore-backend\node_modules\typeorm\src\driver\postgres\PostgresQueryRunner.ts:325:19)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async SelectQueryBuilder.loadRawResults (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:3808:25)
+    at async SelectQueryBuilder.getRawMany (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1627:29)
+    at async SelectQueryBuilder.executeEntitiesAndRawResults (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:3470:26)
+    at async SelectQueryBuilder.getRawAndEntities (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1671:29)
+    at async SelectQueryBuilder.getOne (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1698:25) {
+  query: 'SELECT DISTINCT "distinctAlias"."Recipe_id" AS "ids_Recipe_id" FROM (SELECT "Recipe"."id" AS "Recipe_id", "Recipe"."name" AS "Recipe_name", "Recipe"."description" AS "Recipe_description", "Recipe"."metaTitle" AS "Recipe_metaTitle", "Recipe"."metaDescription" AS "Recipe_metaDescription", "Recipe"."metaKeywords" AS "Recipe_metaKeywords", "Recipe"."sortOrder" AS "Recipe_sortOrder", "Recipe"."isActive" AS "Recipe_isActive", "Recipe"."image" AS "Recipe_image", "Recipe"."additionalImages" AS "Recipe_additionalImages", "Recipe"."relatedProducts" AS "Recipe_relatedProducts", "Recipe"."seoKeyword" AS "Recipe_seoKeyword", "Recipe"."createdAt" AS "Recipe_createdAt", "Recipe"."updatedAt" AS "Recipe_updatedAt", "Recipe__Recipe_categories"."id" AS "Recipe__Recipe_categories_id", "Recipe__Recipe_categories"."name" AS "Recipe__Recipe_categories_name", "Recipe__Recipe_categories"."description" AS "Recipe__Recipe_categories_description", "Recipe__Recipe_categories"."metaTitle" AS "Recipe__Recipe_categories_metaTitle", "Recipe__Recipe_categories"."metaDescription" AS "Recipe__Recipe_categories_metaDescription", "Recipe__Recipe_categories"."metaKeywords" AS "Recipe__Recipe_categories_metaKeywords", "Recipe__Recipe_categories"."parent" AS "Recipe__Recipe_categories_parent", "Recipe__Recipe_categories"."image" AS "Recipe__Recipe_categories_image", "Recipe__Recipe_categories"."top" AS "Recipe__Recipe_categories_top", "Recipe__Recipe_categories"."columns" AS "Recipe__Recipe_categories_columns", "Recipe__Recipe_categories"."sortOrder" AS "Recipe__Recipe_categories_sortOrder", "Recipe__Recipe_categories"."isActive" AS "Recipe__Recipe_categories_isActive", "Recipe__Recipe_categories"."seoKeyword" AS "Recipe__Recipe_categories_seoKeyword", "Recipe__Recipe_categories"."createdAt" AS "Recipe__Recipe_categories_createdAt", "Recipe__Recipe_categories"."updatedAt" AS "Recipe__Recipe_categories_updatedAt" FROM "recipes" "Recipe" LEFT JOIN "recipe_category_assignments" "Recipe_Recipe__Recipe_categories" ON "Recipe_Recipe__Recipe_categories"."recipeId"="Recipe"."id" LEFT JOIN "recipe_categories" "Recipe__Recipe_categories" ON "Recipe__Recipe_categories"."id"="Recipe_Recipe__Recipe_categories"."categoryId" WHERE (("Recipe"."id" = $1)) FOR UPDATE) "distinctAlias" ORDER BY "Recipe_id" ASC LIMIT 1',
+  parameters: [ '7a3c1cf6-9702-4edd-9900-9d64c2d88f78' ],
+  driverError: error: FOR UPDATE cannot be applied to the nullable side of an outer join
+      at C:\DesiMore-backend\DesiMore-backend\node_modules\pg\lib\client.js:545:17
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async PostgresQueryRunner.query (C:\DesiMore-backend\DesiMore-backend\node_modules\typeorm\src\driver\postgres\PostgresQueryRunner.ts:254:25)
+      at async SelectQueryBuilder.loadRawResults (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:3808:25)
+      at async SelectQueryBuilder.getRawMany (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1627:29)
+      at async SelectQueryBuilder.executeEntitiesAndRawResults (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:3470:26)
+      at async SelectQueryBuilder.getRawAndEntities (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1671:29)
+      at async SelectQueryBuilder.getOne (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1698:25) {
+    length: 133,
+    severity: 'ERROR',
+    code: '0A000',
+    detail: undefined,
+    hint: undefined,
+    position: undefined,
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: undefined,
+    schema: undefined,
+    table: undefined,
+    column: undefined,
+    dataType: undefined,
+    constraint: undefined,
+    file: 'initsplan.c',
+    line: '1807',
+    routine: 'make_outerjoininfo'
+  },
+  length: 133,
+  severity: 'ERROR',
+  code: '0A000',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'initsplan.c',
+  line: '1807',
+  routine: 'make_outerjoininfo'
+}
+QueryFailedError: FOR UPDATE cannot be applied to the nullable side of an outer join
+    at PostgresQueryRunner.query (C:\DesiMore-backend\DesiMore-backend\node_modules\typeorm\src\driver\postgres\PostgresQueryRunner.ts:325:19)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async SelectQueryBuilder.loadRawResults (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:3808:25)
+    at async SelectQueryBuilder.getRawMany (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1627:29)
+    at async SelectQueryBuilder.executeEntitiesAndRawResults (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:3470:26)
+    at async SelectQueryBuilder.getRawAndEntities (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1671:29)
+    at async SelectQueryBuilder.getOne (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1698:25) {
+  query: 'SELECT DISTINCT "distinctAlias"."Recipe_id" AS "ids_Recipe_id" FROM (SELECT "Recipe"."id" AS "Recipe_id", "Recipe"."name" AS "Recipe_name", "Recipe"."description" AS "Recipe_description", "Recipe"."metaTitle" AS "Recipe_metaTitle", "Recipe"."metaDescription" AS "Recipe_metaDescription", "Recipe"."metaKeywords" AS "Recipe_metaKeywords", "Recipe"."sortOrder" AS "Recipe_sortOrder", "Recipe"."isActive" AS "Recipe_isActive", "Recipe"."image" AS "Recipe_image", "Recipe"."additionalImages" AS "Recipe_additionalImages", "Recipe"."relatedProducts" AS "Recipe_relatedProducts", "Recipe"."seoKeyword" AS "Recipe_seoKeyword", "Recipe"."createdAt" AS "Recipe_createdAt", "Recipe"."updatedAt" AS "Recipe_updatedAt", "Recipe__Recipe_categories"."id" AS "Recipe__Recipe_categories_id", "Recipe__Recipe_categories"."name" AS "Recipe__Recipe_categories_name", "Recipe__Recipe_categories"."description" AS "Recipe__Recipe_categories_description", "Recipe__Recipe_categories"."metaTitle" AS "Recipe__Recipe_categories_metaTitle", "Recipe__Recipe_categories"."metaDescription" AS "Recipe__Recipe_categories_metaDescription", "Recipe__Recipe_categories"."metaKeywords" AS "Recipe__Recipe_categories_metaKeywords", "Recipe__Recipe_categories"."parent" AS "Recipe__Recipe_categories_parent", "Recipe__Recipe_categories"."image" AS "Recipe__Recipe_categories_image", "Recipe__Recipe_categories"."top" AS "Recipe__Recipe_categories_top", "Recipe__Recipe_categories"."columns" AS "Recipe__Recipe_categories_columns", "Recipe__Recipe_categories"."sortOrder" AS "Recipe__Recipe_categories_sortOrder", "Recipe__Recipe_categories"."isActive" AS "Recipe__Recipe_categories_isActive", "Recipe__Recipe_categories"."seoKeyword" AS "Recipe__Recipe_categories_seoKeyword", "Recipe__Recipe_categories"."createdAt" AS "Recipe__Recipe_categories_createdAt", "Recipe__Recipe_categories"."updatedAt" AS "Recipe__Recipe_categories_updatedAt" FROM "recipes" "Recipe" LEFT JOIN "recipe_category_assignments" "Recipe_Recipe__Recipe_categories" ON "Recipe_Recipe__Recipe_categories"."recipeId"="Recipe"."id" LEFT JOIN "recipe_categories" "Recipe__Recipe_categories" ON "Recipe__Recipe_categories"."id"="Recipe_Recipe__Recipe_categories"."categoryId" WHERE (("Recipe"."id" = $1)) FOR UPDATE) "distinctAlias" ORDER BY "Recipe_id" ASC LIMIT 1',
+  parameters: [ '7a3c1cf6-9702-4edd-9900-9d64c2d88f78' ],
+  driverError: error: FOR UPDATE cannot be applied to the nullable side of an outer join
+      at C:\DesiMore-backend\DesiMore-backend\node_modules\pg\lib\client.js:545:17
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async PostgresQueryRunner.query (C:\DesiMore-backend\DesiMore-backend\node_modules\typeorm\src\driver\postgres\PostgresQueryRunner.ts:254:25)
+      at async SelectQueryBuilder.loadRawResults (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:3808:25)
+      at async SelectQueryBuilder.getRawMany (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1627:29)
+      at async SelectQueryBuilder.executeEntitiesAndRawResults (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:3470:26)
+      at async SelectQueryBuilder.getRawAndEntities (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1671:29)
+      at async SelectQueryBuilder.getOne (C:\DesiMore-backend\DesiMore-backend\node_modules\src\query-builder\SelectQueryBuilder.ts:1698:25) {
+    length: 133,
+    severity: 'ERROR',
+    code: '0A000',
+    detail: undefined,
+    hint: undefined,
+    position: undefined,
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: undefined,
+    schema: undefined,
+    table: undefined,
+    column: undefined,
+    dataType: undefined,
+    constraint: undefined,
+    file: 'initsplan.c',
+    line: '1807',
+    routine: 'make_outerjoininfo'
+  },
+  length: 133,
+  severity: 'ERROR',
+  code: '0A000',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'initsplan.c',
+  line: '1807',
+  routine: 'make_outerjoininfo'
+}

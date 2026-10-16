@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.RecipeCategoryController = void 0;
 const data_source_1 = require("../data-source");
 const recipe_category_entity_1 = require("../entities/recipe-category.entity");
+const recipe_entity_1 = require("../entities/recipe.entity");
 const recipe_category_service_1 = require("../services/recipe-category.service");
 const api_error_1 = require("../utils/api-error");
 const handle = (action) => (req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -23,6 +24,13 @@ const handle = (action) => (req, res) => __awaiter(void 0, void 0, void 0, funct
     }
 });
 exports.RecipeCategoryController = {
+    publicList: handle((_req, res) => __awaiter(void 0, void 0, void 0, function* () {
+        const categories = yield data_source_1.AppDataSource.getRepository(recipe_category_entity_1.RecipeCategory).find({
+            where: { isActive: true },
+            order: { sortOrder: "ASC", name: "ASC" },
+        });
+        res.json({ data: categories });
+    })),
     create: handle((req, res) => __awaiter(void 0, void 0, void 0, function* () {
         const category = yield new recipe_category_service_1.RecipeCategoryService().save(req.body);
         res.status(201).json(category);
@@ -60,7 +68,19 @@ exports.RecipeCategoryController = {
     })),
     remove: handle((req, res) => __awaiter(void 0, void 0, void 0, function* () {
         const repository = data_source_1.AppDataSource.getRepository(recipe_category_entity_1.RecipeCategory);
-        const result = yield repository.delete(String(req.params.id));
+        const categoryId = String(req.params.id);
+        const childCount = yield repository.count({ where: { parent: categoryId } });
+        if (childCount > 0) {
+            throw new api_error_1.ApiError(409, `This category has ${childCount} child category/categories and cannot be deleted`);
+        }
+        const assignedRecipes = yield data_source_1.AppDataSource.getRepository(recipe_entity_1.Recipe)
+            .createQueryBuilder("recipe")
+            .innerJoin("recipe.categories", "category", "category.id = :categoryId", { categoryId })
+            .getCount();
+        if (assignedRecipes > 0) {
+            throw new api_error_1.ApiError(409, `This category is assigned to ${assignedRecipes} recipe(s) and cannot be deleted`);
+        }
+        const result = yield repository.delete(categoryId);
         if (!result.affected) {
             throw new api_error_1.ApiError(404, "Recipe category not found");
         }

@@ -6,6 +6,8 @@ import { authenticate } from "../middlewares/auth.middleware";
 import { checkPermission } from "../middlewares/rbac.middleware";
 
 const router = Router();
+router.get("/public", controller.publicList);
+router.get("/public/:identifier", controller.publicGet);
 router.use(authenticate);
 router.param("id", (_req, res, next, id) => {
   if (!isUUID(id)) { res.status(400).json({ message: "Invalid recipe ID" }); return; }

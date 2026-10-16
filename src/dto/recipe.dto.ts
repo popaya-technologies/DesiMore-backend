@@ -6,6 +6,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  IsUUID,
   Matches,
   Max,
   MaxLength,
@@ -39,7 +40,7 @@ export class CreateRecipeDto {
   @ValidateIf(supplied) image?: string | null;
   @IsOptional() @IsArray() @ArrayMaxSize(100) @ValidateNested({ each: true }) @Type(() => RecipeImageDto)
   additionalImages?: RecipeImageDto[];
-  @IsOptional() @IsArray() @ArrayMaxSize(100) @IsString({ each: true }) categories?: string[];
+  @IsOptional() @IsArray() @ArrayMaxSize(100) @IsUUID("4", { each: true }) categoryIds?: string[];
   @IsOptional() @IsArray() @ArrayMaxSize(100) @IsString({ each: true }) relatedProducts?: string[];
   @IsOptional() @IsString() @MaxLength(255) seoKeyword?: string | null;
 }
@@ -55,7 +56,7 @@ export class UpdateRecipeDto {
   @ValidateIf(supplied) image?: string | null;
   @ValidateIf(supplied) @IsArray() @ArrayMaxSize(100) @ValidateNested({ each: true }) @Type(() => RecipeImageDto)
   additionalImages?: RecipeImageDto[];
-  @ValidateIf(supplied) @IsArray() @ArrayMaxSize(100) @IsString({ each: true }) categories?: string[];
+  @ValidateIf(supplied) @IsArray() @ArrayMaxSize(100) @IsUUID("4", { each: true }) categoryIds?: string[];
   @ValidateIf(supplied) @IsArray() @ArrayMaxSize(100) @IsString({ each: true }) relatedProducts?: string[];
   @IsOptional() @IsString() @MaxLength(255) seoKeyword?: string | null;
 }

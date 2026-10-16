@@ -89,9 +89,9 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsArray)(),
     (0, class_validator_1.ArrayMaxSize)(100),
-    (0, class_validator_1.IsString)({ each: true }),
+    (0, class_validator_1.IsUUID)("4", { each: true }),
     __metadata("design:type", Array)
-], CreateRecipeDto.prototype, "categories", void 0);
+], CreateRecipeDto.prototype, "categoryIds", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsArray)(),
@@ -168,9 +168,9 @@ __decorate([
     (0, class_validator_1.ValidateIf)(supplied),
     (0, class_validator_1.IsArray)(),
     (0, class_validator_1.ArrayMaxSize)(100),
-    (0, class_validator_1.IsString)({ each: true }),
+    (0, class_validator_1.IsUUID)("4", { each: true }),
     __metadata("design:type", Array)
-], UpdateRecipeDto.prototype, "categories", void 0);
+], UpdateRecipeDto.prototype, "categoryIds", void 0);
 __decorate([
     (0, class_validator_1.ValidateIf)(supplied),
     (0, class_validator_1.IsArray)(),

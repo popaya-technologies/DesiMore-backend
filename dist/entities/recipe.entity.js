@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Recipe = void 0;
 const typeorm_1 = require("typeorm");
+const recipe_category_entity_1 = require("./recipe-category.entity");
 let Recipe = class Recipe {
 };
 exports.Recipe = Recipe;
@@ -55,7 +56,12 @@ __decorate([
     __metadata("design:type", Array)
 ], Recipe.prototype, "additionalImages", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: "jsonb", default: () => "'[]'::jsonb" }),
+    (0, typeorm_1.ManyToMany)(() => recipe_category_entity_1.RecipeCategory, category => category.recipes, { onDelete: "RESTRICT" }),
+    (0, typeorm_1.JoinTable)({
+        name: "recipe_category_assignments",
+        joinColumn: { name: "recipeId", referencedColumnName: "id" },
+        inverseJoinColumn: { name: "categoryId", referencedColumnName: "id" },
+    }),
     __metadata("design:type", Array)
 ], Recipe.prototype, "categories", void 0);
 __decorate([

@@ -2,9 +2,11 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  ManyToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
+import { Recipe } from "./recipe.entity";
 
 @Entity("recipe_categories")
 export class RecipeCategory {
@@ -85,6 +87,9 @@ export class RecipeCategory {
     nullable: true,
   })
   seoKeyword: string | null;
+
+  @ManyToMany(() => Recipe, recipe => recipe.categories)
+  recipes: Recipe[];
 
   @CreateDateColumn()
   createdAt: Date;

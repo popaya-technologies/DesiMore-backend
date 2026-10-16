@@ -48,6 +48,7 @@ const data_source_1 = require("../data-source");
 const recipe_entity_1 = require("../entities/recipe.entity");
 const recipe_service_1 = require("../services/recipe.service");
 const api_error_1 = require("../utils/api-error");
+const class_validator_1 = require("class-validator");
 const handle = (action) => (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         yield action(req, res);
@@ -57,10 +58,33 @@ const handle = (action) => (req, res) => __awaiter(void 0, void 0, void 0, funct
     }
 });
 exports.RecipeController = {
+    publicList: handle((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+        const { qb, page, limit } = (0, recipe_service_1.recipeQuery)(Object.assign(Object.assign({}, req.query), { isActive: "true" }));
+        const [data, total] = yield qb.skip((page - 1) * limit).take(limit).getManyAndCount();
+        res.json({ data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } });
+    })),
+    publicGet: handle((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+        const identifier = String(req.params.identifier);
+        if (identifier.length > 255)
+            throw new api_error_1.ApiError(400, "Invalid recipe identifier");
+        const repository = data_source_1.AppDataSource.getRepository(recipe_entity_1.Recipe);
+        const recipe = yield repository.findOne({
+            where: (0, class_validator_1.isUUID)(identifier)
+                ? { id: identifier, isActive: true }
+                : { seoKeyword: identifier, isActive: true },
+            relations: { categories: true },
+        });
+        if (!recipe)
+            throw new api_error_1.ApiError(404, "Recipe not found");
+        res.json(recipe);
+    })),
     create: handle((req, res) => __awaiter(void 0, void 0, void 0, function* () { res.status(201).json(yield new recipe_service_1.RecipeService().save(req.body)); })),
     update: handle((req, res) => __awaiter(void 0, void 0, void 0, function* () { res.json(yield new recipe_service_1.RecipeService().save(req.body, String(req.params.id))); })),
     get: handle((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-        const recipe = yield data_source_1.AppDataSource.getRepository(recipe_entity_1.Recipe).findOneBy({ id: String(req.params.id) });
+        const recipe = yield data_source_1.AppDataSource.getRepository(recipe_entity_1.Recipe).findOne({
+            where: { id: String(req.params.id) },
+            relations: { categories: true },
+        });
         if (!recipe)
             throw new api_error_1.ApiError(404, "Recipe not found");
         res.json(recipe);
