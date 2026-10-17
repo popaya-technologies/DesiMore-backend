@@ -133,6 +133,13 @@ export class CreateProductDto {
   @ValidateIf(nullable) @IsString() @MaxLength(255) metaDescription?:
     string | null;
   @ValidateIf(nullable) @IsString() @MaxLength(255) metaKeyword?: string | null;
+  @ValidateIf(optional)
+  @IsString()
+  @MaxLength(500)
+  @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
+    message: "seoKeyword must contain lowercase letters, numbers and single hyphens only",
+  })
+  seoKeyword?: string;
   @ValidateIf(nullable) @IsString() @MaxLength(2000) tag?: string | null;
   @ValidateIf(optional)
   @IsNumber({ maxDecimalPlaces: 2 })

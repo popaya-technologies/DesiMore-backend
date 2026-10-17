@@ -4,9 +4,12 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
+  Unique,
 } from "typeorm";
 
 @Entity("seo_urls")
+@Unique("UQ_seo_url_keyword_scope", ["store", "language", "keyword"])
+@Unique("UQ_seo_url_query_scope", ["store", "language", "query"])
 export class SeoUrl {
   @PrimaryGeneratedColumn("uuid")
   id!: string;

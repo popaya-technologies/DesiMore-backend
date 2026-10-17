@@ -321,6 +321,15 @@ __decorate([
     __metadata("design:type", String)
 ], CreateProductDto.prototype, "metaKeyword", void 0);
 __decorate([
+    (0, class_validator_1.ValidateIf)(optional),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(500),
+    (0, class_validator_1.Matches)(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
+        message: "seoKeyword must contain lowercase letters, numbers and single hyphens only",
+    }),
+    __metadata("design:type", String)
+], CreateProductDto.prototype, "seoKeyword", void 0);
+__decorate([
     (0, class_validator_1.ValidateIf)(nullable),
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.MaxLength)(2000),

@@ -23,7 +23,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.saveProduct = exports.productResponse = exports.validateProductInput = exports.normalizeProductInput = exports.validateAssetUrl = exports.cleanRichText = exports.PRODUCT_RELATIONS = void 0;
+exports.saveProduct = exports.productResponse = exports.validateProductInput = exports.normalizeProductInput = exports.validateAssetUrl = exports.cleanRichText = exports.deleteProductWithSeo = exports.attachProductSeoKeywords = exports.getProductSeoKeyword = exports.seoKeywordFromTitle = exports.PRODUCT_RELATIONS = void 0;
 const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
 const typeorm_1 = require("typeorm");
@@ -40,6 +40,7 @@ const product_option_entity_1 = require("../entities/product-option.entity");
 const option_entity_1 = require("../entities/option.entity");
 const product_discount_entity_1 = require("../entities/product-discount.entity");
 const product_image_entity_1 = require("../entities/product-image.entity");
+const seo_url_entity_1 = require("../entities/seo-url.entity");
 const product_dto_1 = require("../dto/product.dto");
 const api_error_1 = require("../utils/api-error");
 exports.PRODUCT_RELATIONS = [
@@ -97,6 +98,98 @@ const scalars = [
     "wholesaleLengthClass",
     "wholesaleWeightClass",
 ];
+const DEFAULT_SEO_STORE = "Default";
+const DEFAULT_SEO_LANGUAGE = "English";
+const productSeoQuery = (id) => `product_id=${id}`;
+const seoKeywordFromTitle = (title) => title
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 500)
+    .replace(/-+$/g, "") || "product";
+exports.seoKeywordFromTitle = seoKeywordFromTitle;
+const syncProductSeoUrl = (manager, product, requestedKeyword) => __awaiter(void 0, void 0, void 0, function* () {
+    const repo = manager.getRepository(seo_url_entity_1.SeoUrl);
+    const query = productSeoQuery(product.id);
+    const existing = yield repo.findOne({
+        where: { query, store: DEFAULT_SEO_STORE, language: DEFAULT_SEO_LANGUAGE },
+    });
+    let keyword = (requestedKeyword === null || requestedKeyword === void 0 ? void 0 : requestedKeyword.trim()) || (existing === null || existing === void 0 ? void 0 : existing.keyword);
+    if (!keyword) {
+        const base = (0, exports.seoKeywordFromTitle)(product.title);
+        keyword = base;
+        for (let suffix = 2; yield repo.findOne({
+            where: { keyword, store: DEFAULT_SEO_STORE, language: DEFAULT_SEO_LANGUAGE },
+        }); suffix++)
+            keyword = `${base.slice(0, 490)}-${suffix}`;
+    }
+    const conflict = yield repo.findOne({
+        where: { keyword, store: DEFAULT_SEO_STORE, language: DEFAULT_SEO_LANGUAGE },
+    });
+    if (conflict && conflict.id !== (existing === null || existing === void 0 ? void 0 : existing.id))
+        throw new api_error_1.ApiError(409, "This SEO keyword already exists for the default English store");
+    try {
+        return yield repo.save(existing
+            ? Object.assign(existing, { keyword })
+            : repo.create({
+                query,
+                keyword,
+                store: DEFAULT_SEO_STORE,
+                language: DEFAULT_SEO_LANGUAGE,
+            }));
+    }
+    catch (error) {
+        if ((error === null || error === void 0 ? void 0 : error.code) === "23505")
+            throw new api_error_1.ApiError(409, "This product or SEO keyword already has an SEO URL");
+        throw error;
+    }
+});
+const getProductSeoKeyword = (productId) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b;
+    return (_b = (_a = (yield data_source_1.AppDataSource.getRepository(seo_url_entity_1.SeoUrl).findOne({
+        where: {
+            query: productSeoQuery(productId),
+            store: DEFAULT_SEO_STORE,
+            language: DEFAULT_SEO_LANGUAGE,
+        },
+    }))) === null || _a === void 0 ? void 0 : _a.keyword) !== null && _b !== void 0 ? _b : null;
+});
+exports.getProductSeoKeyword = getProductSeoKeyword;
+const attachProductSeoKeywords = (products) => __awaiter(void 0, void 0, void 0, function* () {
+    if (!products.length)
+        return [];
+    const prefix = "product_id=";
+    const rows = yield data_source_1.AppDataSource.getRepository(seo_url_entity_1.SeoUrl).find({
+        where: {
+            query: (0, typeorm_1.In)(products.map((product) => productSeoQuery(product.id))),
+            store: DEFAULT_SEO_STORE,
+            language: DEFAULT_SEO_LANGUAGE,
+        },
+    });
+    const byProductId = new Map(rows.map((row) => [row.query.slice(prefix.length), row.keyword]));
+    return products.map((product) => {
+        var _a;
+        return (Object.assign(Object.assign({}, product), { seoKeyword: (_a = byProductId.get(product.id)) !== null && _a !== void 0 ? _a : null }));
+    });
+});
+exports.attachProductSeoKeywords = attachProductSeoKeywords;
+const deleteProductWithSeo = (id) => __awaiter(void 0, void 0, void 0, function* () {
+    return data_source_1.AppDataSource.transaction((manager) => __awaiter(void 0, void 0, void 0, function* () {
+        const productRepo = manager.getRepository(product_entity_1.Product);
+        const product = yield productRepo.findOne({ where: { id } });
+        if (!product)
+            throw new api_error_1.ApiError(404, "Product not found");
+        yield manager.getRepository(seo_url_entity_1.SeoUrl).delete({
+            query: productSeoQuery(id),
+            store: DEFAULT_SEO_STORE,
+            language: DEFAULT_SEO_LANGUAGE,
+        });
+        yield productRepo.remove(product);
+    }));
+});
+exports.deleteProductWithSeo = deleteProductWithSeo;
 const cleanRichText = (value) => (0, sanitize_html_1.default)(value, {
     allowedTags: [
         "p",
@@ -363,6 +456,7 @@ const saveProduct = (input_1, id_1, ...args_1) => __awaiter(void 0, [input_1, id
             };
         }
         yield repo.save(product);
+        const seoUrl = yield syncProductSeoUrl(manager, product, dto.seoKeyword);
         if (dto.attributes !== undefined) {
             const masterAttributes = yield resolveIds(manager, attribute_entity_1.Attribute, dto.attributes.map((row) => row.attributeId), "attributeId");
             const attributeById = new Map(masterAttributes.map((attribute) => [attribute.id, attribute]));
@@ -420,10 +514,12 @@ const saveProduct = (input_1, id_1, ...args_1) => __awaiter(void 0, [input_1, id
                 .map((i) => i.url);
             yield repo.save(product);
         }
-        return (0, exports.productResponse)(yield repo.findOne({
+        const response = (0, exports.productResponse)(yield repo.findOne({
             where: { id: product.id },
             relations: exports.PRODUCT_RELATIONS,
         }), true);
+        response.seoKeyword = seoUrl.keyword;
+        return response;
     }));
 });
 exports.saveProduct = saveProduct;

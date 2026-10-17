@@ -51,5 +51,7 @@ __decorate([
     __metadata("design:type", Date)
 ], SeoUrl.prototype, "updatedAt", void 0);
 exports.SeoUrl = SeoUrl = __decorate([
-    (0, typeorm_1.Entity)("seo_urls")
+    (0, typeorm_1.Entity)("seo_urls"),
+    (0, typeorm_1.Unique)("UQ_seo_url_keyword_scope", ["store", "language", "keyword"]),
+    (0, typeorm_1.Unique)("UQ_seo_url_query_scope", ["store", "language", "query"])
 ], SeoUrl);

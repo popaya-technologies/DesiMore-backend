@@ -14,6 +14,7 @@ import { ProductOption } from "../entities/product-option.entity";
 import { CatalogOption } from "../entities/option.entity";
 import { ProductDiscount } from "../entities/product-discount.entity";
 import { ProductImage } from "../entities/product-image.entity";
+import { SeoUrl } from "../entities/seo-url.entity";
 import { CreateProductDto } from "../dto/product.dto";
 import { ApiError } from "../utils/api-error";
 
@@ -72,6 +73,104 @@ const scalars = [
   "wholesaleLengthClass",
   "wholesaleWeightClass",
 ] as const;
+const DEFAULT_SEO_STORE = "Default";
+const DEFAULT_SEO_LANGUAGE = "English";
+const productSeoQuery = (id: string) => `product_id=${id}`;
+export const seoKeywordFromTitle = (title: string) =>
+  title
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 500)
+    .replace(/-+$/g, "") || "product";
+
+const syncProductSeoUrl = async (
+  manager: EntityManager,
+  product: Product,
+  requestedKeyword?: string,
+) => {
+  const repo = manager.getRepository(SeoUrl);
+  const query = productSeoQuery(product.id);
+  const existing = await repo.findOne({
+    where: { query, store: DEFAULT_SEO_STORE, language: DEFAULT_SEO_LANGUAGE },
+  });
+  let keyword = requestedKeyword?.trim() || existing?.keyword;
+  if (!keyword) {
+    const base = seoKeywordFromTitle(product.title);
+    keyword = base;
+    for (let suffix = 2; await repo.findOne({
+      where: { keyword, store: DEFAULT_SEO_STORE, language: DEFAULT_SEO_LANGUAGE },
+    }); suffix++) keyword = `${base.slice(0, 490)}-${suffix}`;
+  }
+  const conflict = await repo.findOne({
+    where: { keyword, store: DEFAULT_SEO_STORE, language: DEFAULT_SEO_LANGUAGE },
+  });
+  if (conflict && conflict.id !== existing?.id)
+    throw new ApiError(409, "This SEO keyword already exists for the default English store");
+  try {
+    return await repo.save(
+      existing
+        ? Object.assign(existing, { keyword })
+        : repo.create({
+            query,
+            keyword,
+            store: DEFAULT_SEO_STORE,
+            language: DEFAULT_SEO_LANGUAGE,
+          }),
+    );
+  } catch (error) {
+    if ((error as any)?.code === "23505")
+      throw new ApiError(409, "This product or SEO keyword already has an SEO URL");
+    throw error;
+  }
+};
+
+export const getProductSeoKeyword = async (productId: string) =>
+  (
+    await AppDataSource.getRepository(SeoUrl).findOne({
+      where: {
+        query: productSeoQuery(productId),
+        store: DEFAULT_SEO_STORE,
+        language: DEFAULT_SEO_LANGUAGE,
+      },
+    })
+  )?.keyword ?? null;
+
+export const attachProductSeoKeywords = async <T extends { id: string }>(
+  products: T[],
+): Promise<Array<T & { seoKeyword: string | null }>> => {
+  if (!products.length) return [];
+  const prefix = "product_id=";
+  const rows = await AppDataSource.getRepository(SeoUrl).find({
+    where: {
+      query: In(products.map((product) => productSeoQuery(product.id))),
+      store: DEFAULT_SEO_STORE,
+      language: DEFAULT_SEO_LANGUAGE,
+    },
+  });
+  const byProductId = new Map(
+    rows.map((row) => [row.query.slice(prefix.length), row.keyword]),
+  );
+  return products.map((product) => ({
+    ...product,
+    seoKeyword: byProductId.get(product.id) ?? null,
+  }));
+};
+
+export const deleteProductWithSeo = async (id: string) =>
+  AppDataSource.transaction(async (manager) => {
+    const productRepo = manager.getRepository(Product);
+    const product = await productRepo.findOne({ where: { id } });
+    if (!product) throw new ApiError(404, "Product not found");
+    await manager.getRepository(SeoUrl).delete({
+      query: productSeoQuery(id),
+      store: DEFAULT_SEO_STORE,
+      language: DEFAULT_SEO_LANGUAGE,
+    });
+    await productRepo.remove(product);
+  });
 export const cleanRichText = (value: string) =>
   sanitizeHtml(value, {
     allowedTags: [
@@ -400,6 +499,7 @@ export const saveProduct = async (
       };
     }
     await repo.save(product);
+    const seoUrl = await syncProductSeoUrl(manager, product, dto.seoKeyword);
     if (dto.attributes !== undefined) {
       const masterAttributes = await resolveIds(
         manager,
@@ -521,12 +621,14 @@ export const saveProduct = async (
         .map((i) => i.url);
       await repo.save(product);
     }
-    return productResponse(
+    const response = productResponse(
       await repo.findOne({
         where: { id: product.id },
         relations: PRODUCT_RELATIONS,
       }),
       true,
     );
+    response.seoKeyword = seoUrl.keyword;
+    return response;
   });
 };

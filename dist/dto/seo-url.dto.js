@@ -11,28 +11,39 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UpdateSeoUrlDto = exports.CreateSeoUrlDto = void 0;
 const class_validator_1 = require("class-validator");
+const SEO_KEYWORD_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 class CreateSeoUrlDto {
 }
 exports.CreateSeoUrlDto = CreateSeoUrlDto;
 __decorate([
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.Matches)(/\S/, { message: "query must not be blank" }),
     (0, class_validator_1.MaxLength)(500),
     __metadata("design:type", String)
 ], CreateSeoUrlDto.prototype, "query", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.Matches)(SEO_KEYWORD_PATTERN, {
+        message: "keyword must contain lowercase letters, numbers and single hyphens only",
+    }),
     (0, class_validator_1.MaxLength)(500),
     __metadata("design:type", String)
 ], CreateSeoUrlDto.prototype, "keyword", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.Matches)(/\S/, { message: "store must not be blank" }),
     (0, class_validator_1.MaxLength)(255),
     __metadata("design:type", String)
 ], CreateSeoUrlDto.prototype, "store", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.Matches)(/\S/, { message: "language must not be blank" }),
     (0, class_validator_1.MaxLength)(255),
     __metadata("design:type", String)
 ], CreateSeoUrlDto.prototype, "language", void 0);
@@ -42,24 +53,34 @@ exports.UpdateSeoUrlDto = UpdateSeoUrlDto;
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.Matches)(/\S/, { message: "query must not be blank" }),
     (0, class_validator_1.MaxLength)(500),
     __metadata("design:type", String)
 ], UpdateSeoUrlDto.prototype, "query", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.Matches)(/\S/, { message: "store must not be blank" }),
+    (0, class_validator_1.Matches)(SEO_KEYWORD_PATTERN, {
+        message: "keyword must contain lowercase letters, numbers and single hyphens only",
+    }),
     (0, class_validator_1.MaxLength)(500),
     __metadata("design:type", String)
 ], UpdateSeoUrlDto.prototype, "keyword", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.Matches)(/\S/, { message: "language must not be blank" }),
     (0, class_validator_1.MaxLength)(255),
     __metadata("design:type", String)
 ], UpdateSeoUrlDto.prototype, "store", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNotEmpty)(),
     (0, class_validator_1.MaxLength)(255),
     __metadata("design:type", String)
 ], UpdateSeoUrlDto.prototype, "language", void 0);

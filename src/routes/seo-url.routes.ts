@@ -14,11 +14,20 @@ router.post(
 
 router.get(
   "/",
+  authenticate,
+  checkPermission("seo_url", "read"),
   SeoUrlController.getSeoUrls,
 );
 
 router.get(
+  "/resolve/:keyword",
+  SeoUrlController.resolveSeoUrl,
+);
+
+router.get(
   "/:id",
+  authenticate,
+  checkPermission("seo_url", "read"),
   SeoUrlController.getSeoUrlById,
 );
 
