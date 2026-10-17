@@ -5,9 +5,46 @@ import { ParentCategory } from "../entities/parent-category.entity";
 import { CreateCategoryDto, UpdateCategoryDto } from "../dto/category.dto";
 import { validate } from "class-validator";
 import * as XLSX from "xlsx";
+import { SeoUrl } from "../entities/seo-url.entity";
 
 const categoryRepository = AppDataSource.getRepository(Category);
 const parentCategoryRepository = AppDataSource.getRepository(ParentCategory);
+const seoUrlRepository = AppDataSource.getRepository(SeoUrl);
+const categorySeoQuery = (id: string) => `category_id=${id}`;
+const syncCategorySeoUrl = async (category: Category) => {
+  if (!category.keyword) return;
+  const query = categorySeoQuery(category.id);
+  const existing = await seoUrlRepository.findOne({
+    where: { query, store: "Default", language: "English" },
+  });
+  const conflict = await seoUrlRepository.findOne({
+    where: { keyword: category.keyword, store: "Default", language: "English" },
+  });
+  if (conflict && conflict.id !== existing?.id) {
+    const error: any = new Error("This SEO keyword is already used by another resource");
+    error.status = 409;
+    throw error;
+  }
+  await seoUrlRepository.save(
+    existing
+      ? Object.assign(existing, { keyword: category.keyword })
+      : seoUrlRepository.create({
+          query,
+          keyword: category.keyword,
+          store: "Default",
+          language: "English",
+        }),
+  );
+};
+
+const categoryError = (res: Response, error: any, fallback: string) => {
+  if (error?.status === 409 || error?.code === "23505") {
+    res.status(409).json({ message: error.message || "SEO keyword already exists" });
+    return;
+  }
+  console.error(fallback, error);
+  res.status(500).json({ message: fallback });
+};
 
 type CategoryRow = Partial<{
   name: string;
@@ -91,6 +128,14 @@ export const CategoryController = {
         return;
       }
 
+      const globalKeyword = await seoUrlRepository.findOne({
+        where: { keyword: categoryDto.keyword, store: "Default", language: "English" },
+      });
+      if (globalKeyword) {
+        res.status(409).json({ message: "This SEO keyword is already used by another resource" });
+        return;
+      }
+
       let parentCategory: ParentCategory | null = null;
 
       if (categoryDto.parentCategoryId) {
@@ -125,6 +170,7 @@ export const CategoryController = {
       });
 
       const savedCategory = await categoryRepository.save(category);
+      await syncCategorySeoUrl(savedCategory);
 
       const result = await categoryRepository.findOne({
         where: {
@@ -137,11 +183,7 @@ export const CategoryController = {
 
       res.status(201).json(result);
     } catch (error) {
-      console.error("Create category error:", error);
-
-      res.status(500).json({
-        message: "Failed to create category",
-      });
+      categoryError(res, error, "Failed to create category");
     }
   },
 
@@ -340,6 +382,13 @@ export const CategoryController = {
           });
           return;
         }
+        const globalKeyword = await seoUrlRepository.findOne({
+          where: { keyword: categoryDto.keyword, store: "Default", language: "English" },
+        });
+        if (globalKeyword && globalKeyword.query !== categorySeoQuery(category.id)) {
+          res.status(409).json({ message: "This SEO keyword is already used by another resource" });
+          return;
+        }
       }
 
       // Parent category
@@ -405,6 +454,7 @@ export const CategoryController = {
       }
 
       const updatedCategory = await categoryRepository.save(category);
+      await syncCategorySeoUrl(updatedCategory);
 
       const result = await categoryRepository.findOne({
         where: {
@@ -417,11 +467,7 @@ export const CategoryController = {
 
       res.status(200).json(result);
     } catch (error) {
-      console.error("Update category error:", error);
-
-      res.status(500).json({
-        message: "Failed to update category",
-      });
+      categoryError(res, error, "Failed to update category");
     }
   },
 
@@ -445,6 +491,11 @@ export const CategoryController = {
         return;
       }
 
+      await seoUrlRepository.delete({
+        query: categorySeoQuery(category.id),
+        store: "Default",
+        language: "English",
+      });
       await categoryRepository.remove(category);
       res.status(204).send();
     } catch (error) {

@@ -6,6 +6,7 @@ import { AppDataSource } from "../data-source";
 import { CreateRecipeDto, UpdateRecipeDto } from "../dto/recipe.dto";
 import { Recipe } from "../entities/recipe.entity";
 import { RecipeCategory } from "../entities/recipe-category.entity";
+import { SeoUrl } from "../entities/seo-url.entity";
 import { ApiError } from "../utils/api-error";
 
 const cleanText = (value: string, label: string) => {
@@ -36,7 +37,8 @@ export async function validateRecipe(input: unknown, creating: boolean) {
   for (const key of ["name", "metaTitle"] as const) if (dto[key] !== undefined) dto[key] = cleanText(dto[key], key);
   if (dto.seoKeyword !== undefined) {
     dto.seoKeyword = dto.seoKeyword === null || dto.seoKeyword.trim() === "" ? null : cleanText(dto.seoKeyword, "seoKeyword");
-    if (dto.seoKeyword && !/^[A-Za-z0-9_-]+$/.test(dto.seoKeyword)) throw new ApiError(400, "SEO keyword may contain only letters, numbers, hyphens and underscores");
+    if (dto.seoKeyword && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(dto.seoKeyword))
+      throw new ApiError(400, "SEO keyword must contain lowercase letters, numbers and single hyphens only");
   }
   if (dto.description !== undefined) dto.description = sanitizeHtml(dto.description);
   if (dto.image !== undefined) dto.image = cleanImage(dto.image);
@@ -78,12 +80,56 @@ export class RecipeService {
           recipe.categories = categories;
         }
         recipe.additionalImages = [...(recipe.additionalImages ?? [])].sort((a, b) => a.sortOrder - b.sortOrder);
-        return await repo.save(recipe);
+        if (!recipe.seoKeyword) {
+          recipe.seoKeyword = recipe.name
+            .normalize("NFKD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "") || "recipe";
+        }
+        const saved = await repo.save(recipe);
+        const seoRepo = manager.getRepository(SeoUrl);
+        const query = `recipe_id=${saved.id}`;
+        const mapping = await seoRepo.findOne({
+          where: { query, store: "Default", language: "English" },
+        });
+        const conflict = await seoRepo.findOne({
+          where: { keyword: saved.seoKeyword, store: "Default", language: "English" },
+        });
+        if (conflict && conflict.id !== mapping?.id)
+          throw new ApiError(409, "This SEO keyword is already used by another resource");
+        await seoRepo.save(
+          mapping
+            ? Object.assign(mapping, { keyword: saved.seoKeyword })
+            : seoRepo.create({
+                query,
+                keyword: saved.seoKeyword,
+                store: "Default",
+                language: "English",
+              }),
+        );
+        return saved;
       });
     } catch (error) {
       if ((error as { code?: string }).code === "23505") throw new ApiError(409, "Recipe name or SEO keyword already exists");
       throw error;
     }
+  }
+
+  async remove(id: string) {
+    return this.db.transaction(async manager => {
+      const repo = manager.getRepository(Recipe);
+      const recipe = await repo.findOne({ where: { id }, lock: { mode: "pessimistic_write" } });
+      if (!recipe) throw new ApiError(404, "Recipe not found");
+      await manager.getRepository(SeoUrl).delete({
+        query: `recipe_id=${id}`,
+        store: "Default",
+        language: "English",
+      });
+      await repo.remove(recipe);
+      return { message: "Recipe deleted successfully" };
+    });
   }
 }
 

@@ -95,10 +95,7 @@ exports.RecipeController = {
         res.json({ data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } });
     })),
     remove: handle((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-        const result = yield data_source_1.AppDataSource.getRepository(recipe_entity_1.Recipe).delete(String(req.params.id));
-        if (!result.affected)
-            throw new api_error_1.ApiError(404, "Recipe not found");
-        res.json({ message: "Recipe deleted successfully" });
+        res.json(yield new recipe_service_1.RecipeService().remove(String(req.params.id)));
     })),
     export: handle((req, res) => __awaiter(void 0, void 0, void 0, function* () {
         var _a;

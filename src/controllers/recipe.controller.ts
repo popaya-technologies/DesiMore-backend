@@ -46,9 +46,7 @@ export const RecipeController = {
     res.json({ data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } });
   }),
   remove: handle(async (req, res) => {
-    const result = await AppDataSource.getRepository(Recipe).delete(String(req.params.id));
-    if (!result.affected) throw new ApiError(404, "Recipe not found");
-    res.json({ message: "Recipe deleted successfully" });
+    res.json(await new RecipeService().remove(String(req.params.id)));
   }),
   export: handle(async (req, res) => {
     const format = req.query.format ?? "csv";

@@ -49,8 +49,43 @@ const parent_category_entity_1 = require("../entities/parent-category.entity");
 const category_dto_1 = require("../dto/category.dto");
 const class_validator_1 = require("class-validator");
 const XLSX = __importStar(require("xlsx"));
+const seo_url_entity_1 = require("../entities/seo-url.entity");
 const categoryRepository = data_source_1.AppDataSource.getRepository(category_entity_1.Category);
 const parentCategoryRepository = data_source_1.AppDataSource.getRepository(parent_category_entity_1.ParentCategory);
+const seoUrlRepository = data_source_1.AppDataSource.getRepository(seo_url_entity_1.SeoUrl);
+const categorySeoQuery = (id) => `category_id=${id}`;
+const syncCategorySeoUrl = (category) => __awaiter(void 0, void 0, void 0, function* () {
+    if (!category.keyword)
+        return;
+    const query = categorySeoQuery(category.id);
+    const existing = yield seoUrlRepository.findOne({
+        where: { query, store: "Default", language: "English" },
+    });
+    const conflict = yield seoUrlRepository.findOne({
+        where: { keyword: category.keyword, store: "Default", language: "English" },
+    });
+    if (conflict && conflict.id !== (existing === null || existing === void 0 ? void 0 : existing.id)) {
+        const error = new Error("This SEO keyword is already used by another resource");
+        error.status = 409;
+        throw error;
+    }
+    yield seoUrlRepository.save(existing
+        ? Object.assign(existing, { keyword: category.keyword })
+        : seoUrlRepository.create({
+            query,
+            keyword: category.keyword,
+            store: "Default",
+            language: "English",
+        }));
+});
+const categoryError = (res, error, fallback) => {
+    if ((error === null || error === void 0 ? void 0 : error.status) === 409 || (error === null || error === void 0 ? void 0 : error.code) === "23505") {
+        res.status(409).json({ message: error.message || "SEO keyword already exists" });
+        return;
+    }
+    console.error(fallback, error);
+    res.status(500).json({ message: fallback });
+};
 const toBool = (val) => {
     if (val === undefined || val === null || val === "")
         return undefined;
@@ -114,6 +149,13 @@ exports.CategoryController = {
                 });
                 return;
             }
+            const globalKeyword = yield seoUrlRepository.findOne({
+                where: { keyword: categoryDto.keyword, store: "Default", language: "English" },
+            });
+            if (globalKeyword) {
+                res.status(409).json({ message: "This SEO keyword is already used by another resource" });
+                return;
+            }
             let parentCategory = null;
             if (categoryDto.parentCategoryId) {
                 parentCategory = yield parentCategoryRepository.findOne({
@@ -142,6 +184,7 @@ exports.CategoryController = {
                 parentCategory,
             });
             const savedCategory = yield categoryRepository.save(category);
+            yield syncCategorySeoUrl(savedCategory);
             const result = yield categoryRepository.findOne({
                 where: {
                     id: savedCategory.id,
@@ -153,10 +196,7 @@ exports.CategoryController = {
             res.status(201).json(result);
         }
         catch (error) {
-            console.error("Create category error:", error);
-            res.status(500).json({
-                message: "Failed to create category",
-            });
+            categoryError(res, error, "Failed to create category");
         }
     }),
     //Get all Categories (public)
@@ -330,6 +370,13 @@ exports.CategoryController = {
                     });
                     return;
                 }
+                const globalKeyword = yield seoUrlRepository.findOne({
+                    where: { keyword: categoryDto.keyword, store: "Default", language: "English" },
+                });
+                if (globalKeyword && globalKeyword.query !== categorySeoQuery(category.id)) {
+                    res.status(409).json({ message: "This SEO keyword is already used by another resource" });
+                    return;
+                }
             }
             // Parent category
             if (categoryDto.parentCategoryId !== undefined) {
@@ -383,6 +430,7 @@ exports.CategoryController = {
                 category.keyword = categoryDto.keyword;
             }
             const updatedCategory = yield categoryRepository.save(category);
+            yield syncCategorySeoUrl(updatedCategory);
             const result = yield categoryRepository.findOne({
                 where: {
                     id: updatedCategory.id,
@@ -394,10 +442,7 @@ exports.CategoryController = {
             res.status(200).json(result);
         }
         catch (error) {
-            console.error("Update category error:", error);
-            res.status(500).json({
-                message: "Failed to update category",
-            });
+            categoryError(res, error, "Failed to update category");
         }
     }),
     // Delete Category (Admin only)
@@ -417,6 +462,11 @@ exports.CategoryController = {
                 });
                 return;
             }
+            yield seoUrlRepository.delete({
+                query: categorySeoQuery(category.id),
+                store: "Default",
+                language: "English",
+            });
             yield categoryRepository.remove(category);
             res.status(204).send();
         }

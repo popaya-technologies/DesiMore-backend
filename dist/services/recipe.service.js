@@ -33,6 +33,7 @@ const data_source_1 = require("../data-source");
 const recipe_dto_1 = require("../dto/recipe.dto");
 const recipe_entity_1 = require("../entities/recipe.entity");
 const recipe_category_entity_1 = require("../entities/recipe-category.entity");
+const seo_url_entity_1 = require("../entities/seo-url.entity");
 const api_error_1 = require("../utils/api-error");
 const cleanText = (value, label) => {
     const result = value.trim();
@@ -67,8 +68,8 @@ function validateRecipe(input, creating) {
                 dto[key] = cleanText(dto[key], key);
         if (dto.seoKeyword !== undefined) {
             dto.seoKeyword = dto.seoKeyword === null || dto.seoKeyword.trim() === "" ? null : cleanText(dto.seoKeyword, "seoKeyword");
-            if (dto.seoKeyword && !/^[A-Za-z0-9_-]+$/.test(dto.seoKeyword))
-                throw new api_error_1.ApiError(400, "SEO keyword may contain only letters, numbers, hyphens and underscores");
+            if (dto.seoKeyword && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(dto.seoKeyword))
+                throw new api_error_1.ApiError(400, "SEO keyword must contain lowercase letters, numbers and single hyphens only");
         }
         if (dto.description !== undefined)
             dto.description = (0, sanitize_html_1.default)(dto.description);
@@ -122,7 +123,34 @@ class RecipeService {
                         recipe.categories = categories;
                     }
                     recipe.additionalImages = [...((_a = recipe.additionalImages) !== null && _a !== void 0 ? _a : [])].sort((a, b) => a.sortOrder - b.sortOrder);
-                    return yield repo.save(recipe);
+                    if (!recipe.seoKeyword) {
+                        recipe.seoKeyword = recipe.name
+                            .normalize("NFKD")
+                            .replace(/[\u0300-\u036f]/g, "")
+                            .toLowerCase()
+                            .replace(/[^a-z0-9]+/g, "-")
+                            .replace(/^-+|-+$/g, "") || "recipe";
+                    }
+                    const saved = yield repo.save(recipe);
+                    const seoRepo = manager.getRepository(seo_url_entity_1.SeoUrl);
+                    const query = `recipe_id=${saved.id}`;
+                    const mapping = yield seoRepo.findOne({
+                        where: { query, store: "Default", language: "English" },
+                    });
+                    const conflict = yield seoRepo.findOne({
+                        where: { keyword: saved.seoKeyword, store: "Default", language: "English" },
+                    });
+                    if (conflict && conflict.id !== (mapping === null || mapping === void 0 ? void 0 : mapping.id))
+                        throw new api_error_1.ApiError(409, "This SEO keyword is already used by another resource");
+                    yield seoRepo.save(mapping
+                        ? Object.assign(mapping, { keyword: saved.seoKeyword })
+                        : seoRepo.create({
+                            query,
+                            keyword: saved.seoKeyword,
+                            store: "Default",
+                            language: "English",
+                        }));
+                    return saved;
                 }));
             }
             catch (error) {
@@ -130,6 +158,23 @@ class RecipeService {
                     throw new api_error_1.ApiError(409, "Recipe name or SEO keyword already exists");
                 throw error;
             }
+        });
+    }
+    remove(id) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return this.db.transaction((manager) => __awaiter(this, void 0, void 0, function* () {
+                const repo = manager.getRepository(recipe_entity_1.Recipe);
+                const recipe = yield repo.findOne({ where: { id }, lock: { mode: "pessimistic_write" } });
+                if (!recipe)
+                    throw new api_error_1.ApiError(404, "Recipe not found");
+                yield manager.getRepository(seo_url_entity_1.SeoUrl).delete({
+                    query: `recipe_id=${id}`,
+                    store: "Default",
+                    language: "English",
+                });
+                yield repo.remove(recipe);
+                return { message: "Recipe deleted successfully" };
+            }));
         });
     }
 }
