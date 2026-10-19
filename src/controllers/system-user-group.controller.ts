@@ -3,6 +3,7 @@ import { validate } from "class-validator";
 
 import { AppDataSource } from "../data-source";
 import { SystemUserGroup } from "../entities/system-user-group.entity";
+import { SystemUser } from "../entities/system-user.entity";
 import {
   CreateSystemUserGroupDto,
   UpdateSystemUserGroupDto,
@@ -15,6 +16,8 @@ const buildResponse = (systemUserGroup: SystemUserGroup) => {
   return {
     id: systemUserGroup.id,
     name: systemUserGroup.name,
+    accessPermissions: systemUserGroup.accessPermissions ?? [],
+    modifyPermissions: systemUserGroup.modifyPermissions ?? [],
     createdAt: systemUserGroup.createdAt,
     updatedAt: systemUserGroup.updatedAt,
   };
@@ -40,6 +43,15 @@ export const SystemUserGroupController = {
       }
 
       const name = systemUserGroupData.name.trim();
+      const accessPermissions = [...new Set(systemUserGroupData.accessPermissions)];
+      const modifyPermissions = [...new Set(systemUserGroupData.modifyPermissions)];
+
+      if (modifyPermissions.some((permission) => !accessPermissions.includes(permission))) {
+        res.status(400).json({
+          message: "Every modify permission must also have access permission.",
+        });
+        return;
+      }
 
       const existingGroup =
         await systemUserGroupRepository.findOne({
@@ -56,6 +68,8 @@ export const SystemUserGroupController = {
       const systemUserGroup =
         systemUserGroupRepository.create({
           name,
+          accessPermissions,
+          modifyPermissions,
         });
 
       await systemUserGroupRepository.save(systemUserGroup);
@@ -242,6 +256,19 @@ export const SystemUserGroupController = {
         systemUserGroup.name = name;
       }
 
+      const accessPermissions = [...new Set(updateData.accessPermissions)];
+      const modifyPermissions = [...new Set(updateData.modifyPermissions)];
+
+      if (modifyPermissions.some((permission) => !accessPermissions.includes(permission))) {
+        res.status(400).json({
+          message: "Every modify permission must also have access permission.",
+        });
+        return;
+      }
+
+      systemUserGroup.accessPermissions = accessPermissions;
+      systemUserGroup.modifyPermissions = modifyPermissions;
+
       await systemUserGroupRepository.save(
         systemUserGroup,
       );
@@ -277,6 +304,19 @@ export const SystemUserGroupController = {
       if (!systemUserGroup) {
         res.status(404).json({
           message: "System User Group not found.",
+        });
+        return;
+      }
+
+      const assignedUserCount = await AppDataSource
+        .getRepository(SystemUser)
+        .count({
+          where: { userGroupId: systemUserGroup.id },
+        });
+
+      if (assignedUserCount > 0) {
+        res.status(409).json({
+          message: `This group is assigned to ${assignedUserCount} system user${assignedUserCount === 1 ? "" : "s"} and cannot be deleted.`,
         });
         return;
       }

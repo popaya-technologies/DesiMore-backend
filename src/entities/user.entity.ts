@@ -61,7 +61,7 @@ export class User {
   @Column({ type: "varchar", length: 255, nullable: true })
   avatar: string | null;
 
-  @Column({ type: "varchar", length: 255, nullable: true, select: false })
+  @Column({ type: "text", nullable: true, select: false })
   refreshToken: string | null;
 
   @Column({ type: "varchar", length: 6, nullable: true, select: false })

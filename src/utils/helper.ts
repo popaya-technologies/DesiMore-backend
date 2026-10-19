@@ -4,9 +4,14 @@ import * as dotenv from "dotenv";
 
 dotenv.config();
 
-export const setTokens = (res: Response, userId: string, email: string) => {
-  const accessToken = generateAccessToken({ userId, email });
-  const refreshToken = generateRefreshToken({ userId, email });
+export const setTokens = (
+  res: Response,
+  userId: string,
+  email: string,
+  accountType: "user" | "system-user" = "user",
+) => {
+  const accessToken = generateAccessToken({ userId, email, accountType });
+  const refreshToken = generateRefreshToken({ userId, email, accountType });
 
   // Set cookies
   res.cookie("accessToken", accessToken, {

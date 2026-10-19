@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { AppDataSource } from "../data-source";
 import { User } from "../entities/user.entity";
+import { SystemUser } from "../entities/system-user.entity";
 import { UpdateProfileDto } from "../dto/auth.dto";
 import {
   generateAccessToken,
@@ -15,6 +16,7 @@ import { plainToInstance } from "class-transformer";
 import { RBACService } from "../services/rbac.service";
 
 const userRepository = AppDataSource.getRepository(User);
+const systemUserRepository = AppDataSource.getRepository(SystemUser);
 
 const profileSelect: Array<keyof User> = [
   "id",
@@ -129,10 +131,13 @@ export const AuthController = {
   ): Promise<void> => {
     // ← ADD THIS
     try {
-      const { email, password } = req.body;
+      const identifier = String(req.body.email ?? req.body.username ?? "")
+        .trim()
+        .toLowerCase();
+      const password = String(req.body.password ?? "");
 
       const user = await userRepository.findOne({
-        where: { email },
+        where: [{ email: identifier }, { username: identifier }],
         select: [
           "id",
           "firstname",
@@ -147,31 +152,60 @@ export const AuthController = {
         ],
       });
 
-      if (!user) {
+      if (user && (await user.comparePassword(password))) {
+        const { refreshToken } = setTokens(res, user.id, user.email, "user");
+
+        await userRepository.update(user.id, { refreshToken });
+
+        res.status(200).json({
+          id: user.id,
+          firstname: user.firstname,
+          lastname: user.lastname,
+          username: user.username,
+          email: user.email,
+          phone: user.phone,
+          avatar: user.avatar,
+          userRole: user.userRole,
+          accountType: "user",
+        });
+        return;
+      }
+
+      const systemUser = await systemUserRepository
+        .createQueryBuilder("systemUser")
+        .addSelect("systemUser.password")
+        .leftJoinAndSelect("systemUser.userGroup", "userGroup")
+        .where("LOWER(systemUser.email) = :identifier", { identifier })
+        .orWhere("LOWER(systemUser.username) = :identifier", { identifier })
+        .getOne();
+
+      if (!systemUser || !(await systemUser.comparePassword(password))) {
         res.status(401).json({ message: "Invalid credentials" });
         return;
       }
 
-      const isMatch = await user.comparePassword(password);
-      if (!isMatch) {
-        res.status(401).json({ message: "Invalid credentials" });
+      if (!systemUser.isActive) {
+        res.status(403).json({ message: "This system user account is disabled" });
         return;
       }
 
-      const { accessToken, refreshToken } = setTokens(res, user.id, user.email);
-
-      user.refreshToken = refreshToken;
-      await userRepository.save(user);
+      setTokens(res, systemUser.id, systemUser.email, "system-user");
 
       res.status(200).json({
-        id: user.id,
-        firstname: user.firstname,
-        lastname: user.lastname,
-        username: user.username,
-        email: user.email,
-        phone: user.phone,
-        avatar: user.avatar,
-        userRole: user.userRole,
+        id: systemUser.id,
+        firstname: systemUser.firstName,
+        lastname: systemUser.lastName,
+        username: systemUser.username,
+        email: systemUser.email,
+        phone: "",
+        avatar: systemUser.image ?? "",
+        userRole: "system-user",
+        accountType: "system-user",
+        userGroup: systemUser.userGroup
+          ? { id: systemUser.userGroup.id, name: systemUser.userGroup.name }
+          : null,
+        accessPermissions: systemUser.userGroup?.accessPermissions ?? [],
+        modifyPermissions: systemUser.userGroup?.modifyPermissions ?? [],
       });
     } catch (error) {
       next(error);
@@ -184,13 +218,12 @@ export const AuthController = {
       const { refreshToken } = req.cookies;
       if (refreshToken) {
         const decoded = verifyRefreshToken(refreshToken);
-        const user = await userRepository.findOne({
-          where: { id: decoded.userId },
-        });
+        const user = decoded.accountType === "system-user"
+          ? null
+          : await userRepository.findOne({ where: { id: decoded.userId } });
 
         if (user) {
-          user.refreshToken = null;
-          await userRepository.save(user);
+          await userRepository.update(user.id, { refreshToken: null });
         }
       }
 
@@ -218,8 +251,25 @@ export const AuthController = {
       }
 
       const decoded = verifyRefreshToken(refreshToken);
+
+      if (decoded.accountType === "system-user") {
+        const systemUser = await systemUserRepository.findOne({
+          where: { id: decoded.userId, isActive: true },
+        });
+
+        if (!systemUser) {
+          res.status(400).json({ message: "Invalid refresh token" });
+          return;
+        }
+
+        const tokens = setTokens(res, systemUser.id, systemUser.email, "system-user");
+        res.status(200).json(tokens);
+        return;
+      }
+
       const user = await userRepository.findOne({
         where: { id: decoded.userId },
+        select: ["id", "email", "refreshToken"],
       });
 
       if (!user || user.refreshToken !== refreshToken) {
@@ -232,11 +282,11 @@ export const AuthController = {
       const { accessToken, refreshToken: newRefreshToken } = setTokens(
         res,
         user.id,
-        user.email
+        user.email,
+        "user",
       );
 
-      user.refreshToken = newRefreshToken;
-      await userRepository.save(user);
+      await userRepository.update(user.id, { refreshToken: newRefreshToken });
 
       res.status(200).json({
         accessToken,
@@ -384,6 +434,35 @@ export const AuthController = {
         return;
       }
 
+      if (req.user.accountType === "system-user") {
+        const systemUser = await systemUserRepository.findOne({
+          where: { id: req.user.id, isActive: true },
+          relations: { userGroup: true },
+        });
+
+        if (!systemUser) {
+          res.status(404).json({ message: "System user not found" });
+          return;
+        }
+
+        res.status(200).json({
+          user: {
+            id: systemUser.id,
+            firstname: systemUser.firstName,
+            lastname: systemUser.lastName,
+            username: systemUser.username,
+            email: systemUser.email,
+            avatar: systemUser.image ?? "",
+            userRole: "system-user",
+            accountType: "system-user",
+            userGroup: { id: systemUser.userGroup.id, name: systemUser.userGroup.name },
+            accessPermissions: systemUser.userGroup.accessPermissions ?? [],
+            modifyPermissions: systemUser.userGroup.modifyPermissions ?? [],
+          },
+        });
+        return;
+      }
+
       const user = await userRepository.findOne({
         where: { id: req.user.id },
         select: profileSelect,
@@ -400,6 +479,7 @@ export const AuthController = {
       res.status(200).json({
         user: {
           ...user,
+          accountType: "user",
           roles: userRoles.map((userRole) => userRole.role),
           permissions,
         },
@@ -414,6 +494,13 @@ export const AuthController = {
     try {
       if (!req.user?.id) {
         res.status(401).json({ message: "Unauthorized" });
+        return;
+      }
+
+      if (req.user.accountType === "system-user") {
+        res.status(403).json({
+          message: "System user profiles must be updated from System Users.",
+        });
         return;
       }
 

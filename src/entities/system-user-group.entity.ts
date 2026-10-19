@@ -4,7 +4,9 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
+  OneToMany,
 } from "typeorm";
+import { SystemUser } from "./system-user.entity";
 
 @Entity("system_user_groups")
 export class SystemUserGroup {
@@ -17,6 +19,15 @@ export class SystemUserGroup {
     unique: true,
   })
   name!: string;
+
+  @Column({ type: "text", array: true, default: () => "ARRAY[]::text[]" })
+  accessPermissions!: string[];
+
+  @Column({ type: "text", array: true, default: () => "ARRAY[]::text[]" })
+  modifyPermissions!: string[];
+
+  @OneToMany(() => SystemUser, (user) => user.userGroup)
+  systemUsers!: SystemUser[];
 
   @CreateDateColumn()
   createdAt!: Date;

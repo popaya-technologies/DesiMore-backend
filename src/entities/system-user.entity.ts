@@ -6,8 +6,11 @@ import {
   UpdateDateColumn,
   BeforeInsert,
   BeforeUpdate,
+  JoinColumn,
+  ManyToOne,
 } from "typeorm";
 import * as bcrypt from "bcryptjs";
+import { SystemUserGroup } from "./system-user-group.entity";
 
 @Entity("system_users")
 export class SystemUser {
@@ -21,11 +24,15 @@ export class SystemUser {
   })
   username!: string;
 
-  @Column({
-    type: "varchar",
-    length: 30,
+  @Column({ type: "uuid" })
+  userGroupId!: string;
+
+  @ManyToOne(() => SystemUserGroup, (group) => group.systemUsers, {
+    nullable: false,
+    onDelete: "RESTRICT",
   })
-  userGroup!: string;
+  @JoinColumn({ name: "userGroupId" })
+  userGroup!: SystemUserGroup;
 
   @Column({
     type: "varchar",
@@ -87,11 +94,7 @@ export class SystemUser {
       this.email = this.email.trim().toLowerCase();
     }
 
-    // Trim user group and names
-    if (this.userGroup) {
-      this.userGroup = this.userGroup.trim();
-    }
-
+    // Trim names
     if (this.firstName) {
       this.firstName = this.firstName.trim();
     }

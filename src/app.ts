@@ -74,8 +74,25 @@ app.use(express.json({ limit: "2mb" }));
 app.use(cookieParser());
 app.use(
   cors({
-    origin: "*",
-    credentials: false,
+    origin: (origin, callback) => {
+      const configuredOrigins = (process.env.CORS_ORIGINS ?? "")
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean);
+      const allowedOrigins = new Set([
+        "http://localhost:3000",
+        "http://localhost:3001",
+        ...configuredOrigins,
+      ]);
+
+      if (!origin || allowedOrigins.has(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error("Origin is not allowed by CORS"));
+    },
+    credentials: true,
   }),
 );
 

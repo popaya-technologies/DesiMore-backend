@@ -3,9 +3,10 @@ import * as dotenv from "dotenv";
 
 dotenv.config();
 
-interface TokenPayload {
+export interface TokenPayload {
   userId: string;
   email: string;
+  accountType?: "user" | "system-user";
 }
 
 const jwtOptions: jwt.SignOptions = {
