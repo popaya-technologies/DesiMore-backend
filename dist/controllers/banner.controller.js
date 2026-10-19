@@ -50,6 +50,48 @@ const banner_service_1 = require("../services/banner.service");
 const api_error_1 = require("../utils/api-error");
 const repository = () => data_source_1.AppDataSource.getRepository(banner_entity_1.Banner);
 exports.BannerController = {
+    publicGetByPlacement: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+        var _a;
+        try {
+            const placement = String((_a = req.params.placement) !== null && _a !== void 0 ? _a : "");
+            if (!["home_slideshow", "footer_payments"].includes(placement))
+                throw new api_error_1.ApiError(400, "Invalid public banner placement");
+            const banner = yield repository()
+                .createQueryBuilder("banner")
+                .where("banner.placement = :placement", { placement })
+                .andWhere("banner.isActive = true")
+                .orderBy('banner."updatedAt"', "DESC")
+                .getOne();
+            if (!banner)
+                throw new api_error_1.ApiError(404, "Active banner not found");
+            res.set("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+            res.json((0, banner_service_1.bannerResponse)(banner));
+        }
+        catch (error) {
+            (0, api_error_1.respondError)(res, error);
+        }
+    }),
+    publicGet: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+        var _a;
+        try {
+            const name = String((_a = req.params.name) !== null && _a !== void 0 ? _a : "").trim();
+            if (!name || name.length > 255 || /[\u0000-\u001f\u007f]/.test(name))
+                throw new api_error_1.ApiError(400, "Invalid banner name");
+            const banner = yield repository()
+                .createQueryBuilder("banner")
+                .where("LOWER(banner.name) = LOWER(:name)", { name })
+                .andWhere("banner.isActive = true")
+                .orderBy('banner."updatedAt"', "DESC")
+                .getOne();
+            if (!banner)
+                throw new api_error_1.ApiError(404, "Active banner not found");
+            res.set("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+            res.json((0, banner_service_1.bannerResponse)(banner));
+        }
+        catch (error) {
+            (0, api_error_1.respondError)(res, error);
+        }
+    }),
     create: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         try {
             const dto = yield (0, banner_service_1.validateBannerInput)(req.body, true);

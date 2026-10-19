@@ -23,6 +23,10 @@ __decorate([
     __metadata("design:type", String)
 ], Banner.prototype, "name", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: "varchar", length: 50, default: "custom" }),
+    __metadata("design:type", String)
+], Banner.prototype, "placement", void 0);
+__decorate([
     (0, typeorm_1.Column)({ default: true }),
     __metadata("design:type", Boolean)
 ], Banner.prototype, "isActive", void 0);
