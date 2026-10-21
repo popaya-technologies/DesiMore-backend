@@ -20,6 +20,7 @@ import { getMockShippingQuote } from "./shipping-quote.service";
 import { calculateCoupon } from "./coupon.service";
 import { CouponUsage } from "../entities/coupon-usage.entity";
 import { GiftVoucher } from "../entities/gift_voucher.entity";
+import { OrderStatus as OrderStatusSetting } from "../entities/order-status.entity";
 import { calculateGiftVoucher } from "./gift-voucher.service";
 export const createRetailOrder = async (userId: string, input: any) => {
   const dto = plainToInstance(CreateOrderDto, input);
@@ -51,6 +52,9 @@ export const createRetailOrder = async (userId: string, input: any) => {
       cart,
       false,
     );
+    const defaultOrderStatus = await manager.getRepository(OrderStatusSetting).findOne({
+      where: { isDefault: true, isActive: true },
+    });
     const order = manager.getRepository(Order).create({
       userId,
       orderNumber: await generateOrderNumber(manager),
@@ -58,7 +62,7 @@ export const createRetailOrder = async (userId: string, input: any) => {
       billingAddress: dto.billingAddress || dto.shippingAddress,
       paymentMethod: dto.paymentMethod,
       notes: dto.notes || null,
-      status: OrderStatus.PENDING,
+      status: (defaultOrderStatus?.code ?? OrderStatus.PENDING) as OrderStatus,
       paymentStatus: PaymentStatus.PENDING,
       inventoryReservations,
     });

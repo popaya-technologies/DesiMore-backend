@@ -17,6 +17,7 @@ import { ProductImage } from "../entities/product-image.entity";
 import { SeoUrl } from "../entities/seo-url.entity";
 import { CreateProductDto } from "../dto/product.dto";
 import { ApiError } from "../utils/api-error";
+import { StockStatus } from "../entities/stock-status.entity";
 
 export const PRODUCT_RELATIONS = [
   "categories",
@@ -30,6 +31,7 @@ export const PRODUCT_RELATIONS = [
   "imageDetails",
   "downloads",
   "relatedProducts",
+  "stockStatus",
 ];
 const scalars = [
   "title",
@@ -57,6 +59,7 @@ const scalars = [
   "minimumQuantity",
   "subtractStock",
   "outOfStockStatus",
+  "stockStatusId",
   "requiresShipping",
   "dateAvailable",
   "lengthClass",
@@ -448,6 +451,24 @@ export const saveProduct = async (
     if (!product) throw new ApiError(404, "Product not found");
     for (const key of scalars)
       if (dto[key] !== undefined) (product as any)[key] = dto[key];
+    if (dto.stockStatusId !== undefined) {
+      product.stockStatus = (
+        await resolveIds(manager, StockStatus, [dto.stockStatusId], "stockStatusId")
+      )[0];
+      product.stockStatusId = product.stockStatus.id;
+    } else if (!id && !product.stockStatusId) {
+      const statusRepository = manager.getRepository(StockStatus);
+      product.stockStatus =
+        (await statusRepository
+          .createQueryBuilder("status")
+          .where("LOWER(status.name) = LOWER(:name)", { name: "Out Of Stock" })
+          .getOne()) ??
+        (await statusRepository.findOne({ order: { name: "ASC" } }));
+      if (!product.stockStatus) {
+        throw new ApiError(400, "Create a stock status before creating products");
+      }
+      product.stockStatusId = product.stockStatus.id;
+    }
     if (dto.summary !== undefined) product.summary = cleanRichText(dto.summary);
     if (dto.unitsPerCarton !== undefined)
       product.wholesaleOrderQuantity =

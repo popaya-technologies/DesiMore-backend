@@ -70,7 +70,7 @@ export class Order {
   @Column({ type: "decimal", precision: 12, scale: 2 })
   total: number;
 
-  @Column({ type: "varchar", length: 50, default: OrderStatus.PENDING })
+  @Column({ type: "varchar", length: 100, default: OrderStatus.PENDING })
   status: OrderStatus;
 
   @Column({ type: "varchar", length: 50, default: PaymentStatus.PENDING })

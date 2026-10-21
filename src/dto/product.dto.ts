@@ -242,6 +242,7 @@ export class CreateProductDto {
   @ValidateIf(optional) @IsIn(WEIGHT_CLASSES) weightClass?: string;
   @ValidateIf(optional) @IsIn(WEIGHT_CLASSES) wholesaleWeightClass?: string;
   @ValidateIf(optional) @IsIn(STOCK_STATUSES) outOfStockStatus?: string;
+  @ValidateIf(optional) @IsUUID() stockStatusId?: string;
   @ValidateIf(nullable) @IsUUID() brandId?: string | null;
   @ValidateIf(optional)
   @IsArray()

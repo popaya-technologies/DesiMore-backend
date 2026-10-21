@@ -8,10 +8,12 @@ import {
   IsPhoneNumber,
   IsUUID,
   IsIn,
+  IsBoolean,
+  Matches,
   MaxLength,
 } from "class-validator";
 import { Type } from "class-transformer";
-import { OrderStatus, PaymentStatus } from "../entities/order.entity";
+import { PaymentStatus } from "../entities/order.entity";
 import { UPS_SHIPPING_CODES, UpsShippingCode } from "../shipping.constants";
 
 export class AddressDto {
@@ -71,6 +73,7 @@ export class CreateOrderDto {
   paymentMethod: string;
 
   @IsString()
+  @MaxLength(10000)
   @IsOptional()
   notes?: string;
 
@@ -80,12 +83,20 @@ export class CreateOrderDto {
 }
 
 export class UpdateOrderStatusDto {
-  @IsEnum(OrderStatus)
-  status: OrderStatus;
+  @IsString()
+  @MaxLength(100)
+  @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
+    message: "status must be a valid order status code",
+  })
+  status: string;
 
   @IsString()
   @IsOptional()
   notes?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  notifyCustomer?: boolean;
 }
 
 export class UpdatePaymentStatusDto {

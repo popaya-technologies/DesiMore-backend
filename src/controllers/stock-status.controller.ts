@@ -1,10 +1,13 @@
 import { Request, Response } from "express";
+import { plainToInstance } from "class-transformer";
+import { validate } from "class-validator";
 import { AppDataSource } from "../data-source";
 import { StockStatus } from "../entities/stock-status.entity";
 import {
   CreateStockStatusDto,
   UpdateStockStatusDto,
 } from "../dto/stock-status.dto";
+import { Product } from "../entities/product.entity";
 
 export class StockStatusController {
   static async createStockStatus(
@@ -15,13 +18,26 @@ export class StockStatusController {
       const repository =
         AppDataSource.getRepository(StockStatus);
 
-      const dto = req.body as CreateStockStatusDto;
+      const dto = plainToInstance(CreateStockStatusDto, req.body);
+      const errors = await validate(dto, {
+        whitelist: true,
+        forbidNonWhitelisted: true,
+      });
+
+      if (errors.length) {
+        res.status(400).json({
+          message: "Validation failed",
+          errors: errors.flatMap((error) => Object.values(error.constraints ?? {})),
+        });
+        return;
+      }
 
       const name = dto.name.trim();
 
-      const existing = await repository.findOne({
-        where: { name },
-      });
+      const existing = await repository
+        .createQueryBuilder("stockStatus")
+        .where("LOWER(stockStatus.name) = LOWER(:name)", { name })
+        .getOne();
 
       if (existing) {
         res.status(409).json({
@@ -68,10 +84,7 @@ export class StockStatusController {
         1,
       );
 
-      const limit = Math.max(
-        Number(req.query.limit) || 10,
-        1,
-      );
+      const limit = Math.min(Math.max(Number(req.query.limit) || 10, 1), 100);
 
       const skip = (page - 1) * limit;
 
@@ -163,7 +176,19 @@ export class StockStatusController {
 
       const { id } = req.params;
 
-      const dto = req.body as UpdateStockStatusDto;
+      const dto = plainToInstance(UpdateStockStatusDto, req.body);
+      const errors = await validate(dto, {
+        whitelist: true,
+        forbidNonWhitelisted: true,
+      });
+
+      if (errors.length) {
+        res.status(400).json({
+          message: "Validation failed",
+          errors: errors.flatMap((error) => Object.values(error.constraints ?? {})),
+        });
+        return;
+      }
 
       const stockStatus =
         await repository.findOne({
@@ -180,10 +205,10 @@ export class StockStatusController {
       if (dto.name !== undefined) {
         const name = dto.name.trim();
 
-        const existing =
-          await repository.findOne({
-            where: { name },
-          });
+        const existing = await repository
+          .createQueryBuilder("stockStatus")
+          .where("LOWER(stockStatus.name) = LOWER(:name)", { name })
+          .getOne();
 
         if (
           existing &&
@@ -232,6 +257,17 @@ export class StockStatusController {
       if (!stockStatus) {
         res.status(404).json({
           message: "Stock status not found",
+        });
+        return;
+      }
+
+      const productsUsingStatus = await AppDataSource.getRepository(Product).count({
+        where: { stockStatusId: stockStatus.id },
+      });
+
+      if (productsUsingStatus > 0) {
+        res.status(409).json({
+          message: `This stock status is assigned to ${productsUsingStatus} product${productsUsingStatus === 1 ? "" : "s"}`,
         });
         return;
       }

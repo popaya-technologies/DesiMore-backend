@@ -18,6 +18,7 @@ import { ProductOption } from "./product-option.entity";
 import { ProductDiscount } from "./product-discount.entity";
 import { ProductImage } from "./product-image.entity";
 import { Download } from "./download.entity";
+import { StockStatus } from "./stock-status.entity";
 
 @Entity("products")
 export class Product {
@@ -35,6 +36,13 @@ export class Product {
 
   @Column({ type: "varchar", default: "out_of_stock", length: 30 })
   outOfStockStatus: string;
+
+  @Column({ type: "uuid" })
+  stockStatusId: string;
+
+  @ManyToOne(() => StockStatus, { onDelete: "RESTRICT" })
+  @JoinColumn({ name: "stockStatusId" })
+  stockStatus: StockStatus;
 
   @Column({ type: "boolean", default: true })
   requiresShipping: boolean;

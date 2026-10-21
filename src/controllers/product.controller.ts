@@ -16,10 +16,10 @@ import { respondError } from "../utils/api-error";
 import {
   LENGTH_CLASSES,
   WEIGHT_CLASSES,
-  STOCK_STATUSES,
   OPTION_TYPES,
   CUSTOMER_GROUPS,
 } from "../dto/product.dto";
+import { StockStatus } from "../entities/stock-status.entity";
 
 const productRepository = AppDataSource.getRepository(Product);
 const categoryRepository = AppDataSource.getRepository(Category);
@@ -68,18 +68,26 @@ export const ProductController = {
   },
 
   getFormOptions: async (_req: Request, res: Response) => {
-    res.json({
-      lengthClasses: LENGTH_CLASSES,
-      weightClasses: WEIGHT_CLASSES,
-      outOfStockStatuses: STOCK_STATUSES,
-      optionTypes: OPTION_TYPES,
-      customerGroups: CUSTOMER_GROUPS,
-      manufacturerEndpoint: "/api/brands",
-      categoryEndpoint: "/api/categories/all",
-      downloadEndpoint: "/api/downloads",
-      wholesalePriceUnit: "box",
-      wholesaleStockUnit: "box",
-    });
+    try {
+      const stockStatuses = await AppDataSource.getRepository(StockStatus).find({
+        order: { name: "ASC" },
+      });
+
+      res.json({
+        lengthClasses: LENGTH_CLASSES,
+        weightClasses: WEIGHT_CLASSES,
+        stockStatuses,
+        optionTypes: OPTION_TYPES,
+        customerGroups: CUSTOMER_GROUPS,
+        manufacturerEndpoint: "/api/brands",
+        categoryEndpoint: "/api/categories/all",
+        downloadEndpoint: "/api/downloads",
+        wholesalePriceUnit: "box",
+        wholesaleStockUnit: "box",
+      });
+    } catch (error) {
+      respondError(res, error);
+    }
   },
 
   // Get All Products (Public)
