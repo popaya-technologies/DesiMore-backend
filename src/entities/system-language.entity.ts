@@ -26,6 +26,9 @@ export class SystemLanguage {
   @Column({ type: "boolean", default: true })
   status!: boolean;
 
+  @Column({ type: "boolean", default: false })
+  isDefault!: boolean;
+
   @CreateDateColumn()
   createdAt!: Date;
 

@@ -6,6 +6,7 @@ import { CreateCategoryDto, UpdateCategoryDto } from "../dto/category.dto";
 import { validate } from "class-validator";
 import * as XLSX from "xlsx";
 import { SeoUrl } from "../entities/seo-url.entity";
+import { getDefaultSystemLanguage } from "../services/system-language.service";
 
 const categoryRepository = AppDataSource.getRepository(Category);
 const parentCategoryRepository = AppDataSource.getRepository(ParentCategory);
@@ -13,12 +14,13 @@ const seoUrlRepository = AppDataSource.getRepository(SeoUrl);
 const categorySeoQuery = (id: string) => `category_id=${id}`;
 const syncCategorySeoUrl = async (category: Category) => {
   if (!category.keyword) return;
+  const defaultLanguage = await getDefaultSystemLanguage();
   const query = categorySeoQuery(category.id);
   const existing = await seoUrlRepository.findOne({
-    where: { query, store: "Default", language: "English" },
+    where: { query, store: "Default", languageId: defaultLanguage.id },
   });
   const conflict = await seoUrlRepository.findOne({
-    where: { keyword: category.keyword, store: "Default", language: "English" },
+    where: { keyword: category.keyword, store: "Default", languageId: defaultLanguage.id },
   });
   if (conflict && conflict.id !== existing?.id) {
     const error: any = new Error("This SEO keyword is already used by another resource");
@@ -27,12 +29,19 @@ const syncCategorySeoUrl = async (category: Category) => {
   }
   await seoUrlRepository.save(
     existing
-      ? Object.assign(existing, { keyword: category.keyword })
+      ? Object.assign(existing, {
+          keyword: category.keyword,
+          language: defaultLanguage.languageName,
+          languageId: defaultLanguage.id,
+          systemLanguage: defaultLanguage,
+        })
       : seoUrlRepository.create({
           query,
           keyword: category.keyword,
           store: "Default",
-          language: "English",
+          language: defaultLanguage.languageName,
+          languageId: defaultLanguage.id,
+          systemLanguage: defaultLanguage,
         }),
   );
 };

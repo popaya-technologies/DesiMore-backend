@@ -2,7 +2,7 @@ import { Router } from "express";
 
 import { StoreController } from "../controllers/store.controller";
 import { authenticate } from "../middlewares/auth.middleware";
-import { checkPermission } from "../middlewares/rbac.middleware";
+import { checkAnyPermission, checkPermission } from "../middlewares/rbac.middleware";
 
 const router = Router();
 
@@ -11,6 +11,13 @@ router.post(
   authenticate,
   checkPermission("store", "create"),
   StoreController.createStore,
+);
+
+router.get(
+  "/form-options",
+  authenticate,
+  checkAnyPermission("store", ["create", "update"]),
+  StoreController.getFormOptions,
 );
 
 router.get(

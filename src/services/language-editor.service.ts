@@ -5,6 +5,8 @@ import { AppDataSource } from "../data-source";
 import { LanguageTranslation } from "../entities/language-translation.entity";
 import { CreateTranslationDto, UpdateTranslationDto, DeleteTranslationsDto } from "../dto/language-editor.dto";
 import { ApiError } from "../utils/api-error";
+import { SystemLanguage } from "../entities/system-language.entity";
+import { getDefaultSystemLanguage } from "./system-language.service";
 
 async function validated<T extends object>(type: new () => T, input: unknown): Promise<T> {
   if (!input || typeof input !== "object" || Array.isArray(input) || !Object.keys(input).length)
@@ -38,7 +40,8 @@ export function translationQuery(query: any) {
     return Number(value);
   };
   const page = integer(query.page, 1, 1000000), limit = integer(query.limit, 10, 100);
-  const qb = AppDataSource.getRepository(LanguageTranslation).createQueryBuilder("translation");
+  const qb = AppDataSource.getRepository(LanguageTranslation)
+    .createQueryBuilder("translation");
   for (const [key, max] of [["store", 100], ["language", 50], ["route", 255], ["key", 255]] as const) {
     if (query[key] !== undefined) {
       if (typeof query[key] !== "string" || !query[key].trim() || query[key].length > max)
@@ -67,7 +70,7 @@ export function translationQuery(query: any) {
   const sortBy = query.sortBy ?? "createdAt", sortOrder = query.sortOrder ?? "DESC";
   if (!["store", "language", "route", "key", "value", "createdAt", "updatedAt"].includes(sortBy) || !["ASC", "DESC"].includes(sortOrder))
     throw new ApiError(400, "Invalid sorting");
-  qb.orderBy('translation."' + sortBy + '"', sortOrder).addOrderBy("translation.id", "ASC");
+  qb.orderBy(`translation.${sortBy}`, sortOrder).addOrderBy("translation.id", "ASC");
   return { qb, page, limit };
 }
 export class LanguageEditorService {
@@ -76,12 +79,30 @@ export class LanguageEditorService {
     const dto = await validateTranslation(input, !id);
     const repo = this.db.getRepository(LanguageTranslation);
     try {
-      if (!id) return await repo.save(repo.create(dto));
-      const result = await repo.update(id, dto);
-      if (!result.affected) throw new ApiError(404, "Translation not found");
-      const row = await repo.findOneBy({ id });
-      if (!row) throw new ApiError(404, "Translation not found");
-      return row;
+      const row = id
+        ? await repo.findOne({ where: { id }, relations: { systemLanguage: true } })
+        : repo.create();
+      if (id && !row) throw new ApiError(404, "Translation not found");
+
+      const current = row as LanguageTranslation;
+      const systemLanguage = dto.languageId
+        ? dto.languageId === current.languageId && current.systemLanguage
+          ? current.systemLanguage
+          : await this.db.getRepository(SystemLanguage).findOne({
+              where: { id: dto.languageId, status: true },
+            })
+        : id
+          ? current.systemLanguage
+          : await getDefaultSystemLanguage(this.db.manager);
+
+      if (!systemLanguage) throw new ApiError(400, "Select an enabled language");
+
+      Object.assign(current, dto, {
+        language: systemLanguage.languageName,
+        languageId: systemLanguage.id,
+        systemLanguage,
+      });
+      return await repo.save(current);
     } catch (error) {
       if (error.code === "23505") throw new ApiError(409, "A translation already exists for this store, language, route and key");
       throw error;

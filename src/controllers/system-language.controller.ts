@@ -6,6 +6,9 @@ import {
   CreateSystemLanguageDto,
   UpdateSystemLanguageDto,
 } from "../dto/system-language.dto";
+import { Store } from "../entities/store.entity";
+import { SeoUrl } from "../entities/seo-url.entity";
+import { LanguageTranslation } from "../entities/language-translation.entity";
 
 export class SystemLanguageController {
   private static repository() {
@@ -20,6 +23,7 @@ export class SystemLanguageController {
       locale: language.locale,
       sortOrder: language.sortOrder,
       status: language.status,
+      isDefault: language.isDefault,
       createdAt: language.createdAt,
       updatedAt: language.updatedAt,
     };
@@ -52,13 +56,21 @@ export class SystemLanguageController {
       const code = dto.code.trim();
       const locale = dto.locale.trim();
 
-      const existingLanguage = await repository.findOne({
-        where: [
-          { languageName },
-          { code },
-          { locale },
-        ],
-      });
+      if (dto.isDefault && dto.status === false) {
+        res.status(400).json({
+          message: "The default language must be enabled",
+        });
+        return;
+      }
+
+      const existingLanguage = await repository
+        .createQueryBuilder("language")
+        .where("LOWER(language.languageName) = LOWER(:languageName)", {
+          languageName,
+        })
+        .orWhere("LOWER(language.code) = LOWER(:code)", { code })
+        .orWhere("LOWER(language.locale) = LOWER(:locale)", { locale })
+        .getOne();
 
       if (existingLanguage) {
         res.status(409).json({
@@ -68,16 +80,29 @@ export class SystemLanguageController {
         return;
       }
 
+      const languageCount = await repository.count();
+      const shouldBeDefault = languageCount === 0 || dto.isDefault === true;
       const language = repository.create({
         languageName,
         code,
         locale,
         sortOrder: dto.sortOrder ?? 0,
         status: dto.status ?? true,
+        isDefault: shouldBeDefault,
       });
 
-      const savedLanguage =
-        await repository.save(language);
+      const savedLanguage = await AppDataSource.transaction(async (manager) => {
+        if (shouldBeDefault) {
+          await manager
+            .getRepository(SystemLanguage)
+            .createQueryBuilder()
+            .update(SystemLanguage)
+            .set({ isDefault: false })
+            .execute();
+        }
+
+        return manager.getRepository(SystemLanguage).save(language);
+      });
 
       res.status(201).json(
         SystemLanguageController.buildResponse(
@@ -167,6 +192,37 @@ export class SystemLanguageController {
     }
   }
 
+  static async getEnabledLanguages(
+    _req: Request,
+    res: Response,
+  ): Promise<void> {
+    try {
+      const languages = await SystemLanguageController.repository().find({
+        where: { status: true },
+        order: {
+          sortOrder: "ASC",
+          languageName: "ASC",
+        },
+      });
+
+      res.set("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
+      res.status(200).json(
+        languages.map((language) => ({
+          id: language.id,
+          name: language.languageName,
+          code: language.code,
+          locale: language.locale,
+          isDefault: language.isDefault,
+        })),
+      );
+    } catch (error) {
+      console.error("Error getting enabled languages:", error);
+      res.status(500).json({
+        message: "Failed to get enabled languages",
+      });
+    }
+  }
+
   static async getSystemLanguageById(
     req: Request,
     res: Response,
@@ -239,6 +295,8 @@ export class SystemLanguageController {
         return;
       }
 
+      const previousLanguageName = language.languageName;
+
       const languageName =
         dto.languageName?.trim();
 
@@ -269,7 +327,7 @@ export class SystemLanguageController {
 
         if (languageName !== undefined) {
           conditions.push(
-            "language.languageName = :languageName",
+            "LOWER(language.languageName) = LOWER(:languageName)",
           );
 
           parameters.languageName = languageName;
@@ -277,7 +335,7 @@ export class SystemLanguageController {
 
         if (code !== undefined) {
           conditions.push(
-            "language.code = :code",
+            "LOWER(language.code) = LOWER(:code)",
           );
 
           parameters.code = code;
@@ -285,7 +343,7 @@ export class SystemLanguageController {
 
         if (locale !== undefined) {
           conditions.push(
-            "language.locale = :locale",
+            "LOWER(language.locale) = LOWER(:locale)",
           );
 
           parameters.locale = locale;
@@ -325,11 +383,57 @@ export class SystemLanguageController {
       }
 
       if (dto.status !== undefined) {
+        if (language.isDefault && !dto.status) {
+          res.status(400).json({
+            message: "The default language cannot be disabled",
+          });
+          return;
+        }
         language.status = dto.status;
       }
 
-      const updatedLanguage =
-        await repository.save(language);
+      if (dto.isDefault === false && language.isDefault) {
+        res.status(400).json({
+          message: "Choose another default language before removing this default",
+        });
+        return;
+      }
+
+      if (dto.isDefault === true) {
+        language.isDefault = true;
+        language.status = true;
+      }
+
+      const updatedLanguage = await AppDataSource.transaction(async (manager) => {
+        if (dto.isDefault === true) {
+          await manager
+            .getRepository(SystemLanguage)
+            .createQueryBuilder()
+            .update(SystemLanguage)
+            .set({ isDefault: false })
+            .where("id != :id", { id: language.id })
+            .execute();
+        }
+
+        const savedLanguage = await manager.getRepository(SystemLanguage).save(language);
+
+        if (savedLanguage.languageName !== previousLanguageName) {
+          await manager.getRepository(Store).update(
+            { languageId: savedLanguage.id },
+            { language: savedLanguage.languageName },
+          );
+          await manager.getRepository(SeoUrl).update(
+            { languageId: savedLanguage.id },
+            { language: savedLanguage.languageName },
+          );
+          await manager.getRepository(LanguageTranslation).update(
+            { languageId: savedLanguage.id },
+            { language: savedLanguage.languageName },
+          );
+        }
+
+        return savedLanguage;
+      });
 
       res.status(200).json(
         SystemLanguageController.buildResponse(
@@ -365,6 +469,46 @@ export class SystemLanguageController {
       if (!language) {
         res.status(404).json({
           message: "System language not found",
+        });
+        return;
+      }
+
+      if (language.isDefault) {
+        res.status(409).json({
+          message: "The default language cannot be deleted",
+        });
+        return;
+      }
+
+      const storesUsingLanguage = await AppDataSource.getRepository(Store).count({
+        where: { languageId: language.id },
+      });
+
+      if (storesUsingLanguage > 0) {
+        res.status(409).json({
+          message: `This language is assigned to ${storesUsingLanguage} store${storesUsingLanguage === 1 ? "" : "s"}`,
+        });
+        return;
+      }
+
+      const seoUrlsUsingLanguage = await AppDataSource.getRepository(SeoUrl).count({
+        where: { languageId: language.id },
+      });
+
+      if (seoUrlsUsingLanguage > 0) {
+        res.status(409).json({
+          message: `This language is assigned to ${seoUrlsUsingLanguage} SEO URL${seoUrlsUsingLanguage === 1 ? "" : "s"}`,
+        });
+        return;
+      }
+
+      const translationsUsingLanguage = await AppDataSource.getRepository(LanguageTranslation).count({
+        where: { languageId: language.id },
+      });
+
+      if (translationsUsingLanguage > 0) {
+        res.status(409).json({
+          message: `This language is assigned to ${translationsUsingLanguage} translation${translationsUsingLanguage === 1 ? "" : "s"}`,
         });
         return;
       }

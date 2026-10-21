@@ -4,7 +4,10 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
+  JoinColumn,
+  ManyToOne,
 } from "typeorm";
+import { SystemLanguage } from "./system-language.entity";
 
 @Entity("stores")
 export class Store {
@@ -111,6 +114,13 @@ export class Store {
     default: "English",
   })
   language!: string;
+
+  @Column({ type: "uuid" })
+  languageId!: string;
+
+  @ManyToOne(() => SystemLanguage, { onDelete: "RESTRICT" })
+  @JoinColumn({ name: "languageId" })
+  systemLanguage!: SystemLanguage;
 
   @Column({
     type: "varchar",

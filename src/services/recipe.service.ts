@@ -7,6 +7,7 @@ import { CreateRecipeDto, UpdateRecipeDto } from "../dto/recipe.dto";
 import { Recipe } from "../entities/recipe.entity";
 import { RecipeCategory } from "../entities/recipe-category.entity";
 import { SeoUrl } from "../entities/seo-url.entity";
+import { getDefaultSystemLanguage } from "./system-language.service";
 import { ApiError } from "../utils/api-error";
 
 const cleanText = (value: string, label: string) => {
@@ -90,23 +91,31 @@ export class RecipeService {
         }
         const saved = await repo.save(recipe);
         const seoRepo = manager.getRepository(SeoUrl);
+        const defaultLanguage = await getDefaultSystemLanguage(manager);
         const query = `recipe_id=${saved.id}`;
         const mapping = await seoRepo.findOne({
-          where: { query, store: "Default", language: "English" },
+          where: { query, store: "Default", languageId: defaultLanguage.id },
         });
         const conflict = await seoRepo.findOne({
-          where: { keyword: saved.seoKeyword, store: "Default", language: "English" },
+          where: { keyword: saved.seoKeyword, store: "Default", languageId: defaultLanguage.id },
         });
         if (conflict && conflict.id !== mapping?.id)
           throw new ApiError(409, "This SEO keyword is already used by another resource");
         await seoRepo.save(
           mapping
-            ? Object.assign(mapping, { keyword: saved.seoKeyword })
+            ? Object.assign(mapping, {
+                keyword: saved.seoKeyword,
+                language: defaultLanguage.languageName,
+                languageId: defaultLanguage.id,
+                systemLanguage: defaultLanguage,
+              })
             : seoRepo.create({
                 query,
                 keyword: saved.seoKeyword,
                 store: "Default",
-                language: "English",
+                language: defaultLanguage.languageName,
+                languageId: defaultLanguage.id,
+                systemLanguage: defaultLanguage,
               }),
         );
         return saved;
@@ -122,10 +131,11 @@ export class RecipeService {
       const repo = manager.getRepository(Recipe);
       const recipe = await repo.findOne({ where: { id }, lock: { mode: "pessimistic_write" } });
       if (!recipe) throw new ApiError(404, "Recipe not found");
+      const defaultLanguage = await getDefaultSystemLanguage(manager);
       await manager.getRepository(SeoUrl).delete({
         query: `recipe_id=${id}`,
         store: "Default",
-        language: "English",
+        languageId: defaultLanguage.id,
       });
       await repo.remove(recipe);
       return { message: "Recipe deleted successfully" };

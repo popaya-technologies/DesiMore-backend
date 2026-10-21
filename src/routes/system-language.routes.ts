@@ -5,6 +5,11 @@ import { checkPermission } from "../middlewares/rbac.middleware";
 
 const router = Router();
 
+router.get(
+  "/public/enabled",
+  SystemLanguageController.getEnabledLanguages,
+);
+
 router.post(
   "/",
   authenticate,

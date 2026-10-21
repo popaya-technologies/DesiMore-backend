@@ -4,6 +4,7 @@ import { AppDataSource } from "../data-source";
 import { LanguageTranslation } from "../entities/language-translation.entity";
 import { LanguageEditorService, translationQuery } from "../services/language-editor.service";
 import { ApiError, respondError } from "../utils/api-error";
+import { SystemLanguage } from "../entities/system-language.entity";
 
 const repo = () => AppDataSource.getRepository(LanguageTranslation);
 const handle = (action: (req: Request, res: Response) => Promise<void>) =>
@@ -23,7 +24,10 @@ export const LanguageEditorController = {
     res.json({ data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } });
   }),
   get: handle(async (req, res) => {
-    const row = await repo().findOneBy({ id: String(req.params.id) });
+    const row = await repo().findOne({
+      where: { id: String(req.params.id) },
+      relations: { systemLanguage: true },
+    });
     if (!row) throw new ApiError(404, "Translation not found");
     res.json(row);
   }),
@@ -38,11 +42,16 @@ export const LanguageEditorController = {
   options: handle(async (_req, res) => {
     const [stores, languages] = await Promise.all([
       repo().createQueryBuilder("t").select("t.store", "value").distinct(true).orderBy("t.store", "ASC").getRawMany(),
-      repo().createQueryBuilder("t").select("t.language", "value").distinct(true).orderBy("t.language", "ASC").getRawMany(),
+      AppDataSource.getRepository(SystemLanguage).find({
+        order: { sortOrder: "ASC", languageName: "ASC" },
+      }),
     ]);
     res.json({ stores: [...new Set(["Default", ...stores.map(s => s.value)])],
-      languages: [...new Set(["English", ...languages.map(l => l.value)])],
-      defaults: { store: "Default", language: "English" } });
+      languages,
+      defaults: {
+        store: "Default",
+        languageId: languages.find(language => language.isDefault)?.id ?? "",
+      } });
   }),
   export: handle(async (req, res) => {
     const format = req.query.format ?? "csv";

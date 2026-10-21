@@ -7,7 +7,8 @@ import {
   UpdateStoreDto,
 } from "../dto/store.dto";
 import { ILike } from "typeorm";
-import { respondError } from "../utils/api-error";
+import { ApiError, respondError } from "../utils/api-error";
+import { SystemLanguage } from "../entities/system-language.entity";
 
 const storeRepository = AppDataSource.getRepository(Store);
 
@@ -30,6 +31,19 @@ export const StoreController = {
       if (errors.length > 0) {
         res.status(400).json({ errors });
         return;
+      }
+
+      const languageRepository = AppDataSource.getRepository(SystemLanguage);
+      const systemLanguage = storeData.languageId
+        ? await languageRepository.findOne({
+            where: { id: storeData.languageId, status: true },
+          })
+        : await languageRepository.findOne({
+            where: { isDefault: true, status: true },
+          });
+
+      if (!systemLanguage) {
+        throw new ApiError(400, "Select an enabled language");
       }
 
       // Keep only one default store
@@ -61,7 +75,9 @@ export const StoreController = {
         country: storeData.country?.trim() || "United States",
         regionState:
           storeData.regionState?.trim() || "New Jersey",
-        language: storeData.language?.trim() || "English",
+        language: systemLanguage.languageName,
+        languageId: systemLanguage.id,
+        systemLanguage,
         currency:
           storeData.currency?.trim() || "US Dollar",
 
@@ -157,6 +173,7 @@ export const StoreController = {
       if (where.length > 0) {
         const result = await storeRepository.findAndCount({
           where,
+          relations: { systemLanguage: true },
           order: {
             isDefault: "DESC",
             createdAt: "DESC",
@@ -169,6 +186,7 @@ export const StoreController = {
         total = result[1];
       } else {
         const result = await storeRepository.findAndCount({
+          relations: { systemLanguage: true },
           order: {
             isDefault: "DESC",
             createdAt: "DESC",
@@ -207,6 +225,7 @@ export const StoreController = {
         where: {
           id: req.params.id,
         },
+        relations: { systemLanguage: true },
       });
 
       if (!store) {
@@ -253,6 +272,19 @@ export const StoreController = {
       if (errors.length > 0) {
         res.status(400).json({ errors });
         return;
+      }
+
+      let systemLanguage = store.systemLanguage;
+      if (storeData.languageId !== undefined) {
+        systemLanguage =
+          storeData.languageId === store.languageId
+            ? store.systemLanguage
+            : await AppDataSource.getRepository(SystemLanguage).findOne({
+                where: { id: storeData.languageId, status: true },
+              });
+        if (!systemLanguage) {
+          throw new ApiError(400, "Select an enabled language");
+        }
       }
 
       if (storeData.isDefault === true) {
@@ -347,10 +379,9 @@ export const StoreController = {
             ? storeData.regionState.trim()
             : store.regionState,
 
-        language:
-          storeData.language !== undefined
-            ? storeData.language.trim()
-            : store.language,
+        language: systemLanguage?.languageName ?? store.language,
+        languageId: systemLanguage?.id ?? store.languageId,
+        systemLanguage,
 
         currency:
           storeData.currency !== undefined
@@ -406,6 +437,18 @@ export const StoreController = {
       await storeRepository.save(store);
 
       res.json(store);
+    } catch (error) {
+      respondError(res, error);
+    }
+  },
+
+  getFormOptions: async (_req: Request, res: Response) => {
+    try {
+      const languages = await AppDataSource.getRepository(SystemLanguage).find({
+        order: { sortOrder: "ASC", languageName: "ASC" },
+      });
+
+      res.json({ languages });
     } catch (error) {
       respondError(res, error);
     }

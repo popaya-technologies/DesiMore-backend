@@ -4,6 +4,7 @@ import {
   IsNotEmpty,
   Matches,
   MaxLength,
+  IsUUID,
 } from "class-validator";
 
 const SEO_KEYWORD_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -36,6 +37,10 @@ export class CreateSeoUrlDto {
   @Matches(/\S/, { message: "language must not be blank" })
   @MaxLength(255)
   language?: string;
+
+  @IsUUID()
+  @IsOptional()
+  languageId?: string;
 }
 
 export class UpdateSeoUrlDto {
@@ -68,4 +73,8 @@ export class UpdateSeoUrlDto {
   @IsNotEmpty()
   @MaxLength(255)
   language?: string;
+
+  @IsUUID()
+  @IsOptional()
+  languageId?: string;
 }

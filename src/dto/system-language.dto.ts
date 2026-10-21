@@ -32,6 +32,10 @@ export class CreateSystemLanguageDto {
   @IsBoolean()
   @IsOptional()
   status?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  isDefault?: boolean;
 }
 
 export class UpdateSystemLanguageDto {
@@ -61,4 +65,8 @@ export class UpdateSystemLanguageDto {
   @IsBoolean()
   @IsOptional()
   status?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  isDefault?: boolean;
 }

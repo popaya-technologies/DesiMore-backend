@@ -18,6 +18,7 @@ import { SeoUrl } from "../entities/seo-url.entity";
 import { CreateProductDto } from "../dto/product.dto";
 import { ApiError } from "../utils/api-error";
 import { StockStatus } from "../entities/stock-status.entity";
+import { getDefaultSystemLanguage } from "./system-language.service";
 
 export const PRODUCT_RELATIONS = [
   "categories",
@@ -95,32 +96,40 @@ const syncProductSeoUrl = async (
   requestedKeyword?: string,
 ) => {
   const repo = manager.getRepository(SeoUrl);
+  const defaultLanguage = await getDefaultSystemLanguage(manager);
   const query = productSeoQuery(product.id);
   const existing = await repo.findOne({
-    where: { query, store: DEFAULT_SEO_STORE, language: DEFAULT_SEO_LANGUAGE },
+    where: { query, store: DEFAULT_SEO_STORE, languageId: defaultLanguage.id },
   });
   let keyword = requestedKeyword?.trim() || existing?.keyword;
   if (!keyword) {
     const base = seoKeywordFromTitle(product.title);
     keyword = base;
     for (let suffix = 2; await repo.findOne({
-      where: { keyword, store: DEFAULT_SEO_STORE, language: DEFAULT_SEO_LANGUAGE },
+      where: { keyword, store: DEFAULT_SEO_STORE, languageId: defaultLanguage.id },
     }); suffix++) keyword = `${base.slice(0, 490)}-${suffix}`;
   }
   const conflict = await repo.findOne({
-    where: { keyword, store: DEFAULT_SEO_STORE, language: DEFAULT_SEO_LANGUAGE },
+    where: { keyword, store: DEFAULT_SEO_STORE, languageId: defaultLanguage.id },
   });
   if (conflict && conflict.id !== existing?.id)
     throw new ApiError(409, "This SEO keyword already exists for the default English store");
   try {
     return await repo.save(
       existing
-        ? Object.assign(existing, { keyword })
+        ? Object.assign(existing, {
+            keyword,
+            language: defaultLanguage.languageName,
+            languageId: defaultLanguage.id,
+            systemLanguage: defaultLanguage,
+          })
         : repo.create({
             query,
             keyword,
             store: DEFAULT_SEO_STORE,
-            language: DEFAULT_SEO_LANGUAGE,
+            language: defaultLanguage.languageName,
+            languageId: defaultLanguage.id,
+            systemLanguage: defaultLanguage,
           }),
     );
   } catch (error) {
@@ -130,27 +139,30 @@ const syncProductSeoUrl = async (
   }
 };
 
-export const getProductSeoKeyword = async (productId: string) =>
-  (
+export const getProductSeoKeyword = async (productId: string) => {
+  const defaultLanguage = await getDefaultSystemLanguage();
+  return (
     await AppDataSource.getRepository(SeoUrl).findOne({
       where: {
         query: productSeoQuery(productId),
         store: DEFAULT_SEO_STORE,
-        language: DEFAULT_SEO_LANGUAGE,
+        languageId: defaultLanguage.id,
       },
     })
   )?.keyword ?? null;
+};
 
 export const attachProductSeoKeywords = async <T extends { id: string }>(
   products: T[],
 ): Promise<Array<T & { seoKeyword: string | null }>> => {
   if (!products.length) return [];
+  const defaultLanguage = await getDefaultSystemLanguage();
   const prefix = "product_id=";
   const rows = await AppDataSource.getRepository(SeoUrl).find({
     where: {
       query: In(products.map((product) => productSeoQuery(product.id))),
       store: DEFAULT_SEO_STORE,
-      language: DEFAULT_SEO_LANGUAGE,
+      languageId: defaultLanguage.id,
     },
   });
   const byProductId = new Map(
@@ -167,10 +179,11 @@ export const deleteProductWithSeo = async (id: string) =>
     const productRepo = manager.getRepository(Product);
     const product = await productRepo.findOne({ where: { id } });
     if (!product) throw new ApiError(404, "Product not found");
+    const defaultLanguage = await getDefaultSystemLanguage(manager);
     await manager.getRepository(SeoUrl).delete({
       query: productSeoQuery(id),
       store: DEFAULT_SEO_STORE,
-      language: DEFAULT_SEO_LANGUAGE,
+      languageId: defaultLanguage.id,
     });
     await productRepo.remove(product);
   });
