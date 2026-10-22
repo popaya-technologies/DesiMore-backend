@@ -4,6 +4,7 @@ import { authenticate } from "../middlewares/auth.middleware";
 import { checkPermission } from "../middlewares/rbac.middleware";
 import { LanguageEditorController as controller } from "../controllers/language-editor.controller";
 const router = Router();
+router.get("/public/translations", controller.publicTranslations);
 router.use(authenticate);
 router.param("id", (_req, res, next, id) => {
   if (!isUUID(id)) { res.status(400).json({ message: "Invalid translation ID" }); return; }

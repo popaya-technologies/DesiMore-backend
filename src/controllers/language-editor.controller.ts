@@ -5,6 +5,7 @@ import { LanguageTranslation } from "../entities/language-translation.entity";
 import { LanguageEditorService, translationQuery } from "../services/language-editor.service";
 import { ApiError, respondError } from "../utils/api-error";
 import { SystemLanguage } from "../entities/system-language.entity";
+import { In } from "typeorm";
 
 const repo = () => AppDataSource.getRepository(LanguageTranslation);
 const handle = (action: (req: Request, res: Response) => Promise<void>) =>
@@ -12,6 +13,72 @@ const handle = (action: (req: Request, res: Response) => Promise<void>) =>
     try { await action(req, res); } catch (error) { respondError(res, error); }
   };
 export const LanguageEditorController = {
+  publicTranslations: handle(async (req, res) => {
+    const allowedQuery = ["languageId", "store"];
+    if (Object.keys(req.query).some(key => !allowedQuery.includes(key))) {
+      throw new ApiError(400, "Unknown query parameter");
+    }
+
+    const languageId = String(req.query.languageId ?? "").trim();
+    const store = String(req.query.store ?? "Default").trim();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(languageId)) {
+      throw new ApiError(400, "A valid languageId is required");
+    }
+    if (!store || store.length > 100 || /[\u0000-\u001f\u007f]/.test(store)) {
+      throw new ApiError(400, "Invalid store");
+    }
+
+    const languageRepo = AppDataSource.getRepository(SystemLanguage);
+    const selectedLanguage = await languageRepo.findOne({
+      where: { id: languageId, status: true },
+    });
+    if (!selectedLanguage) throw new ApiError(404, "Enabled language not found");
+
+    const defaultLanguage = await languageRepo.findOne({
+      where: { isDefault: true, status: true },
+    });
+    const languageIds = [...new Set([
+      defaultLanguage?.id,
+      selectedLanguage.id,
+    ].filter((id): id is string => Boolean(id)))];
+    const rows = await repo().find({
+      where: { store, languageId: In(languageIds) },
+      order: { route: "ASC", key: "ASC" },
+    });
+
+    const translations: Record<string, string> = {};
+    const addRows = (id: string | undefined) => {
+      if (!id) return;
+      for (const row of rows.filter(item => item.languageId === id)) {
+        const route = row.route.trim().replace(/^\.+|\.+$/g, "");
+        const key = row.key.trim().replace(/^\.+|\.+$/g, "");
+        if (route && key) {
+          // Admins may enter either `title` or the fully-qualified
+          // `about.title`. Avoid producing `about.about.title`.
+          const fullKey = key === route || key.startsWith(`${route}.`)
+            ? key
+            : `${route}.${key}`;
+          translations[fullKey] = row.value;
+        }
+      }
+    };
+
+    addRows(defaultLanguage?.id);
+    addRows(selectedLanguage.id);
+
+    res.set("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+    res.json({
+      language: {
+        id: selectedLanguage.id,
+        name: selectedLanguage.languageName,
+        code: selectedLanguage.code,
+        locale: selectedLanguage.locale,
+        isDefault: selectedLanguage.isDefault,
+      },
+      defaultLanguageId: defaultLanguage?.id ?? null,
+      translations,
+    });
+  }),
   create: handle(async (req, res) => {
     res.status(201).json(await new LanguageEditorService().save(req.body));
   }),
