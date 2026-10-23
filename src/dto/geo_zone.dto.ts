@@ -10,23 +10,24 @@ import {
 import { Type } from "class-transformer";
 
 export class GeoZoneLocationDto {
-  @IsUUID()
-  @IsNotEmpty()
+  @IsUUID("all", { message: "Please select a country for every row" })
   countryId!: string;
 
-  @IsUUID()
+  // Missing means "All Zones" of the country.
+  @IsUUID("all", { message: "Please select a valid zone" })
   @IsOptional()
   zoneId?: string;
 }
 
 export class CreateGeoZoneDto {
   @IsString()
-  @IsNotEmpty()
+  @IsNotEmpty({ message: "Geo Zone name is required" })
   @MaxLength(255)
   name!: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsNotEmpty({ message: "Description is required" })
+  @MaxLength(5000)
   description!: string;
 
   @IsArray()
@@ -37,13 +38,14 @@ export class CreateGeoZoneDto {
 
 export class UpdateGeoZoneDto {
   @IsString()
-  @IsNotEmpty()
+  @IsNotEmpty({ message: "Geo Zone name is required" })
   @MaxLength(255)
   @IsOptional()
   name?: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsNotEmpty({ message: "Description is required" })
+  @MaxLength(5000)
   @IsOptional()
   description?: string;
 

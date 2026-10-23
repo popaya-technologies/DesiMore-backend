@@ -1,13 +1,123 @@
 import { Request, Response } from "express";
+import { plainToInstance } from "class-transformer";
+import { validate, type ValidationError } from "class-validator";
+import { In } from "typeorm";
 import { AppDataSource } from "../data-source";
 import { GeoZone } from "../entities/geo_zone.entity";
 import { GeoZoneLocation } from "../entities/geo_zone_location.entity";
 import { Country } from "../entities/country.entity";
+import { TaxRate } from "../entities/tax-class.entity";
 import { Zone } from "../entities/zone.entity";
 import {
   CreateGeoZoneDto,
+  GeoZoneLocationDto,
   UpdateGeoZoneDto,
 } from "../dto/geo_zone.dto";
+
+// Location rows are nested, so collect constraint messages from every level.
+const collectMessages = (errors: ValidationError[]): string[] =>
+  errors.flatMap((error) => [
+    ...Object.values(error.constraints ?? {}),
+    ...collectMessages(error.children ?? []),
+  ]);
+
+const validationErrors = async (dto: object) =>
+  collectMessages(
+    await validate(dto, {
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    })
+  );
+
+// Geo zone names are unique regardless of upper/lower case.
+const isNameTaken = async (name: string, excludeId?: string) => {
+  const query = AppDataSource.getRepository(GeoZone)
+    .createQueryBuilder("geoZone")
+    .select(["geoZone.id"])
+    .where("LOWER(geoZone.name) = LOWER(:name)", { name });
+
+  if (excludeId) {
+    query.andWhere("geoZone.id != :excludeId", { excludeId });
+  }
+
+  return Boolean(await query.getOne());
+};
+
+// Returns an error message when the Country + Zone rows are invalid, otherwise null.
+const checkLocations = async (
+  locations: GeoZoneLocationDto[]
+): Promise<string | null> => {
+  if (locations.length === 0) {
+    return "At least one Geo Zone location is required";
+  }
+
+  const countryIds = [...new Set(locations.map((row) => row.countryId))];
+  const countries = await AppDataSource.getRepository(Country).findBy({
+    id: In(countryIds),
+  });
+
+  if (countries.length !== countryIds.length) {
+    return "One or more countries are invalid";
+  }
+
+  const zoneIds = [
+    ...new Set(
+      locations
+        .map((row) => row.zoneId)
+        .filter((zoneId): zoneId is string => Boolean(zoneId))
+    ),
+  ];
+  const zones = zoneIds.length
+    ? await AppDataSource.getRepository(Zone).findBy({ id: In(zoneIds) })
+    : [];
+
+  if (zones.length !== zoneIds.length) {
+    return "One or more zones are invalid";
+  }
+
+  const countryName = new Map(countries.map((c) => [c.id, c.name]));
+  const zoneById = new Map(zones.map((z) => [z.id, z]));
+  const seen = new Set<string>();
+  const allZonesCountries = new Set(
+    locations.filter((row) => !row.zoneId).map((row) => row.countryId)
+  );
+
+  for (const row of locations) {
+    const country = countryName.get(row.countryId);
+
+    if (row.zoneId) {
+      const zone = zoneById.get(row.zoneId);
+
+      if (!zone || zone.countryId !== row.countryId) {
+        return "Selected zone does not belong to the selected country";
+      }
+
+      // "All Zones" already covers every zone of the country.
+      if (allZonesCountries.has(row.countryId)) {
+        return `${country} is already added with All Zones. Remove the other ${country} rows.`;
+      }
+    }
+
+    const key = `${row.countryId}|${row.zoneId ?? "all"}`;
+
+    if (seen.has(key)) {
+      const zoneName = row.zoneId
+        ? zoneById.get(row.zoneId)?.name
+        : "All Zones";
+      return `${country} - ${zoneName} is added more than once`;
+    }
+
+    seen.add(key);
+  }
+
+  return null;
+};
+
+const geoZoneRelations = [
+  "locations",
+  "locations.country",
+  "locations.zone",
+];
 
 export class GeoZoneController {
   static async createGeoZone(
@@ -15,106 +125,40 @@ export class GeoZoneController {
     res: Response
   ): Promise<void> {
     try {
-      const dto = req.body as CreateGeoZoneDto;
+      const dto = plainToInstance(CreateGeoZoneDto, req.body);
+      const errors = await validationErrors(dto);
+
+      if (errors.length) {
+        res.status(400).json({
+          message: errors[0],
+          errors,
+        });
+        return;
+      }
 
       const geoZoneRepository =
         AppDataSource.getRepository(GeoZone);
 
-      const countryRepository =
-        AppDataSource.getRepository(Country);
+      const name = dto.name.trim();
 
-      const zoneRepository =
-        AppDataSource.getRepository(Zone);
-
-      const existingGeoZone =
-        await geoZoneRepository.findOne({
-          where: {
-            name: dto.name.trim(),
-          },
-        });
-
-      if (existingGeoZone) {
+      if (await isNameTaken(name)) {
         res.status(409).json({
           message: "Geo Zone with this name already exists",
         });
         return;
       }
 
-      if (!dto.locations || dto.locations.length === 0) {
+      const locationError = await checkLocations(dto.locations);
+
+      if (locationError) {
         res.status(400).json({
-          message: "At least one Geo Zone location is required",
+          message: locationError,
         });
         return;
-      }
-
-      const countryIds = [
-        ...new Set(
-          dto.locations.map((location) => location.countryId)
-        ),
-      ];
-
-      const countries = await countryRepository.findByIds(
-        countryIds
-      );
-
-      if (countries.length !== countryIds.length) {
-        res.status(400).json({
-          message: "One or more countries are invalid",
-        });
-        return;
-      }
-
-      const zoneIds = [
-        ...new Set(
-          dto.locations
-            .map((location) => location.zoneId)
-            .filter(
-              (zoneId): zoneId is string => Boolean(zoneId)
-            )
-        ),
-      ];
-
-      const zones =
-        zoneIds.length > 0
-          ? await zoneRepository.findByIds(zoneIds)
-          : [];
-
-      if (zones.length !== zoneIds.length) {
-        res.status(400).json({
-          message: "One or more zones are invalid",
-        });
-        return;
-      }
-
-      const zoneMap = new Map(
-        zones.map((zone) => [zone.id, zone])
-      );
-
-      for (const location of dto.locations) {
-        if (!location.zoneId) {
-          continue;
-        }
-
-        const zone = zoneMap.get(location.zoneId);
-
-        if (!zone) {
-          res.status(400).json({
-            message: "Invalid zone",
-          });
-          return;
-        }
-
-        if (zone.countryId !== location.countryId) {
-          res.status(400).json({
-            message:
-              "Selected zone does not belong to the selected country",
-          });
-          return;
-        }
       }
 
       const geoZone = geoZoneRepository.create({
-        name: dto.name.trim(),
+        name,
         description: dto.description.trim(),
         locations: dto.locations.map((location) => ({
           countryId: location.countryId,
@@ -130,11 +174,7 @@ export class GeoZoneController {
           where: {
             id: savedGeoZone.id,
           },
-          relations: [
-            "locations",
-            "locations.country",
-            "locations.zone",
-          ],
+          relations: geoZoneRelations,
         });
 
       res.status(201).json(result);
@@ -160,10 +200,25 @@ export class GeoZoneController {
         1
       );
 
-      const limit = Math.max(
-        Number(req.query.limit) || 10,
-        1
+      const limit = Math.min(
+        Math.max(Number(req.query.limit) || 10, 1),
+        100
       );
+
+      // Column sorting from the admin list; default is name A-Z (the old site's order).
+      const sortColumns: Record<string, string> = {
+        name: "geoZone.name",
+        description: "geoZone.description",
+      };
+      const sortBy =
+        typeof req.query.sortBy === "string" &&
+        sortColumns[req.query.sortBy]
+          ? sortColumns[req.query.sortBy]
+          : sortColumns.name;
+      const sortOrder =
+        String(req.query.sortOrder).toUpperCase() === "DESC"
+          ? "DESC"
+          : "ASC";
 
       const search =
         typeof req.query.search === "string"
@@ -188,7 +243,7 @@ export class GeoZoneController {
 
       if (search) {
         queryBuilder.where(
-          "LOWER(geoZone.name) LIKE LOWER(:search) OR LOWER(geoZone.description) LIKE LOWER(:search)",
+          "(geoZone.name ILIKE :search OR geoZone.description ILIKE :search)",
           {
             search: `%${search}%`,
           }
@@ -196,7 +251,8 @@ export class GeoZoneController {
       }
 
       queryBuilder
-        .orderBy("geoZone.createdAt", "DESC")
+        .orderBy(sortBy, sortOrder)
+        .addOrderBy("geoZone.name", "ASC")
         .skip((page - 1) * limit)
         .take(limit);
 
@@ -234,11 +290,7 @@ export class GeoZoneController {
       const geoZone =
         await geoZoneRepository.findOne({
           where: { id },
-          relations: [
-            "locations",
-            "locations.country",
-            "locations.zone",
-          ],
+          relations: geoZoneRelations,
         });
 
       if (!geoZone) {
@@ -258,189 +310,100 @@ export class GeoZoneController {
     }
   }
 
-static async updateGeoZone(
-  req: Request,
-  res: Response
-): Promise<void> {
-  try {
-    const { id } = req.params;
-    const dto = req.body as UpdateGeoZoneDto;
+  static async updateGeoZone(
+    req: Request,
+    res: Response
+  ): Promise<void> {
+    try {
+      const { id } = req.params;
 
-    const geoZoneRepository =
-      AppDataSource.getRepository(GeoZone);
+      const dto = plainToInstance(UpdateGeoZoneDto, req.body);
+      const errors = await validationErrors(dto);
 
-    const geoZoneLocationRepository =
-      AppDataSource.getRepository(GeoZoneLocation);
+      if (errors.length) {
+        res.status(400).json({
+          message: errors[0],
+          errors,
+        });
+        return;
+      }
 
-    const countryRepository =
-      AppDataSource.getRepository(Country);
+      const geoZoneRepository =
+        AppDataSource.getRepository(GeoZone);
 
-    const zoneRepository =
-      AppDataSource.getRepository(Zone);
-
-    const geoZone = await geoZoneRepository.findOne({
-      where: { id },
-    });
-
-    if (!geoZone) {
-      res.status(404).json({
-        message: "Geo Zone not found",
+      const geoZone = await geoZoneRepository.findOne({
+        where: { id },
       });
-      return;
-    }
 
-    // Check duplicate name
-    if (dto.name !== undefined) {
-      const name = dto.name.trim();
-
-      const existingGeoZone =
-        await geoZoneRepository.findOne({
-          where: {
-            name,
-          },
-        });
-
-      if (
-        existingGeoZone &&
-        existingGeoZone.id !== id
-      ) {
-        res.status(409).json({
-          message: "Geo Zone with this name already exists",
+      if (!geoZone) {
+        res.status(404).json({
+          message: "Geo Zone not found",
         });
         return;
       }
 
-      geoZone.name = name;
-    }
+      if (dto.name !== undefined) {
+        const name = dto.name.trim();
 
-    // Update description
-    if (dto.description !== undefined) {
-      geoZone.description = dto.description.trim();
-    }
-
-    // Update Country + Zone mappings
-    if (dto.locations !== undefined) {
-      if (dto.locations.length === 0) {
-        res.status(400).json({
-          message:
-            "At least one Geo Zone location is required",
-        });
-        return;
-      }
-
-      // Validate countries
-      const countryIds = [
-        ...new Set(
-          dto.locations.map(
-            (location) => location.countryId
-          )
-        ),
-      ];
-
-      const countries =
-        await countryRepository.findByIds(countryIds);
-
-      if (countries.length !== countryIds.length) {
-        res.status(400).json({
-          message: "One or more countries are invalid",
-        });
-        return;
-      }
-
-      // Validate zones
-      const zoneIds = [
-        ...new Set(
-          dto.locations
-            .map((location) => location.zoneId)
-            .filter(
-              (zoneId): zoneId is string =>
-                Boolean(zoneId)
-            )
-        ),
-      ];
-
-      const zones =
-        zoneIds.length > 0
-          ? await zoneRepository.findByIds(zoneIds)
-          : [];
-
-      if (zones.length !== zoneIds.length) {
-        res.status(400).json({
-          message: "One or more zones are invalid",
-        });
-        return;
-      }
-
-      const zoneMap = new Map(
-        zones.map((zone) => [zone.id, zone])
-      );
-
-      // Make sure selected Zone belongs to selected Country
-      for (const location of dto.locations) {
-        if (!location.zoneId) {
-          continue;
+        if (await isNameTaken(name, id)) {
+          res.status(409).json({
+            message: "Geo Zone with this name already exists",
+          });
+          return;
         }
 
-        const zone = zoneMap.get(location.zoneId);
+        geoZone.name = name;
+      }
 
-        if (
-          !zone ||
-          zone.countryId !== location.countryId
-        ) {
+      if (dto.description !== undefined) {
+        geoZone.description = dto.description.trim();
+      }
+
+      if (dto.locations !== undefined) {
+        const locationError = await checkLocations(dto.locations);
+
+        if (locationError) {
           res.status(400).json({
-            message:
-              "Selected zone does not belong to the selected country",
+            message: locationError,
           });
           return;
         }
       }
 
-      /*
-       * Delete existing mappings first.
-       *
-       * Then create the new mappings from the request.
-       * This is safer than trying to update the OneToMany
-       * relation through GeoZone.save().
-       */
-      await geoZoneLocationRepository.delete({
-        geoZoneId: id,
+      // Replace the Country + Zone rows and save the geo zone together, so a
+      // failure cannot leave the geo zone without its rows.
+      await AppDataSource.transaction(async (manager) => {
+        if (dto.locations !== undefined) {
+          await manager.delete(GeoZoneLocation, { geoZoneId: id });
+          await manager.save(
+            dto.locations.map((location) =>
+              manager.create(GeoZoneLocation, {
+                geoZoneId: id,
+                countryId: location.countryId,
+                zoneId: location.zoneId ?? null,
+              })
+            )
+          );
+        }
+
+        await manager.save(geoZone);
       });
 
-      const locations =
-        dto.locations.map((location) =>
-          geoZoneLocationRepository.create({
-            geoZoneId: id,
-            countryId: location.countryId,
-            zoneId: location.zoneId ?? null,
-          })
-        );
+      const result =
+        await geoZoneRepository.findOne({
+          where: { id },
+          relations: geoZoneRelations,
+        });
 
-      await geoZoneLocationRepository.save(locations);
+      res.status(200).json(result);
+    } catch (error) {
+      console.error("Update Geo Zone error:", error);
+
+      res.status(500).json({
+        message: "Failed to update Geo Zone",
+      });
     }
-
-    // Save Geo Zone itself
-    await geoZoneRepository.save(geoZone);
-
-    // Return updated Geo Zone with relations
-    const result =
-      await geoZoneRepository.findOne({
-        where: { id },
-        relations: [
-          "locations",
-          "locations.country",
-          "locations.zone",
-        ],
-      });
-
-    res.status(200).json(result);
-  } catch (error) {
-    console.error("Update Geo Zone error:", error);
-
-    res.status(500).json({
-      message: "Failed to update Geo Zone",
-    });
   }
-}
 
   static async deleteGeoZone(
     req: Request,
@@ -460,6 +423,18 @@ static async updateGeoZone(
       if (!geoZone) {
         res.status(404).json({
           message: "Geo Zone not found",
+        });
+        return;
+      }
+
+      // Tax rates point to their geo zone (RESTRICT), like OpenCart's delete check.
+      const taxRateCount = await AppDataSource.getRepository(TaxRate).count({
+        where: { geoZoneId: id },
+      });
+
+      if (taxRateCount > 0) {
+        res.status(409).json({
+          message: `${geoZone.name} is used by ${taxRateCount} tax rate${taxRateCount === 1 ? "" : "s"}. Change them first.`,
         });
         return;
       }
