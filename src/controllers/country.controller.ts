@@ -9,6 +9,7 @@ import {
 } from "../dto/country.dto";
 import { Country } from "../entities/country.entity";
 import { GeoZoneLocation } from "../entities/geo_zone_location.entity";
+import { Store } from "../entities/store.entity";
 import { Zone } from "../entities/zone.entity";
 
 const validationErrors = async (dto: object) => {
@@ -24,6 +25,35 @@ const validationErrors = async (dto: object) => {
 
 const normalizeIso = (value?: string) =>
   value?.trim().toUpperCase() || null;
+
+// Stores keep their country as free text, so a country matches by name or ISO code.
+const countryMatchValues = (country: Country) =>
+  [country.name, country.isoCode2, country.isoCode3]
+    .filter((value): value is string => Boolean(value))
+    .map((value) => value.trim().toLowerCase());
+
+// The default country is the country of the main (first created) store, like the
+// store settings country of the old site.
+const getDefaultStoreCountry = async (): Promise<string | null> => {
+  const [store] = await AppDataSource.getRepository(Store).find({
+    select: ["id", "country"],
+    order: { createdAt: "ASC" },
+    take: 1,
+  });
+
+  return store?.country?.trim().toLowerCase() || null;
+};
+
+const withIsDefault = <T extends Country>(
+  countries: T[],
+  defaultCountry: string | null,
+) =>
+  countries.map((country) => ({
+    ...country,
+    isDefault:
+      defaultCountry !== null &&
+      countryMatchValues(country).includes(defaultCountry),
+  }));
 
 // Returns a message when name or an ISO code is already used by another country.
 const findConflict = async (
@@ -145,9 +175,26 @@ export class CountryController {
         100,
       );
 
+      // Column sorting from the admin list; anything else falls back to name A-Z.
+      const sortColumns: Record<string, string> = {
+        name: "country.name",
+        isoCode2: "country.isoCode2",
+        isoCode3: "country.isoCode3",
+      };
+      const sortBy =
+        typeof req.query.sortBy === "string" &&
+        sortColumns[req.query.sortBy]
+          ? sortColumns[req.query.sortBy]
+          : sortColumns.name;
+      const sortOrder =
+        String(req.query.sortOrder).toUpperCase() === "DESC"
+          ? "DESC"
+          : "ASC";
+
       const queryBuilder = repository
         .createQueryBuilder("country")
-        .orderBy("country.name", "ASC");
+        .orderBy(sortBy, sortOrder, "NULLS LAST")
+        .addOrderBy("country.name", "ASC");
 
       if (search) {
         queryBuilder.andWhere(
@@ -168,14 +215,16 @@ export class CountryController {
         queryBuilder.andWhere("country.status = :status", { status: false });
       }
 
-      const [data, total] =
-        await queryBuilder
+      const [[data, total], defaultCountry] = await Promise.all([
+        queryBuilder
           .skip((page - 1) * limit)
           .take(limit)
-          .getManyAndCount();
+          .getManyAndCount(),
+        getDefaultStoreCountry(),
+      ]);
 
       res.json({
-        data,
+        data: withIsDefault(data, defaultCountry),
         meta: {
           total,
           page,
@@ -203,20 +252,23 @@ export class CountryController {
     res: Response,
   ): Promise<void> {
     try {
-      const countries = await AppDataSource.getRepository(Country).find({
-        where: { status: true },
-        select: [
-          "id",
-          "name",
-          "isoCode2",
-          "isoCode3",
-          "addressFormat",
-          "postcodeRequired",
-        ],
-        order: { name: "ASC" },
-      });
+      const [countries, defaultCountry] = await Promise.all([
+        AppDataSource.getRepository(Country).find({
+          where: { status: true },
+          select: [
+            "id",
+            "name",
+            "isoCode2",
+            "isoCode3",
+            "addressFormat",
+            "postcodeRequired",
+          ],
+          order: { name: "ASC" },
+        }),
+        getDefaultStoreCountry(),
+      ]);
 
-      res.json({ data: countries });
+      res.json({ data: withIsDefault(countries, defaultCountry) });
     } catch (error) {
       console.error(
         "Get enabled countries error:",
@@ -376,27 +428,36 @@ export class CountryController {
         return;
       }
 
-      const [zoneCount, geoZoneCount] = await Promise.all([
+      const storeCountryValues = countryMatchValues(country);
+
+      const [zoneCount, geoZoneCount, storeCount] = await Promise.all([
         AppDataSource.getRepository(Zone).count({
           where: { countryId: country.id },
         }),
         AppDataSource.getRepository(GeoZoneLocation).count({
           where: { countryId: country.id },
         }),
+        AppDataSource.getRepository(Store)
+          .createQueryBuilder("store")
+          .where("LOWER(TRIM(store.country)) IN (:...values)", {
+            values: storeCountryValues,
+          })
+          .getCount(),
       ]);
 
-      if (zoneCount > 0 || geoZoneCount > 0) {
+      if (zoneCount > 0 || geoZoneCount > 0 || storeCount > 0) {
         const usage = [
+          storeCount > 0 ? `${storeCount} store${storeCount === 1 ? "" : "s"}` : "",
           zoneCount > 0 ? `${zoneCount} zone${zoneCount === 1 ? "" : "s"}` : "",
           geoZoneCount > 0
             ? `${geoZoneCount} geo zone location${geoZoneCount === 1 ? "" : "s"}`
             : "",
         ]
           .filter(Boolean)
-          .join(" and ");
+          .join(", ");
 
         res.status(409).json({
-          message: `${country.name} is used by ${usage}. Delete or move them first.`,
+          message: `${country.name} is used by ${usage}. Change or remove them first.`,
         });
         return;
       }
