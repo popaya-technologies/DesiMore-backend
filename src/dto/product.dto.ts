@@ -244,6 +244,7 @@ export class CreateProductDto {
   @ValidateIf(optional) @IsIn(STOCK_STATUSES) outOfStockStatus?: string;
   @ValidateIf(optional) @IsUUID() stockStatusId?: string;
   @ValidateIf(nullable) @IsUUID() brandId?: string | null;
+  @ValidateIf(nullable) @IsUUID() taxClassId?: string | null;
   @ValidateIf(optional)
   @IsArray()
   @ArrayUnique()

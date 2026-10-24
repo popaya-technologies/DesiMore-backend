@@ -1,7 +1,8 @@
 import { plainToInstance } from "class-transformer";
 import { isDateString, validate } from "class-validator";
 import { AppDataSource } from "../data-source";
-import { TaxRate } from "../entities/tax-class.entity";
+import { TaxClassRule, TaxRate } from "../entities/tax-class.entity";
+import type { EntityManager } from "typeorm";
 import { CreateTaxRateDto, UpdateTaxRateDto } from "../dto/tax-rate.dto";
 import { ApiError } from "../utils/api-error";
 import { BulkDeleteTaxRateDto } from "../dto/tax-rate.dto";
@@ -67,6 +68,30 @@ export function taxRateQuery(query: any) {
   qb.orderBy("taxRate." + sortBy, direction).addOrderBy("taxRate.id", "ASC");
   return { qb, page, limit };
 }
+// Tax class rules reference rates with RESTRICT. Returns a message naming the rates in
+// use and their tax classes (like OpenCart's delete warning), or null when none are used.
+async function inUseMessage(manager: EntityManager, ids: string[]) {
+  const rules = await manager
+    .getRepository(TaxClassRule)
+    .createQueryBuilder("rule")
+    .innerJoinAndSelect("rule.taxRate", "taxRate")
+    .innerJoinAndSelect("rule.taxClass", "taxClass")
+    .where("rule.taxRateId IN (:...ids)", { ids })
+    .getMany();
+  if (!rules.length) return null;
+
+  const classesByRate = new Map<string, Set<string>>();
+  for (const rule of rules) {
+    const classes = classesByRate.get(rule.taxRate.name) ?? new Set<string>();
+    classes.add(rule.taxClass.title);
+    classesByRate.set(rule.taxRate.name, classes);
+  }
+  const details = [...classesByRate]
+    .map(([rate, classes]) => `${rate} (tax class: ${[...classes].join(", ")})`)
+    .join("; ");
+  return `Cannot delete tax rates that are used by tax classes: ${details}. Remove them from those tax classes first.`;
+}
+
 export class TaxRateService {
   async removeMany(input: unknown) {
     if (!input || typeof input !== "object" || Array.isArray(input)) throw new ApiError(400, "Invalid bulk delete body");
@@ -78,8 +103,10 @@ export class TaxRateService {
       const repo = manager.getRepository(TaxRate);
       for (const id of ids) {
         const row = await repo.findOne({ where: { id }, lock: { mode: "pessimistic_write" } });
-        if (!row) throw new ApiError(404, "Tax rate not found; no statuses were deleted");
+        if (!row) throw new ApiError(404, "Tax rate not found; no tax rates were deleted");
       }
+      const inUse = await inUseMessage(manager, ids);
+      if (inUse) throw new ApiError(409, `${inUse} No tax rates were deleted.`);
       await repo.delete(ids);
     });
     return { message: "Tax rates deleted successfully", deletedCount: ids.length };
@@ -117,6 +144,8 @@ export class TaxRateService {
   }
   async remove(id: string) {
     try {
+      const inUse = await inUseMessage(this.db.manager, [id]);
+      if (inUse) throw new ApiError(409, inUse);
       const result = await this.db.getRepository(TaxRate).delete(id);
       if (!result.affected) throw new ApiError(404, "Tax rate not found");
       return { message: "Tax rate deleted successfully" };

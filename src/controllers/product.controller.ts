@@ -20,6 +20,7 @@ import {
   CUSTOMER_GROUPS,
 } from "../dto/product.dto";
 import { StockStatus } from "../entities/stock-status.entity";
+import { TaxClass } from "../entities/tax-class.entity";
 
 const productRepository = AppDataSource.getRepository(Product);
 const categoryRepository = AppDataSource.getRepository(Category);
@@ -69,14 +70,21 @@ export const ProductController = {
 
   getFormOptions: async (_req: Request, res: Response) => {
     try {
-      const stockStatuses = await AppDataSource.getRepository(StockStatus).find({
-        order: { name: "ASC" },
-      });
+      const [stockStatuses, taxClasses] = await Promise.all([
+        AppDataSource.getRepository(StockStatus).find({
+          order: { name: "ASC" },
+        }),
+        AppDataSource.getRepository(TaxClass).find({
+          select: ["id", "title"],
+          order: { title: "ASC" },
+        }),
+      ]);
 
       res.json({
         lengthClasses: LENGTH_CLASSES,
         weightClasses: WEIGHT_CLASSES,
         stockStatuses,
+        taxClasses,
         optionTypes: OPTION_TYPES,
         customerGroups: CUSTOMER_GROUPS,
         manufacturerEndpoint: "/api/brands",

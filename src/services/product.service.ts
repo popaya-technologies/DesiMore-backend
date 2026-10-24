@@ -7,6 +7,7 @@ import { AppDataSource } from "../data-source";
 import { Product } from "../entities/product.entity";
 import { Category } from "../entities/category.entity";
 import { Brand } from "../entities/brand.entity";
+import { TaxClass } from "../entities/tax-class.entity";
 import { Download } from "../entities/download.entity";
 import { Attribute } from "../entities/attribute.entity";
 import { ProductAttribute } from "../entities/product-attribute.entity";
@@ -503,6 +504,13 @@ export const saveProduct = async (
         dto.brandId === null
           ? null
           : (await resolveIds(manager, Brand, [dto.brandId], "brandId"))[0];
+    if (dto.taxClassId !== undefined) {
+      product.taxClass =
+        dto.taxClassId === null
+          ? null
+          : (await resolveIds(manager, TaxClass, [dto.taxClassId], "taxClassId"))[0];
+      product.taxClassId = product.taxClass?.id ?? null;
+    }
     if (dto.relatedProductIds !== undefined) {
       if (id && dto.relatedProductIds.includes(id))
         throw new ApiError(400, "Product cannot be related to itself");

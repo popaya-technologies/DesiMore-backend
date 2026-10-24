@@ -5,6 +5,28 @@ import { TaxClass, TaxClassRule, TaxRate } from "../entities/tax-class.entity";
 import { CreateTaxClassDto, UpdateTaxClassDto } from "../dto/tax-class.dto";
 import { ApiError } from "../utils/api-error";
 import { BulkDeleteTaxClassDto, CreateTaxRateDto } from "../dto/tax-class.dto";
+import { Product } from "../entities/product.entity";
+import type { EntityManager } from "typeorm";
+
+// Products reference tax classes (RESTRICT). Returns a message naming the classes in
+// use and how many products use each, or null when none are used.
+async function inUseMessage(manager: EntityManager, ids: string[]) {
+  const rows: Array<{ title: string; count: string }> = await manager
+    .getRepository(Product)
+    .createQueryBuilder("product")
+    .innerJoin("product.taxClass", "taxClass")
+    .select("taxClass.title", "title")
+    .addSelect("COUNT(product.id)", "count")
+    .where("product.taxClassId IN (:...ids)", { ids })
+    .groupBy("taxClass.title")
+    .getRawMany();
+  if (!rows.length) return null;
+
+  const details = rows
+    .map(({ title, count }) => `${title} (${count} product${count === "1" ? "" : "s"})`)
+    .join("; ");
+  return `Cannot delete tax classes that are used by products: ${details}. Change those products' tax class first.`;
+}
 
 export async function validateTaxClass(input: unknown, creating: boolean) {
   if (!input || typeof input !== "object" || Array.isArray(input) || !Object.keys(input).length)
@@ -79,8 +101,10 @@ export class TaxClassService {
       const repo = manager.getRepository(TaxClass);
       for (const id of ids) {
         const row = await repo.findOne({ where: { id }, lock: { mode: "pessimistic_write" } });
-        if (!row) throw new ApiError(404, "Tax class not found; no statuses were deleted");
+        if (!row) throw new ApiError(404, "Tax class not found; no tax classes were deleted");
       }
+      const inUse = await inUseMessage(manager, ids);
+      if (inUse) throw new ApiError(409, `${inUse} No tax classes were deleted.`);
       await repo.delete(ids);
     });
     return { message: "Tax classes deleted successfully", deletedCount: ids.length };
@@ -114,6 +138,8 @@ export class TaxClassService {
   }
   async remove(id: string) {
     try {
+      const inUse = await inUseMessage(this.db.manager, [id]);
+      if (inUse) throw new ApiError(409, inUse);
       const result = await this.db.getRepository(TaxClass).delete(id);
       if (!result.affected) throw new ApiError(404, "Tax class not found");
       return { message: "Tax class deleted successfully" };
