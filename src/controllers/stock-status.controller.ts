@@ -88,9 +88,15 @@ export class StockStatusController {
 
       const skip = (page - 1) * limit;
 
+      // Column sorting from the admin list; default is name A-Z.
+      const sortOrder =
+        String(req.query.sortOrder).toUpperCase() === "DESC"
+          ? "DESC"
+          : "ASC";
+
       const queryBuilder = repository
         .createQueryBuilder("stockStatus")
-        .orderBy("stockStatus.name", "ASC")
+        .orderBy("stockStatus.name", sortOrder)
         .addOrderBy(
           "stockStatus.createdAt",
           "DESC",
