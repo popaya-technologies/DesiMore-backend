@@ -52,6 +52,16 @@ export class Order {
   @Column({ type: "decimal", precision: 12, scale: 2, default: 0 })
   tax: number;
 
+  // Tax per tax rate at the time of the order, e.g. [{ name: "Sales Tax", amount: 6.63 }].
+  @Column({ type: "jsonb", default: () => "'[]'::jsonb" })
+  taxLines: Array<{
+    taxRateId: string;
+    name: string;
+    rate: number;
+    type: string;
+    amount: number;
+  }>;
+
   @Column({ type: "decimal", precision: 12, scale: 2, default: 0 })
   shipping: number;
 

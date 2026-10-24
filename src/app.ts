@@ -56,6 +56,7 @@ import returnReasonRoutes from "./routes/return-reason.routes";
 import countryRoutes from "./routes/country.routes";
 import zoneRoutes from "./routes/zone.routes";
 import shippingRoutes from "./routes/shipping.routes";
+import taxRoutes from "./routes/tax.routes";
 import newsletterRoutes from "./routes/newsletter.routes";
 import geoZoneRoutes from "./routes/geo_zone.routes";
 import { authenticate } from "./middlewares/auth.middleware";
@@ -177,6 +178,7 @@ app.use("/api/countries", countryRoutes);
 app.use("/api/zones", zoneRoutes);
 app.use("/api/geo-zones", geoZoneRoutes);
 app.use("/api/shipping", shippingRoutes);
+app.use("/api/tax", taxRoutes);
 app.use("/api/newsletter", newsletterRoutes);
 
 // Example protected route with RBAC

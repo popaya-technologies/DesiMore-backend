@@ -22,6 +22,7 @@ import { CouponUsage } from "../entities/coupon-usage.entity";
 import { GiftVoucher } from "../entities/gift_voucher.entity";
 import { OrderStatus as OrderStatusSetting } from "../entities/order-status.entity";
 import { calculateGiftVoucher } from "./gift-voucher.service";
+import { calculateTax, cartTaxItems } from "./tax.service";
 export const createRetailOrder = async (userId: string, input: any) => {
   const dto = plainToInstance(CreateOrderDto, input);
   const errors = await validate(dto, {
@@ -81,7 +82,17 @@ export const createRetailOrder = async (userId: string, input: any) => {
     order.subtotal = roundMoney(
       order.items.reduce((sum, item) => sum + item.total, 0),
     );
-    order.tax = 0;
+    // Tax from each product's tax class and the order's shipping/billing addresses.
+    const tax = await calculateTax(
+      cartTaxItems(cart),
+      {
+        shipping: dto.shippingAddress,
+        payment: dto.billingAddress || dto.shippingAddress,
+      },
+      manager,
+    );
+    order.tax = tax.total;
+    order.taxLines = tax.lines;
     const coupon = dto.couponCode
       ? await calculateCoupon(manager, dto.couponCode, cart, userId, true)
       : null;
@@ -111,7 +122,9 @@ export const createRetailOrder = async (userId: string, input: any) => {
       Math.max(
         0,
         order.subtotal - order.discount - order.giftVoucherAmount,
-      ) + order.shipping,
+      ) +
+        order.shipping +
+        order.tax,
     );
     await manager.getRepository(Order).save(order);
     if (giftVoucher) {
