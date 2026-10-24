@@ -5,6 +5,11 @@ import { checkPermission } from "../middlewares/rbac.middleware";
 
 const router = Router();
 
+router.get(
+  "/public",
+  OrderStatusController.getPublicOrderStatuses,
+);
+
 router.post(
   "/",
   authenticate,

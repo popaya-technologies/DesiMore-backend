@@ -3,6 +3,8 @@ import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
 import { AppDataSource } from "../data-source";
 import { OrderStatus } from "../entities/order-status.entity";
+import { Order } from "../entities/order.entity";
+import { OrderHistory } from "../entities/cancelled-order.entity";
 import {
   CreateOrderStatusDto,
   UpdateOrderStatusDto,
@@ -112,9 +114,25 @@ export class OrderStatusController {
 
       const skip = (page - 1) * safeLimit;
 
+      // Column sorting from the admin list; default is sort order, then name.
+      const sortColumns: Record<string, string> = {
+        name: "orderStatus.name",
+        code: "orderStatus.code",
+        sortOrder: "orderStatus.sortOrder",
+      };
+      const sortBy =
+        typeof req.query.sortBy === "string" &&
+        sortColumns[req.query.sortBy]
+          ? sortColumns[req.query.sortBy]
+          : sortColumns.sortOrder;
+      const sortOrder =
+        String(req.query.sortOrder).toUpperCase() === "DESC"
+          ? "DESC"
+          : "ASC";
+
       const queryBuilder = repository
         .createQueryBuilder("orderStatus")
-        .orderBy("orderStatus.sortOrder", "ASC")
+        .orderBy(sortBy, sortOrder)
         .addOrderBy("orderStatus.name", "ASC")
         .skip(skip)
         .take(safeLimit);
@@ -185,6 +203,31 @@ export class OrderStatusController {
 
       res.status(500).json({
         message: "Failed to get order status",
+      });
+    }
+  }
+
+  // Storefront: name and colour of every order status, so My Orders can show the
+  // admin's name and colour for an order's status code.
+  static async getPublicOrderStatuses(
+    _req: Request,
+    res: Response,
+  ): Promise<void> {
+    try {
+      const statuses = await AppDataSource.getRepository(OrderStatus).find({
+        select: ["code", "name", "color"],
+        order: { sortOrder: "ASC", name: "ASC" },
+      });
+
+      res.status(200).json({ data: statuses });
+    } catch (error) {
+      console.error(
+        "Get public order statuses error:",
+        error,
+      );
+
+      res.status(500).json({
+        message: "Failed to get order statuses",
       });
     }
   }
@@ -326,6 +369,39 @@ export class OrderStatusController {
       if (orderStatus.isSystem) {
         res.status(409).json({
           message: "System order statuses cannot be deleted",
+        });
+        return;
+      }
+
+      // Orders and their history keep the status code as text, so a status that is
+      // still referenced cannot be deleted (like OpenCart's order status delete check).
+      const code = orderStatus.code.toLowerCase();
+      const [orderCount, historyCount] = await Promise.all([
+        AppDataSource.getRepository(Order)
+          .createQueryBuilder("order")
+          .where("LOWER(order.status) = :code", { code })
+          .getCount(),
+        AppDataSource.getRepository(OrderHistory)
+          .createQueryBuilder("history")
+          .where(
+            "(LOWER(history.status) = :code OR LOWER(history.previousStatus) = :code)",
+            { code },
+          )
+          .getCount(),
+      ]);
+
+      if (orderCount > 0 || historyCount > 0) {
+        const usage = [
+          orderCount > 0 ? `${orderCount} order${orderCount === 1 ? "" : "s"}` : "",
+          historyCount > 0
+            ? `${historyCount} order history entr${historyCount === 1 ? "y" : "ies"}`
+            : "",
+        ]
+          .filter(Boolean)
+          .join(" and ");
+
+        res.status(409).json({
+          message: `${orderStatus.name} is used by ${usage} and cannot be deleted. You can disable it instead.`,
         });
         return;
       }
