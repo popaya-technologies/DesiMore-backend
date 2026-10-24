@@ -4,20 +4,26 @@ import {
   IsNotEmpty,
   IsNumber,
   IsOptional,
+  IsPositive,
   IsString,
+  Matches,
+  Max,
   MaxLength,
   Min,
 } from "class-validator";
 
+// ISO 4217 style: exactly 3 letters (USD, EUR, INR).
+const CURRENCY_CODE_PATTERN = /^[A-Za-z]{3}$/;
+const CURRENCY_CODE_MESSAGE = "Code must be exactly 3 letters (e.g. USD)";
+
 export class CreateCurrencyDto {
   @IsString()
-  @IsNotEmpty()
+  @IsNotEmpty({ message: "Currency title is required" })
   @MaxLength(255)
   currencyTitle!: string;
 
   @IsString()
-  @IsNotEmpty()
-  @MaxLength(50)
+  @Matches(CURRENCY_CODE_PATTERN, { message: CURRENCY_CODE_MESSAGE })
   code!: string;
 
   @IsString()
@@ -30,13 +36,15 @@ export class CreateCurrencyDto {
   @IsOptional()
   symbolRight?: string;
 
-  @IsInt()
-  @Min(0)
+  @IsInt({ message: "Decimal places must be a whole number" })
+  @Min(0, { message: "Decimal places must be between 0 and 8" })
+  @Max(8, { message: "Decimal places must be between 0 and 8" })
   @IsOptional()
   decimalPlaces?: number;
 
-  @IsNumber()
-  @Min(0)
+  // How much of this currency equals 1 unit of the default currency.
+  @IsNumber({ maxDecimalPlaces: 8 }, { message: "Value must be a number with at most 8 decimals" })
+  @IsPositive({ message: "Value must be greater than 0" })
   @IsOptional()
   value?: number;
 
@@ -47,14 +55,13 @@ export class CreateCurrencyDto {
 
 export class UpdateCurrencyDto {
   @IsString()
-  @IsNotEmpty()
+  @IsNotEmpty({ message: "Currency title is required" })
   @MaxLength(255)
   @IsOptional()
   currencyTitle?: string;
 
   @IsString()
-  @IsNotEmpty()
-  @MaxLength(50)
+  @Matches(CURRENCY_CODE_PATTERN, { message: CURRENCY_CODE_MESSAGE })
   @IsOptional()
   code?: string;
 
@@ -68,13 +75,14 @@ export class UpdateCurrencyDto {
   @IsOptional()
   symbolRight?: string;
 
-  @IsInt()
-  @Min(0)
+  @IsInt({ message: "Decimal places must be a whole number" })
+  @Min(0, { message: "Decimal places must be between 0 and 8" })
+  @Max(8, { message: "Decimal places must be between 0 and 8" })
   @IsOptional()
   decimalPlaces?: number;
 
-  @IsNumber()
-  @Min(0)
+  @IsNumber({ maxDecimalPlaces: 8 }, { message: "Value must be a number with at most 8 decimals" })
+  @IsPositive({ message: "Value must be greater than 0" })
   @IsOptional()
   value?: number;
 
