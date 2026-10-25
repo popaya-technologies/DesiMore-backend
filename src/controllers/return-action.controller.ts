@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
 import { AppDataSource } from "../data-source";
+import { countReturnsUsing, returnUsageMessage } from "../services/return-usage.service";
 import { ReturnAction } from "../entities/return-action.entity";
 import {
   CreateReturnActionDto,
@@ -263,6 +264,15 @@ export class ReturnActionController {
       if (!returnAction) {
         res.status(404).json({
           message: "Return action not found",
+        });
+        return;
+      }
+
+      const used = await countReturnsUsing("returnAction", returnAction.name);
+
+      if (used) {
+        res.status(409).json({
+          message: returnUsageMessage(returnAction.name, used),
         });
         return;
       }

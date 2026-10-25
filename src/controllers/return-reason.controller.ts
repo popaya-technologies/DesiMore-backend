@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
 import { AppDataSource } from "../data-source";
+import { countReturnsUsing, returnUsageMessage } from "../services/return-usage.service";
 import { ReturnReason } from "../entities/return-reason.entity";
 import {
   CreateReturnReasonDto,
@@ -263,6 +264,15 @@ export class ReturnReasonController {
       if (!returnReason) {
         res.status(404).json({
           message: "Return reason not found",
+        });
+        return;
+      }
+
+      const used = await countReturnsUsing("returnReason", returnReason.name);
+
+      if (used) {
+        res.status(409).json({
+          message: returnUsageMessage(returnReason.name, used),
         });
         return;
       }

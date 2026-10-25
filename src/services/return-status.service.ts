@@ -5,6 +5,7 @@ import { ReturnStatus } from "../entities/return-status.entity";
 import { CreateReturnStatusDto, UpdateReturnStatusDto } from "../dto/return-status.dto";
 import { ApiError } from "../utils/api-error";
 import { BulkDeleteReturnStatusDto } from "../dto/return-status.dto";
+import { countReturnsUsing, returnUsageMessage } from "./return-usage.service";
 
 export async function validateReturnStatus(input: unknown, creating: boolean) {
   if (!input || typeof input !== "object" || Array.isArray(input) || !Object.keys(input).length)
@@ -65,6 +66,8 @@ export class ReturnStatusService {
       for (const id of ids) {
         const row = await repo.findOne({ where: { id }, lock: { mode: "pessimistic_write" } });
         if (!row) throw new ApiError(404, "Return status not found; no statuses were deleted");
+        const used = await countReturnsUsing("returnStatus", row.name, manager);
+        if (used) throw new ApiError(409, `${returnUsageMessage(row.name, used)}. No statuses were deleted.`);
       }
       await repo.delete(ids);
     });
@@ -88,6 +91,11 @@ export class ReturnStatusService {
   }
   async remove(id: string) {
     try {
+      const row = await this.db.getRepository(ReturnStatus).findOne({ where: { id } });
+      if (row) {
+        const used = await countReturnsUsing("returnStatus", row.name);
+        if (used) throw new ApiError(409, returnUsageMessage(row.name, used));
+      }
       const result = await this.db.getRepository(ReturnStatus).delete(id);
       if (!result.affected) throw new ApiError(404, "Return status not found");
       return { message: "Return status deleted successfully" };
