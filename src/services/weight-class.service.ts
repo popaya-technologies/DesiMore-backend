@@ -4,6 +4,7 @@ import { AppDataSource } from "../data-source";
 import { WeightClass } from "../entities/weight-class.entity";
 import { CreateWeightClassDto, UpdateWeightClassDto } from "../dto/weight-class.dto";
 import { ApiError } from "../utils/api-error";
+import { classUsageMessage, countProductsUsingClass } from "./product-class-usage.service";
 import { BulkDeleteWeightClassDto } from "../dto/weight-class.dto";
 
 export async function validateWeightClass(input: unknown, creating: boolean) {
@@ -67,6 +68,8 @@ export class WeightClassService {
       for (const id of ids) {
         const row = await repo.findOne({ where: { id }, lock: { mode: "pessimistic_write" } });
         if (!row) throw new ApiError(404, "Weight class not found; no weight classes were deleted");
+        const used = await countProductsUsingClass("weight", [row.weightTitle, row.weightUnit], manager);
+        if (used) throw new ApiError(409, `${classUsageMessage(row.weightTitle, used)}. No weight classes were deleted.`);
       }
       await repo.delete(ids);
     });
@@ -90,6 +93,11 @@ export class WeightClassService {
   }
   async remove(id: string) {
     try {
+      const existing = await this.db.getRepository(WeightClass).findOneBy({ id });
+      if (existing) {
+        const used = await countProductsUsingClass("weight", [existing.weightTitle, existing.weightUnit]);
+        if (used) throw new ApiError(409, classUsageMessage(existing.weightTitle, used));
+      }
       const result = await this.db.getRepository(WeightClass).delete(id);
       if (!result.affected) throw new ApiError(404, "Weight class not found");
       return { message: "Weight class deleted successfully" };

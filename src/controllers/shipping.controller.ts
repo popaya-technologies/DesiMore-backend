@@ -10,6 +10,7 @@ import { isWholesaler } from "../services/product-pricing.service";
 import { cartRelations } from "../services/cart.service";
 import {
   calculateRetailShippingWeight,
+  loadWeightClassValues,
   retailCartRequiresShipping,
 } from "../services/shipping.service";
 import {
@@ -60,9 +61,9 @@ const validateUsShippingAddress = (address: ShippingQuoteDto["shippingAddress"])
     throw new ApiError(400, "Invalid United States ZIP code");
 };
 
-const quoteResponse = (cart: Cart) => {
+const quoteResponse = async (cart: Cart) => {
   const shippingRequired = retailCartRequiresShipping(cart);
-  const weight = calculateRetailShippingWeight(cart);
+  const weight = calculateRetailShippingWeight(cart, await loadWeightClassValues());
   if (shippingRequired && weight <= 0)
     throw new ApiError(400, "Shipping weight is unavailable for this cart");
   return {
@@ -79,7 +80,7 @@ export const ShippingController = {
     try {
       const dto = await validated(ShippingQuoteDto, req.body);
       validateUsShippingAddress(dto.shippingAddress);
-      res.json(quoteResponse(await loadRetailCart(req, dto.cartId)));
+      res.json(await quoteResponse(await loadRetailCart(req, dto.cartId)));
     } catch (error) {
       respondError(res, error);
     }
@@ -89,7 +90,7 @@ export const ShippingController = {
       const dto = await validated(SelectShippingDto, req.body);
       validateUsShippingAddress(dto.shippingAddress);
       const cart = await loadRetailCart(req, dto.cartId);
-      const result = quoteResponse(cart);
+      const result = await quoteResponse(cart);
       res.json({
         ...result,
         selectedShippingMethod: getMockShippingQuote(result.weight, dto.shippingCode),

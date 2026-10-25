@@ -8,6 +8,8 @@ import { Product } from "../entities/product.entity";
 import { Category } from "../entities/category.entity";
 import { Brand } from "../entities/brand.entity";
 import { TaxClass } from "../entities/tax-class.entity";
+import { LengthClass } from "../entities/length-class.entity";
+import { WeightClass } from "../entities/weight-class.entity";
 import { Download } from "../entities/download.entity";
 import { Attribute } from "../entities/attribute.entity";
 import { ProductAttribute } from "../entities/product-attribute.entity";
@@ -403,6 +405,30 @@ export const productResponse = (product: Product, admin = false): any => {
       );
   return result;
 };
+// A product's weight / length class must exist in Localisation (matched by title or
+// unit, ignoring case); it is stored as the class's lowercase title, e.g. "pound".
+const resolveMeasureClass = async (
+  manager: EntityManager,
+  kind: "weight" | "length",
+  value: string,
+) => {
+  const name = value.trim().toLowerCase();
+  const [entity, alias, title, unit] =
+    kind === "weight"
+      ? [WeightClass, "weightClass", "weightTitle", "weightUnit"] as const
+      : [LengthClass, "lengthClass", "lengthTitle", "lengthUnit"] as const;
+  const match = await manager
+    .getRepository<WeightClass | LengthClass>(entity)
+    .createQueryBuilder(alias)
+    .where(
+      `(LOWER(${alias}.${title}) = :name OR LOWER(${alias}.${unit}) = :name)`,
+      { name },
+    )
+    .getOne();
+  if (!match)
+    throw new ApiError(400, `Unknown ${kind} class "${value}". Add it in Localisation first.`);
+  return (match as any)[title].trim().toLowerCase() as string;
+};
 const resolveIds = async (
   manager: EntityManager,
   entity: any,
@@ -465,6 +491,14 @@ export const saveProduct = async (
     if (!product) throw new ApiError(404, "Product not found");
     for (const key of scalars)
       if (dto[key] !== undefined) (product as any)[key] = dto[key];
+    for (const [key, kind] of [
+      ["weightClass", "weight"],
+      ["wholesaleWeightClass", "weight"],
+      ["lengthClass", "length"],
+      ["wholesaleLengthClass", "length"],
+    ] as const)
+      if (dto[key] !== undefined)
+        product[key] = await resolveMeasureClass(manager, kind, dto[key] as string);
     if (dto.stockStatusId !== undefined) {
       product.stockStatus = (
         await resolveIds(manager, StockStatus, [dto.stockStatusId], "stockStatusId")

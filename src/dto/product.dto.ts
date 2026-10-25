@@ -237,10 +237,11 @@ export class CreateProductDto {
   @IsDateString({ strict: true })
   @Matches(/^\d{4}-\d{2}-\d{2}$/)
   wholesaleDateAvailable?: string | null;
-  @ValidateIf(optional) @IsIn(LENGTH_CLASSES) lengthClass?: string;
-  @ValidateIf(optional) @IsIn(LENGTH_CLASSES) wholesaleLengthClass?: string;
-  @ValidateIf(optional) @IsIn(WEIGHT_CLASSES) weightClass?: string;
-  @ValidateIf(optional) @IsIn(WEIGHT_CLASSES) wholesaleWeightClass?: string;
+  // Must match a Length / Weight Class from admin (checked in the product service).
+  @ValidateIf(optional) @IsString() @MaxLength(100) lengthClass?: string;
+  @ValidateIf(optional) @IsString() @MaxLength(100) wholesaleLengthClass?: string;
+  @ValidateIf(optional) @IsString() @MaxLength(100) weightClass?: string;
+  @ValidateIf(optional) @IsString() @MaxLength(100) wholesaleWeightClass?: string;
   @ValidateIf(optional) @IsIn(STOCK_STATUSES) outOfStockStatus?: string;
   @ValidateIf(optional) @IsUUID() stockStatusId?: string;
   @ValidateIf(nullable) @IsUUID() brandId?: string | null;

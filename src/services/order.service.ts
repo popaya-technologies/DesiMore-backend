@@ -14,6 +14,7 @@ import { generateOrderNumber } from "../utils/reference-number.util";
 import { roundMoney } from "./product-pricing.service";
 import {
   calculateRetailShippingWeight,
+  loadWeightClassValues,
   retailCartRequiresShipping,
 } from "./shipping.service";
 import { getMockShippingQuote } from "./shipping-quote.service";
@@ -112,7 +113,10 @@ export const createRetailOrder = async (userId: string, input: any) => {
     const shippingRequired = retailCartRequiresShipping(cart);
     if (shippingRequired && !dto.shippingCode)
       throw new ApiError(400, "A shipping method is required");
-    const shippingWeight = calculateRetailShippingWeight(cart);
+    const shippingWeight = calculateRetailShippingWeight(
+      cart,
+      await loadWeightClassValues(manager),
+    );
     if (shippingRequired && shippingWeight <= 0)
       throw new ApiError(400, "Shipping weight is unavailable for this cart");
     order.shipping = shippingRequired && !coupon?.freeShipping

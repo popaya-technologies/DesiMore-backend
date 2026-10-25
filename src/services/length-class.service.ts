@@ -4,6 +4,7 @@ import { AppDataSource } from "../data-source";
 import { LengthClass } from "../entities/length-class.entity";
 import { CreateLengthClassDto, UpdateLengthClassDto } from "../dto/length-class.dto";
 import { ApiError } from "../utils/api-error";
+import { classUsageMessage, countProductsUsingClass } from "./product-class-usage.service";
 import { BulkDeleteLengthClassDto } from "../dto/length-class.dto";
 
 export async function validateLengthClass(input: unknown, creating: boolean) {
@@ -67,6 +68,8 @@ export class LengthClassService {
       for (const id of ids) {
         const row = await repo.findOne({ where: { id }, lock: { mode: "pessimistic_write" } });
         if (!row) throw new ApiError(404, "Length class not found; no length classes were deleted");
+        const used = await countProductsUsingClass("length", [row.lengthTitle, row.lengthUnit], manager);
+        if (used) throw new ApiError(409, `${classUsageMessage(row.lengthTitle, used)}. No length classes were deleted.`);
       }
       await repo.delete(ids);
     });
@@ -90,6 +93,11 @@ export class LengthClassService {
   }
   async remove(id: string) {
     try {
+      const existing = await this.db.getRepository(LengthClass).findOneBy({ id });
+      if (existing) {
+        const used = await countProductsUsingClass("length", [existing.lengthTitle, existing.lengthUnit]);
+        if (used) throw new ApiError(409, classUsageMessage(existing.lengthTitle, used));
+      }
       const result = await this.db.getRepository(LengthClass).delete(id);
       if (!result.affected) throw new ApiError(404, "Length class not found");
       return { message: "Length class deleted successfully" };

@@ -14,13 +14,13 @@ import {
 } from "../services/product.service";
 import { respondError } from "../utils/api-error";
 import {
-  LENGTH_CLASSES,
-  WEIGHT_CLASSES,
   OPTION_TYPES,
   CUSTOMER_GROUPS,
 } from "../dto/product.dto";
+import { LengthClass } from "../entities/length-class.entity";
 import { StockStatus } from "../entities/stock-status.entity";
 import { TaxClass } from "../entities/tax-class.entity";
+import { WeightClass } from "../entities/weight-class.entity";
 
 const productRepository = AppDataSource.getRepository(Product);
 const categoryRepository = AppDataSource.getRepository(Category);
@@ -70,7 +70,7 @@ export const ProductController = {
 
   getFormOptions: async (_req: Request, res: Response) => {
     try {
-      const [stockStatuses, taxClasses] = await Promise.all([
+      const [stockStatuses, taxClasses, lengthClasses, weightClasses] = await Promise.all([
         AppDataSource.getRepository(StockStatus).find({
           order: { name: "ASC" },
         }),
@@ -78,11 +78,26 @@ export const ProductController = {
           select: ["id", "title"],
           order: { title: "ASC" },
         }),
+        AppDataSource.getRepository(LengthClass).find({
+          order: { lengthTitle: "ASC" },
+        }),
+        AppDataSource.getRepository(WeightClass).find({
+          order: { weightTitle: "ASC" },
+        }),
       ]);
 
+      // Products store a class as its lowercase title (e.g. "pound").
       res.json({
-        lengthClasses: LENGTH_CLASSES,
-        weightClasses: WEIGHT_CLASSES,
+        lengthClasses: lengthClasses.map((item) => ({
+          value: item.lengthTitle.trim().toLowerCase(),
+          title: item.lengthTitle,
+          unit: item.lengthUnit,
+        })),
+        weightClasses: weightClasses.map((item) => ({
+          value: item.weightTitle.trim().toLowerCase(),
+          title: item.weightTitle,
+          unit: item.weightUnit,
+        })),
         stockStatuses,
         taxClasses,
         optionTypes: OPTION_TYPES,
