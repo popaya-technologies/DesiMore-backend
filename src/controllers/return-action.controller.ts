@@ -1,10 +1,30 @@
 import { Request, Response } from "express";
+import { plainToInstance } from "class-transformer";
+import { validate } from "class-validator";
 import { AppDataSource } from "../data-source";
 import { ReturnAction } from "../entities/return-action.entity";
 import {
   CreateReturnActionDto,
   UpdateReturnActionDto,
 } from "../dto/return-action.dto";
+
+const validationErrors = async (dto: object) => {
+  const errors = await validate(dto, {
+    whitelist: true,
+    forbidNonWhitelisted: true,
+  });
+  return errors.flatMap((error) => Object.values(error.constraints ?? {}));
+};
+
+// Names are unique regardless of upper/lower case.
+const isNameTaken = async (name: string, excludeId?: string) => {
+  const query = AppDataSource.getRepository(ReturnAction)
+    .createQueryBuilder("returnAction")
+    .select(["returnAction.id"])
+    .where("LOWER(returnAction.name) = LOWER(:name)", { name });
+  if (excludeId) query.andWhere("returnAction.id != :excludeId", { excludeId });
+  return Boolean(await query.getOne());
+};
 
 export class ReturnActionController {
   static async createReturnAction(
@@ -15,14 +35,20 @@ export class ReturnActionController {
       const repository =
         AppDataSource.getRepository(ReturnAction);
 
-      const dto = req.body as CreateReturnActionDto;
+      const dto = plainToInstance(CreateReturnActionDto, req.body);
+      const errors = await validationErrors(dto);
+
+      if (errors.length) {
+        res.status(400).json({
+          message: errors[0],
+          errors,
+        });
+        return;
+      }
+
       const name = dto.name.trim();
 
-      const existing = await repository.findOne({
-        where: { name },
-      });
-
-      if (existing) {
+      if (await isNameTaken(name)) {
         res.status(409).json({
           message: "Return action already exists",
         });
@@ -67,16 +93,22 @@ export class ReturnActionController {
         1,
       );
 
-      const limit = Math.max(
-        Number(req.query.limit) || 10,
-        1,
+      const limit = Math.min(
+        Math.max(Number(req.query.limit) || 10, 1),
+        100,
       );
 
       const skip = (page - 1) * limit;
 
+      // Column sorting from the admin list; default is name A-Z.
+      const sortOrder =
+        String(req.query.sortOrder).toUpperCase() === "DESC"
+          ? "DESC"
+          : "ASC";
+
       const queryBuilder = repository
         .createQueryBuilder("returnAction")
-        .orderBy("returnAction.name", "ASC")
+        .orderBy("returnAction.name", sortOrder)
         .addOrderBy(
           "returnAction.createdAt",
           "DESC",
@@ -163,7 +195,16 @@ export class ReturnActionController {
 
       const { id } = req.params;
 
-      const dto = req.body as UpdateReturnActionDto;
+      const dto = plainToInstance(UpdateReturnActionDto, req.body);
+      const errors = await validationErrors(dto);
+
+      if (errors.length) {
+        res.status(400).json({
+          message: errors[0],
+          errors,
+        });
+        return;
+      }
 
       const returnAction = await repository.findOne({
         where: { id },
@@ -179,14 +220,7 @@ export class ReturnActionController {
       if (dto.name !== undefined) {
         const name = dto.name.trim();
 
-        const existing = await repository.findOne({
-          where: { name },
-        });
-
-        if (
-          existing &&
-          existing.id !== returnAction.id
-        ) {
+        if (await isNameTaken(name, returnAction.id)) {
           res.status(409).json({
             message: "Return action already exists",
           });

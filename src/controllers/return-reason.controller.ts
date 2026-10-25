@@ -1,10 +1,30 @@
 import { Request, Response } from "express";
+import { plainToInstance } from "class-transformer";
+import { validate } from "class-validator";
 import { AppDataSource } from "../data-source";
+import { ReturnReason } from "../entities/return-reason.entity";
 import {
   CreateReturnReasonDto,
   UpdateReturnReasonDto,
 } from "../dto/return-reason.dto";
-import { ReturnReason } from "../entities/return-reason.entity";
+
+const validationErrors = async (dto: object) => {
+  const errors = await validate(dto, {
+    whitelist: true,
+    forbidNonWhitelisted: true,
+  });
+  return errors.flatMap((error) => Object.values(error.constraints ?? {}));
+};
+
+// Names are unique regardless of upper/lower case.
+const isNameTaken = async (name: string, excludeId?: string) => {
+  const query = AppDataSource.getRepository(ReturnReason)
+    .createQueryBuilder("returnReason")
+    .select(["returnReason.id"])
+    .where("LOWER(returnReason.name) = LOWER(:name)", { name });
+  if (excludeId) query.andWhere("returnReason.id != :excludeId", { excludeId });
+  return Boolean(await query.getOne());
+};
 
 export class ReturnReasonController {
   static async createReturnReason(
@@ -12,15 +32,23 @@ export class ReturnReasonController {
     res: Response,
   ): Promise<void> {
     try {
-      const repository = AppDataSource.getRepository(ReturnReason);
+      const repository =
+        AppDataSource.getRepository(ReturnReason);
 
-      const dto = req.body as CreateReturnReasonDto;
+      const dto = plainToInstance(CreateReturnReasonDto, req.body);
+      const errors = await validationErrors(dto);
 
-      const existing = await repository.findOne({
-        where: { name: dto.name.trim() },
-      });
+      if (errors.length) {
+        res.status(400).json({
+          message: errors[0],
+          errors,
+        });
+        return;
+      }
 
-      if (existing) {
+      const name = dto.name.trim();
+
+      if (await isNameTaken(name)) {
         res.status(409).json({
           message: "Return reason already exists",
         });
@@ -28,14 +56,18 @@ export class ReturnReasonController {
       }
 
       const returnReason = repository.create({
-        name: dto.name.trim(),
+        name,
       });
 
-      const savedReturnReason = await repository.save(returnReason);
+      const savedReturnReason =
+        await repository.save(returnReason);
 
       res.status(201).json(savedReturnReason);
     } catch (error) {
-      console.error("Create return reason error:", error);
+      console.error(
+        "Create return reason error:",
+        error,
+      );
 
       res.status(500).json({
         message: "Failed to create return reason",
@@ -48,7 +80,8 @@ export class ReturnReasonController {
     res: Response,
   ): Promise<void> {
     try {
-      const repository = AppDataSource.getRepository(ReturnReason);
+      const repository =
+        AppDataSource.getRepository(ReturnReason);
 
       const search =
         typeof req.query.search === "string"
@@ -60,17 +93,31 @@ export class ReturnReasonController {
         1,
       );
 
-      const limit = Math.max(
-        Number(req.query.limit) || 10,
-        1,
+      const limit = Math.min(
+        Math.max(Number(req.query.limit) || 10, 1),
+        100,
       );
+
+      const skip = (page - 1) * limit;
+
+      // Column sorting from the admin list; default is name A-Z.
+      const sortOrder =
+        String(req.query.sortOrder).toUpperCase() === "DESC"
+          ? "DESC"
+          : "ASC";
 
       const queryBuilder = repository
         .createQueryBuilder("returnReason")
-        .orderBy("returnReason.createdAt", "ASC");
+        .orderBy("returnReason.name", sortOrder)
+        .addOrderBy(
+          "returnReason.createdAt",
+          "DESC",
+        )
+        .skip(skip)
+        .take(limit);
 
       if (search) {
-        queryBuilder.andWhere(
+        queryBuilder.where(
           "returnReason.name ILIKE :search",
           {
             search: `%${search}%`,
@@ -78,22 +125,25 @@ export class ReturnReasonController {
         );
       }
 
-      const [data, total] = await queryBuilder
-        .skip((page - 1) * limit)
-        .take(limit)
-        .getManyAndCount();
+      const [returnReasons, total] =
+        await queryBuilder.getManyAndCount();
 
-      res.json({
-        data,
+      res.status(200).json({
+        data: returnReasons,
         meta: {
           total,
           page,
           limit,
-          totalPages: Math.ceil(total / limit),
+          totalPages: Math.ceil(
+            total / limit,
+          ),
         },
       });
     } catch (error) {
-      console.error("Get return reasons error:", error);
+      console.error(
+        "Get return reasons error:",
+        error,
+      );
 
       res.status(500).json({
         message: "Failed to get return reasons",
@@ -106,12 +156,13 @@ export class ReturnReasonController {
     res: Response,
   ): Promise<void> {
     try {
-      const repository = AppDataSource.getRepository(ReturnReason);
+      const repository =
+        AppDataSource.getRepository(ReturnReason);
+
+      const { id } = req.params;
 
       const returnReason = await repository.findOne({
-        where: {
-          id: req.params.id,
-        },
+        where: { id },
       });
 
       if (!returnReason) {
@@ -121,10 +172,10 @@ export class ReturnReasonController {
         return;
       }
 
-      res.json(returnReason);
+      res.status(200).json(returnReason);
     } catch (error) {
       console.error(
-        "Get return reason by id error:",
+        "Get return reason error:",
         error,
       );
 
@@ -139,12 +190,24 @@ export class ReturnReasonController {
     res: Response,
   ): Promise<void> {
     try {
-      const repository = AppDataSource.getRepository(ReturnReason);
+      const repository =
+        AppDataSource.getRepository(ReturnReason);
+
+      const { id } = req.params;
+
+      const dto = plainToInstance(UpdateReturnReasonDto, req.body);
+      const errors = await validationErrors(dto);
+
+      if (errors.length) {
+        res.status(400).json({
+          message: errors[0],
+          errors,
+        });
+        return;
+      }
 
       const returnReason = await repository.findOne({
-        where: {
-          id: req.params.id,
-        },
+        where: { id },
       });
 
       if (!returnReason) {
@@ -154,19 +217,10 @@ export class ReturnReasonController {
         return;
       }
 
-      const dto = req.body as UpdateReturnReasonDto;
-
       if (dto.name !== undefined) {
         const name = dto.name.trim();
 
-        const existing = await repository.findOne({
-          where: { name },
-        });
-
-        if (
-          existing &&
-          existing.id !== returnReason.id
-        ) {
+        if (await isNameTaken(name, returnReason.id)) {
           res.status(409).json({
             message: "Return reason already exists",
           });
@@ -179,9 +233,12 @@ export class ReturnReasonController {
       const updatedReturnReason =
         await repository.save(returnReason);
 
-      res.json(updatedReturnReason);
+      res.status(200).json(updatedReturnReason);
     } catch (error) {
-      console.error("Update return reason error:", error);
+      console.error(
+        "Update return reason error:",
+        error,
+      );
 
       res.status(500).json({
         message: "Failed to update return reason",
@@ -194,12 +251,13 @@ export class ReturnReasonController {
     res: Response,
   ): Promise<void> {
     try {
-      const repository = AppDataSource.getRepository(ReturnReason);
+      const repository =
+        AppDataSource.getRepository(ReturnReason);
+
+      const { id } = req.params;
 
       const returnReason = await repository.findOne({
-        where: {
-          id: req.params.id,
-        },
+        where: { id },
       });
 
       if (!returnReason) {
@@ -211,11 +269,14 @@ export class ReturnReasonController {
 
       await repository.remove(returnReason);
 
-      res.json({
+      res.status(200).json({
         message: "Return reason deleted successfully",
       });
     } catch (error) {
-      console.error("Delete return reason error:", error);
+      console.error(
+        "Delete return reason error:",
+        error,
+      );
 
       res.status(500).json({
         message: "Failed to delete return reason",
