@@ -1,6 +1,6 @@
 import { Type } from "class-transformer";
 import { IsString, Matches, MaxLength, IsInt, Min, Max, ValidateIf, IsIn, IsUUID, IsArray, ArrayMaxSize, ValidateNested } from "class-validator";
-export const CATALOG_OPTION_TYPES = ["select", "radio", "checkbox", "text", "textarea", "date", "time", "datetime"];
+export const CATALOG_OPTION_TYPES = ["select", "radio", "checkbox", "text", "textarea", "file", "date", "time", "datetime"];
 const supplied = (_: unknown, value: unknown) => value !== undefined;
 export class CatalogOptionValueDto {
   @ValidateIf(supplied) @IsUUID() id?: string;

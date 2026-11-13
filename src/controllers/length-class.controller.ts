@@ -7,6 +7,8 @@ import {
   lengthClassQuery,
 } from "../services/length-class.service";
 import { ApiError, respondError } from "../utils/api-error";
+// Like OpenCart, the default class is the base unit: the one whose value is 1.
+const withDefault = (row: LengthClass) => ({ ...row, isDefault: Number(row.value) === 1 });
 const handle =
   (action: (req: Request, res: Response) => Promise<void>) =>
   async (req: Request, res: Response) => {
@@ -34,7 +36,7 @@ export const LengthClassController = {
       id: String(req.params.id),
     });
     if (!row) throw new ApiError(404, "Length class not found");
-    res.json(row);
+    res.json(withDefault(row));
   }),
   list: handle(async (req, res) => {
     const { qb, page, limit } = lengthClassQuery(req.query);
@@ -43,7 +45,7 @@ export const LengthClassController = {
       .take(limit)
       .getManyAndCount();
     res.json({
-      data: data.map((row, index) => ({ ...row, no: (page - 1) * limit + index + 1 })),
+      data: data.map((row, index) => ({ ...withDefault(row), no: (page - 1) * limit + index + 1 })),
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     });
   }),

@@ -1,14 +1,12 @@
 import {
   IsBoolean,
   IsEmail,
-  IsIn,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
   MinLength,
 } from "class-validator";
-
-const USER_GROUPS = ["Administrator", "Demonstration"] as const;
 
 export class CreateSystemUserDto {
   @IsString()
@@ -16,9 +14,8 @@ export class CreateSystemUserDto {
   @MaxLength(100)
   username!: string;
 
-  @IsString()
-  @IsIn(USER_GROUPS)
-  userGroup!: (typeof USER_GROUPS)[number];
+  @IsUUID()
+  userGroupId!: string;
 
   @IsString()
   @MinLength(1)
@@ -56,9 +53,8 @@ export class UpdateSystemUserDto {
   @MaxLength(100)
   username!: string;
 
-  @IsString()
-  @IsIn(USER_GROUPS)
-  userGroup!: (typeof USER_GROUPS)[number];
+  @IsUUID()
+  userGroupId!: string;
 
   @IsString()
   @MinLength(1)

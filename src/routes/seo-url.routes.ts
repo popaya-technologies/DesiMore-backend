@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { SeoUrlController } from "../controllers/seo-url.controller";
 import { authenticate } from "../middlewares/auth.middleware";
-import { checkPermission } from "../middlewares/rbac.middleware";
+import { checkAnyPermission, checkPermission } from "../middlewares/rbac.middleware";
 
 const router = Router();
 
@@ -14,11 +14,27 @@ router.post(
 
 router.get(
   "/",
+  authenticate,
+  checkPermission("seo_url", "read"),
   SeoUrlController.getSeoUrls,
 );
 
 router.get(
+  "/form-options",
+  authenticate,
+  checkAnyPermission("seo_url", ["create", "update"]),
+  SeoUrlController.getFormOptions,
+);
+
+router.get(
+  "/resolve/:keyword",
+  SeoUrlController.resolveSeoUrl,
+);
+
+router.get(
   "/:id",
+  authenticate,
+  checkPermission("seo_url", "read"),
   SeoUrlController.getSeoUrlById,
 );
 

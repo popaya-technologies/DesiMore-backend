@@ -35,6 +35,21 @@ export const checkPermission = (resource: string, action: string) => {
         return;
       }
 
+      if (req.user.accountType === "system-user") {
+        const isReadAction = action === "read" || action === "read-all";
+        const allowed = isReadAction
+          ? req.user.accessPermissions?.includes(resource)
+          : req.user.modifyPermissions?.includes(resource);
+
+        if (!allowed) {
+          res.status(403).json({ message: "Forbidden" });
+          return;
+        }
+
+        next();
+        return;
+      }
+
       const hasPermission = await RBACService.hasPermission(
         req.user.id,
         resource,

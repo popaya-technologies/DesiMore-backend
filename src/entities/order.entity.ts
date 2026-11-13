@@ -52,13 +52,35 @@ export class Order {
   @Column({ type: "decimal", precision: 12, scale: 2, default: 0 })
   tax: number;
 
+  // Tax per tax rate at the time of the order, e.g. [{ name: "Sales Tax", amount: 6.63 }].
+  @Column({ type: "jsonb", default: () => "'[]'::jsonb" })
+  taxLines: Array<{
+    taxRateId: string;
+    name: string;
+    rate: number;
+    type: string;
+    amount: number;
+  }>;
+
   @Column({ type: "decimal", precision: 12, scale: 2, default: 0 })
   shipping: number;
+
+  @Column({ type: "decimal", precision: 12, scale: 2, default: 0 })
+  discount: number;
+
+  @Column({ type: "varchar", length: 255, nullable: true })
+  couponCode: string | null;
+
+  @Column({ type: "varchar", length: 255, nullable: true })
+  giftVoucherCode: string | null;
+
+  @Column({ type: "decimal", precision: 12, scale: 2, default: 0 })
+  giftVoucherAmount: number;
 
   @Column({ type: "decimal", precision: 12, scale: 2 })
   total: number;
 
-  @Column({ type: "varchar", length: 50, default: OrderStatus.PENDING })
+  @Column({ type: "varchar", length: 100, default: OrderStatus.PENDING })
   status: OrderStatus;
 
   @Column({ type: "varchar", length: 50, default: PaymentStatus.PENDING })

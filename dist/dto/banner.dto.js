@@ -52,6 +52,11 @@ __decorate([
 ], CreateBannerDto.prototype, "name", void 0);
 __decorate([
     (0, class_validator_1.ValidateIf)(supplied),
+    (0, class_validator_1.IsIn)(["home_slideshow", "footer_payments", "custom"]),
+    __metadata("design:type", String)
+], CreateBannerDto.prototype, "placement", void 0);
+__decorate([
+    (0, class_validator_1.ValidateIf)(supplied),
     (0, class_validator_1.IsBoolean)(),
     __metadata("design:type", Boolean)
 ], CreateBannerDto.prototype, "isActive", void 0);
@@ -73,6 +78,11 @@ __decorate([
     (0, class_validator_1.MaxLength)(255),
     __metadata("design:type", String)
 ], UpdateBannerDto.prototype, "name", void 0);
+__decorate([
+    (0, class_validator_1.ValidateIf)(supplied),
+    (0, class_validator_1.IsIn)(["home_slideshow", "footer_payments", "custom"]),
+    __metadata("design:type", String)
+], UpdateBannerDto.prototype, "placement", void 0);
 __decorate([
     (0, class_validator_1.ValidateIf)(supplied),
     (0, class_validator_1.IsBoolean)(),

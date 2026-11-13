@@ -18,6 +18,24 @@ export class OrderStatus {
   })
   name!: string;
 
+  @Column({ type: "varchar", length: 100, unique: true })
+  code!: string;
+
+  @Column({ type: "varchar", length: 7, default: "#64748b" })
+  color!: string;
+
+  @Column({ type: "integer", default: 0 })
+  sortOrder!: number;
+
+  @Column({ type: "boolean", default: true })
+  isActive!: boolean;
+
+  @Column({ type: "boolean", default: false })
+  isSystem!: boolean;
+
+  @Column({ type: "boolean", default: false })
+  isDefault!: boolean;
+
   @CreateDateColumn()
   createdAt!: Date;
 

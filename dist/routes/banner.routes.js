@@ -6,6 +6,8 @@ const auth_middleware_1 = require("../middlewares/auth.middleware");
 const rbac_middleware_1 = require("../middlewares/rbac.middleware");
 const banner_controller_1 = require("../controllers/banner.controller");
 const router = (0, express_1.Router)();
+router.get("/public/placement/:placement", banner_controller_1.BannerController.publicGetByPlacement);
+router.get("/public/:name", banner_controller_1.BannerController.publicGet);
 router.use(auth_middleware_1.authenticate);
 router.param("id", (_req, res, next, id) => {
     if (!(0, class_validator_1.isUUID)(id)) {

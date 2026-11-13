@@ -8,15 +8,19 @@ import {
   saveProduct,
   productResponse,
   PRODUCT_RELATIONS,
+  getProductSeoKeyword,
+  deleteProductWithSeo,
+  attachProductSeoKeywords,
 } from "../services/product.service";
 import { respondError } from "../utils/api-error";
 import {
-  LENGTH_CLASSES,
-  WEIGHT_CLASSES,
-  STOCK_STATUSES,
   OPTION_TYPES,
   CUSTOMER_GROUPS,
 } from "../dto/product.dto";
+import { LengthClass } from "../entities/length-class.entity";
+import { StockStatus } from "../entities/stock-status.entity";
+import { TaxClass } from "../entities/tax-class.entity";
+import { WeightClass } from "../entities/weight-class.entity";
 
 const productRepository = AppDataSource.getRepository(Product);
 const categoryRepository = AppDataSource.getRepository(Category);
@@ -55,25 +59,58 @@ export const ProductController = {
         res.status(404).json({ message: "Product not found" });
         return;
       }
-      res.json(productResponse(product, true));
+      res.json({
+        ...productResponse(product, true),
+        seoKeyword: await getProductSeoKeyword(product.id),
+      });
     } catch (error) {
       respondError(res, error);
     }
   },
 
   getFormOptions: async (_req: Request, res: Response) => {
-    res.json({
-      lengthClasses: LENGTH_CLASSES,
-      weightClasses: WEIGHT_CLASSES,
-      outOfStockStatuses: STOCK_STATUSES,
-      optionTypes: OPTION_TYPES,
-      customerGroups: CUSTOMER_GROUPS,
-      manufacturerEndpoint: "/api/brands",
-      categoryEndpoint: "/api/categories/all",
-      downloadEndpoint: "/api/downloads",
-      wholesalePriceUnit: "box",
-      wholesaleStockUnit: "box",
-    });
+    try {
+      const [stockStatuses, taxClasses, lengthClasses, weightClasses] = await Promise.all([
+        AppDataSource.getRepository(StockStatus).find({
+          order: { name: "ASC" },
+        }),
+        AppDataSource.getRepository(TaxClass).find({
+          select: ["id", "title"],
+          order: { title: "ASC" },
+        }),
+        AppDataSource.getRepository(LengthClass).find({
+          order: { lengthTitle: "ASC" },
+        }),
+        AppDataSource.getRepository(WeightClass).find({
+          order: { weightTitle: "ASC" },
+        }),
+      ]);
+
+      // Products store a class as its lowercase title (e.g. "pound").
+      res.json({
+        lengthClasses: lengthClasses.map((item) => ({
+          value: item.lengthTitle.trim().toLowerCase(),
+          title: item.lengthTitle,
+          unit: item.lengthUnit,
+        })),
+        weightClasses: weightClasses.map((item) => ({
+          value: item.weightTitle.trim().toLowerCase(),
+          title: item.weightTitle,
+          unit: item.weightUnit,
+        })),
+        stockStatuses,
+        taxClasses,
+        optionTypes: OPTION_TYPES,
+        customerGroups: CUSTOMER_GROUPS,
+        manufacturerEndpoint: "/api/brands",
+        categoryEndpoint: "/api/categories/all",
+        downloadEndpoint: "/api/downloads",
+        wholesalePriceUnit: "box",
+        wholesaleStockUnit: "box",
+      });
+    } catch (error) {
+      respondError(res, error);
+    }
   },
 
   // Get All Products (Public)
@@ -172,8 +209,8 @@ export const ProductController = {
       const products = await qb.getMany();
 
       // 4. Transform response to include only categoryIds
-      const response = products.map((product) =>
-        formatProductResponse(product),
+      const response = await attachProductSeoKeywords(
+        products.map((product) => formatProductResponse(product)),
       );
 
       res.status(200).json({
@@ -204,7 +241,9 @@ export const ProductController = {
         return;
       }
 
-      res.status(200).json(formatProductResponse(product));
+      res.status(200).json(
+        (await attachProductSeoKeywords([formatProductResponse(product)]))[0],
+      );
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: "Internal Server Error" });
@@ -238,13 +277,13 @@ export const ProductController = {
           take: Math.min(Math.max(take || 10, 1), 100),
         });
         res.json(
-          related
+          await attachProductSeoKeywords(related
             .filter(
               (p) =>
                 !p.dateAvailable ||
                 p.dateAvailable <= new Date().toISOString().slice(0, 10),
             )
-            .map((p) => productResponse(p)),
+            .map((p) => productResponse(p))),
         );
         return;
       }
@@ -275,7 +314,9 @@ export const ProductController = {
       }
 
       const related = await qb.getMany();
-      res.status(200).json(related.map((p) => formatProductResponse(p)));
+      res.status(200).json(
+        await attachProductSeoKeywords(related.map((p) => formatProductResponse(p))),
+      );
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: "Internal Server Error" });
@@ -316,7 +357,9 @@ export const ProductController = {
         .getManyAndCount();
 
       res.status(200).json({
-        data: products.map((p) => formatProductResponse(p)),
+        data: await attachProductSeoKeywords(
+          products.map((p) => formatProductResponse(p)),
+        ),
         meta: {
           total,
           page: Math.max(parseInt(page as string, 10) || 1, 1),
@@ -454,19 +497,10 @@ export const ProductController = {
   //Delete Product (Admin only)
   deleteProduct: async (req: Request, res: Response) => {
     try {
-      const product = await productRepository.findOne({
-        where: { id: req.params.id },
-      });
-      if (!product) {
-        res.status(404).json({ message: "Product not found" });
-        return;
-      }
-
-      await productRepository.remove(product);
+      await deleteProductWithSeo(req.params.id);
       res.status(200).json({ message: "Product deleted successfully" });
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: "Internal Sever Error" });
+      respondError(res, error);
     }
   },
 
@@ -498,8 +532,8 @@ export const ProductController = {
         order: { createdAt: "DESC" },
       });
 
-      const formattedProducts = products.map((product) =>
-        formatProductResponse(product),
+      const formattedProducts = await attachProductSeoKeywords(
+        products.map((product) => formatProductResponse(product)),
       );
 
       res.status(200).json({
@@ -545,8 +579,8 @@ export const ProductController = {
         order: { createdAt: "DESC" },
       });
 
-      const formattedProducts = products.map((product) =>
-        formatProductResponse(product),
+      const formattedProducts = await attachProductSeoKeywords(
+        products.map((product) => formatProductResponse(product)),
       );
 
       res.status(200).json({

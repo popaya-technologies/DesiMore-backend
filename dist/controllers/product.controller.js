@@ -83,7 +83,7 @@ exports.ProductController = {
                 res.status(404).json({ message: "Product not found" });
                 return;
             }
-            res.json((0, product_service_1.productResponse)(product, true));
+            res.json(Object.assign(Object.assign({}, (0, product_service_1.productResponse)(product, true)), { seoKeyword: yield (0, product_service_1.getProductSeoKeyword)(product.id) }));
         }
         catch (error) {
             (0, api_error_1.respondError)(res, error);
@@ -170,7 +170,7 @@ exports.ProductController = {
             }
             const products = yield qb.getMany();
             // 4. Transform response to include only categoryIds
-            const response = products.map((product) => (0, exports.formatProductResponse)(product));
+            const response = yield (0, product_service_1.attachProductSeoKeywords)(products.map((product) => (0, exports.formatProductResponse)(product)));
             res.status(200).json({
                 data: response,
                 meta: {
@@ -197,7 +197,7 @@ exports.ProductController = {
                 res.status(404).json({ message: "Product not found" });
                 return;
             }
-            res.status(200).json((0, exports.formatProductResponse)(product));
+            res.status(200).json((yield (0, product_service_1.attachProductSeoKeywords)([(0, exports.formatProductResponse)(product)]))[0]);
         }
         catch (error) {
             console.error(error);
@@ -228,10 +228,10 @@ exports.ProductController = {
                     relations: ["categories", "brand"],
                     take: Math.min(Math.max(take || 10, 1), 100),
                 });
-                res.json(related
+                res.json(yield (0, product_service_1.attachProductSeoKeywords)(related
                     .filter((p) => !p.dateAvailable ||
                     p.dateAvailable <= new Date().toISOString().slice(0, 10))
-                    .map((p) => (0, product_service_1.productResponse)(p)));
+                    .map((p) => (0, product_service_1.productResponse)(p))));
                 return;
             }
             const categoryIds = (product.categories || []).map((c) => c.id);
@@ -256,7 +256,7 @@ exports.ProductController = {
                 qb.take(take);
             }
             const related = yield qb.getMany();
-            res.status(200).json(related.map((p) => (0, exports.formatProductResponse)(p)));
+            res.status(200).json(yield (0, product_service_1.attachProductSeoKeywords)(related.map((p) => (0, exports.formatProductResponse)(p))));
         }
         catch (error) {
             console.error(error);
@@ -288,7 +288,7 @@ exports.ProductController = {
                 .take(take)
                 .getManyAndCount();
             res.status(200).json({
-                data: products.map((p) => (0, exports.formatProductResponse)(p)),
+                data: yield (0, product_service_1.attachProductSeoKeywords)(products.map((p) => (0, exports.formatProductResponse)(p))),
                 meta: {
                     total,
                     page: Math.max(parseInt(page, 10) || 1, 1),
@@ -420,19 +420,11 @@ exports.ProductController = {
     //Delete Product (Admin only)
     deleteProduct: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         try {
-            const product = yield productRepository.findOne({
-                where: { id: req.params.id },
-            });
-            if (!product) {
-                res.status(404).json({ message: "Product not found" });
-                return;
-            }
-            yield productRepository.remove(product);
+            yield (0, product_service_1.deleteProductWithSeo)(req.params.id);
             res.status(200).json({ message: "Product deleted successfully" });
         }
         catch (error) {
-            console.error(error);
-            res.status(500).json({ message: "Internal Sever Error" });
+            (0, api_error_1.respondError)(res, error);
         }
     }),
     getProductsByCategory: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -458,7 +450,7 @@ exports.ProductController = {
                 skip,
                 order: { createdAt: "DESC" },
             });
-            const formattedProducts = products.map((product) => (0, exports.formatProductResponse)(product));
+            const formattedProducts = yield (0, product_service_1.attachProductSeoKeywords)(products.map((product) => (0, exports.formatProductResponse)(product)));
             res.status(200).json({
                 data: formattedProducts,
                 meta: {
@@ -497,7 +489,7 @@ exports.ProductController = {
                 skip,
                 order: { createdAt: "DESC" },
             });
-            const formattedProducts = products.map((product) => (0, exports.formatProductResponse)(product));
+            const formattedProducts = yield (0, product_service_1.attachProductSeoKeywords)(products.map((product) => (0, exports.formatProductResponse)(product)));
             res.status(200).json({
                 data: formattedProducts,
                 meta: {

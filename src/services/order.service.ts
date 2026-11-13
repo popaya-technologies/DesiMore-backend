@@ -12,6 +12,18 @@ import { cartRelations } from "./cart.service";
 import { reserveCartInventory, releaseInventory } from "./inventory.service";
 import { generateOrderNumber } from "../utils/reference-number.util";
 import { roundMoney } from "./product-pricing.service";
+import {
+  calculateRetailShippingWeight,
+  loadWeightClassValues,
+  retailCartRequiresShipping,
+} from "./shipping.service";
+import { getMockShippingQuote } from "./shipping-quote.service";
+import { calculateCoupon } from "./coupon.service";
+import { CouponUsage } from "../entities/coupon-usage.entity";
+import { GiftVoucher } from "../entities/gift_voucher.entity";
+import { OrderStatus as OrderStatusSetting } from "../entities/order-status.entity";
+import { calculateGiftVoucher } from "./gift-voucher.service";
+import { calculateTax, cartTaxItems } from "./tax.service";
 export const createRetailOrder = async (userId: string, input: any) => {
   const dto = plainToInstance(CreateOrderDto, input);
   const errors = await validate(dto, {
@@ -42,6 +54,9 @@ export const createRetailOrder = async (userId: string, input: any) => {
       cart,
       false,
     );
+    const defaultOrderStatus = await manager.getRepository(OrderStatusSetting).findOne({
+      where: { isDefault: true, isActive: true },
+    });
     const order = manager.getRepository(Order).create({
       userId,
       orderNumber: await generateOrderNumber(manager),
@@ -49,7 +64,7 @@ export const createRetailOrder = async (userId: string, input: any) => {
       billingAddress: dto.billingAddress || dto.shippingAddress,
       paymentMethod: dto.paymentMethod,
       notes: dto.notes || null,
-      status: OrderStatus.PENDING,
+      status: (defaultOrderStatus?.code ?? OrderStatus.PENDING) as OrderStatus,
       paymentStatus: PaymentStatus.PENDING,
       inventoryReservations,
     });
@@ -68,14 +83,72 @@ export const createRetailOrder = async (userId: string, input: any) => {
     order.subtotal = roundMoney(
       order.items.reduce((sum, item) => sum + item.total, 0),
     );
-    order.tax = 0;
-    order.shipping =
-      cart.items.some((i) => i.product.requiresShipping !== false) &&
-      order.subtotal <= 500
-        ? 50
-        : 0;
-    order.total = roundMoney(order.subtotal + order.shipping);
+    // Tax from each product's tax class and the order's shipping/billing addresses.
+    const tax = await calculateTax(
+      cartTaxItems(cart),
+      {
+        shipping: dto.shippingAddress,
+        payment: dto.billingAddress || dto.shippingAddress,
+      },
+      manager,
+    );
+    order.tax = tax.total;
+    order.taxLines = tax.lines;
+    const coupon = dto.couponCode
+      ? await calculateCoupon(manager, dto.couponCode, cart, userId, true)
+      : null;
+    order.couponCode = coupon?.couponCode || null;
+    order.discount = coupon?.discount || 0;
+    const giftVoucher = dto.giftVoucherCode
+      ? await calculateGiftVoucher(
+          manager,
+          dto.giftVoucherCode,
+          cart,
+          order.discount,
+          true,
+        )
+      : null;
+    order.giftVoucherCode = giftVoucher?.voucherCode || null;
+    order.giftVoucherAmount = giftVoucher?.discount || 0;
+    const shippingRequired = retailCartRequiresShipping(cart);
+    if (shippingRequired && !dto.shippingCode)
+      throw new ApiError(400, "A shipping method is required");
+    const shippingWeight = calculateRetailShippingWeight(
+      cart,
+      await loadWeightClassValues(manager),
+    );
+    if (shippingRequired && shippingWeight <= 0)
+      throw new ApiError(400, "Shipping weight is unavailable for this cart");
+    order.shipping = shippingRequired && !coupon?.freeShipping
+      ? getMockShippingQuote(shippingWeight, dto.shippingCode).price
+      : 0;
+    order.total = roundMoney(
+      Math.max(
+        0,
+        order.subtotal - order.discount - order.giftVoucherAmount,
+      ) +
+        order.shipping +
+        order.tax,
+    );
     await manager.getRepository(Order).save(order);
+    if (giftVoucher) {
+      const voucher = await manager.getRepository(GiftVoucher).findOneByOrFail({
+        id: giftVoucher.voucherId,
+      });
+      voucher.amount = giftVoucher.remainingBalance;
+      voucher.isActive = giftVoucher.remainingBalance > 0;
+      await manager.getRepository(GiftVoucher).save(voucher);
+    }
+    if (coupon) {
+      await manager.getRepository(CouponUsage).save(
+        manager.getRepository(CouponUsage).create({
+          couponId: coupon.couponId,
+          userId,
+          orderId: order.id,
+          discount: coupon.discount,
+        }),
+      );
+    }
     await manager.getRepository(CartItem).delete({ cartId: cart.id });
     cart.items = [];
     cart.calculateTotal();
@@ -111,6 +184,23 @@ export const cancelRetailOrder = async (id: string, userId?: string) =>
         "This order cannot be cancelled; paid orders require a refund",
       );
     await releaseInventory(manager, order.inventoryReservations || []);
+    if (order.giftVoucherCode && Number(order.giftVoucherAmount) > 0) {
+      const voucher = await manager
+        .getRepository(GiftVoucher)
+        .createQueryBuilder("voucher")
+        .where("UPPER(voucher.code) = :code", {
+          code: order.giftVoucherCode.toUpperCase(),
+        })
+        .setLock("pessimistic_write")
+        .getOne();
+      if (voucher) {
+        voucher.amount = roundMoney(
+          Number(voucher.amount) + Number(order.giftVoucherAmount),
+        );
+        voucher.isActive = true;
+        await manager.getRepository(GiftVoucher).save(voucher);
+      }
+    }
     order.inventoryReservations = [];
     order.status = OrderStatus.CANCELLED;
     order.paymentStatus = PaymentStatus.CANCELLED;

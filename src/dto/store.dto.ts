@@ -9,6 +9,7 @@ import {
   IsUrl,
   MaxLength,
   Min,
+  IsUUID,
 } from "class-validator";
 
 export class CreateStoreDto {
@@ -82,6 +83,10 @@ export class CreateStoreDto {
   @IsString()
   @IsOptional()
   language?: string;
+
+  @IsUUID()
+  @IsOptional()
+  languageId?: string;
 
   @IsString()
   @IsOptional()
@@ -233,6 +238,10 @@ export class UpdateStoreDto {
   @IsString()
   @IsOptional()
   language?: string;
+
+  @IsUUID()
+  @IsOptional()
+  languageId?: string;
 
   @IsString()
   @IsOptional()

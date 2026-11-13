@@ -22,6 +22,12 @@ export class CreateReviewDto {
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(255)
+  @IsOptional()
+  title?: string;
+
+  @IsString()
+  @IsNotEmpty()
   text!: string;
 
   @IsInt()
@@ -50,6 +56,12 @@ export class UpdateReviewDto {
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(255)
+  @IsOptional()
+  title?: string;
+
+  @IsString()
+  @IsNotEmpty()
   @IsOptional()
   text?: string;
 
@@ -66,4 +78,20 @@ export class UpdateReviewDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+}
+
+export class SubmitProductReviewDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  title!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  text!: string;
+
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  rating!: number;
 }

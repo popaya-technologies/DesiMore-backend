@@ -1,4 +1,6 @@
 import { Request, Response } from "express";
+import { plainToInstance } from "class-transformer";
+import { validate } from "class-validator";
 
 import { AppDataSource } from "../data-source";
 import {
@@ -6,6 +8,88 @@ import {
   UpdateCountryDto,
 } from "../dto/country.dto";
 import { Country } from "../entities/country.entity";
+import { GeoZoneLocation } from "../entities/geo_zone_location.entity";
+import { Store } from "../entities/store.entity";
+import { Zone } from "../entities/zone.entity";
+
+const validationErrors = async (dto: object) => {
+  const errors = await validate(dto, {
+    whitelist: true,
+    forbidNonWhitelisted: true,
+  });
+
+  return errors.flatMap((error) =>
+    Object.values(error.constraints ?? {}),
+  );
+};
+
+const normalizeIso = (value?: string) =>
+  value?.trim().toUpperCase() || null;
+
+// Stores keep their country as free text, so a country matches by name or ISO code.
+const countryMatchValues = (country: Country) =>
+  [country.name, country.isoCode2, country.isoCode3]
+    .filter((value): value is string => Boolean(value))
+    .map((value) => value.trim().toLowerCase());
+
+// The default country is the country of the main (first created) store, like the
+// store settings country of the old site.
+const getDefaultStoreCountry = async (): Promise<string | null> => {
+  const [store] = await AppDataSource.getRepository(Store).find({
+    select: ["id", "country"],
+    order: { createdAt: "ASC" },
+    take: 1,
+  });
+
+  return store?.country?.trim().toLowerCase() || null;
+};
+
+const withIsDefault = <T extends Country>(
+  countries: T[],
+  defaultCountry: string | null,
+) =>
+  countries.map((country) => ({
+    ...country,
+    isDefault:
+      defaultCountry !== null &&
+      countryMatchValues(country).includes(defaultCountry),
+  }));
+
+// Returns a message when name or an ISO code is already used by another country.
+const findConflict = async (
+  values: {
+    name?: string;
+    isoCode2?: string | null;
+    isoCode3?: string | null;
+  },
+  excludeId?: string,
+): Promise<string | null> => {
+  const repository = AppDataSource.getRepository(Country);
+  const checks: Array<[string, string, string | null | undefined]> = [
+    ["Country already exists", "LOWER(country.name) = LOWER(:value)", values.name],
+    ["ISO Code (2) is already used by another country", "UPPER(country.isoCode2) = :value", values.isoCode2],
+    ["ISO Code (3) is already used by another country", "UPPER(country.isoCode3) = :value", values.isoCode3],
+  ];
+
+  for (const [message, condition, value] of checks) {
+    if (!value) continue;
+
+    const query = repository
+      .createQueryBuilder("country")
+      .select(["country.id"])
+      .where(condition, { value });
+
+    if (excludeId) {
+      query.andWhere("country.id != :excludeId", { excludeId });
+    }
+
+    if (await query.getOne()) {
+      return message;
+    }
+  }
+
+  return null;
+};
 
 export class CountryController {
   static async createCountry(
@@ -16,25 +100,34 @@ export class CountryController {
       const repository =
         AppDataSource.getRepository(Country);
 
-      const dto = req.body as CreateCountryDto;
+      const dto = plainToInstance(CreateCountryDto, req.body);
+      const errors = await validationErrors(dto);
+
+      if (errors.length) {
+        res.status(400).json({
+          message: errors[0],
+          errors,
+        });
+        return;
+      }
 
       const name = dto.name.trim();
+      const isoCode2 = normalizeIso(dto.isoCode2);
+      const isoCode3 = normalizeIso(dto.isoCode3);
 
-      const existing = await repository.findOne({
-        where: { name },
-      });
+      const conflict = await findConflict({ name, isoCode2, isoCode3 });
 
-      if (existing) {
+      if (conflict) {
         res.status(409).json({
-          message: "Country already exists",
+          message: conflict,
         });
         return;
       }
 
       const country = repository.create({
         name,
-        isoCode2: dto.isoCode2?.trim() || null,
-        isoCode3: dto.isoCode3?.trim() || null,
+        isoCode2,
+        isoCode3,
         addressFormat:
           dto.addressFormat?.trim() || null,
         postcodeRequired: dto.postcodeRequired,
@@ -67,19 +160,41 @@ export class CountryController {
           ? req.query.search.trim()
           : "";
 
+      const status =
+        typeof req.query.status === "string"
+          ? req.query.status.trim().toLowerCase()
+          : "";
+
       const page = Math.max(
         Number(req.query.page) || 1,
         1,
       );
 
-      const limit = Math.max(
-        Number(req.query.limit) || 10,
-        1,
+      const limit = Math.min(
+        Math.max(Number(req.query.limit) || 10, 1),
+        100,
       );
+
+      // Column sorting from the admin list; anything else falls back to name A-Z.
+      const sortColumns: Record<string, string> = {
+        name: "country.name",
+        isoCode2: "country.isoCode2",
+        isoCode3: "country.isoCode3",
+      };
+      const sortBy =
+        typeof req.query.sortBy === "string" &&
+        sortColumns[req.query.sortBy]
+          ? sortColumns[req.query.sortBy]
+          : sortColumns.name;
+      const sortOrder =
+        String(req.query.sortOrder).toUpperCase() === "DESC"
+          ? "DESC"
+          : "ASC";
 
       const queryBuilder = repository
         .createQueryBuilder("country")
-        .orderBy("country.createdAt", "ASC");
+        .orderBy(sortBy, sortOrder, "NULLS LAST")
+        .addOrderBy("country.name", "ASC");
 
       if (search) {
         queryBuilder.andWhere(
@@ -94,14 +209,22 @@ export class CountryController {
         );
       }
 
-      const [data, total] =
-        await queryBuilder
+      if (status === "enabled" || status === "true") {
+        queryBuilder.andWhere("country.status = :status", { status: true });
+      } else if (status === "disabled" || status === "false") {
+        queryBuilder.andWhere("country.status = :status", { status: false });
+      }
+
+      const [[data, total], defaultCountry] = await Promise.all([
+        queryBuilder
           .skip((page - 1) * limit)
           .take(limit)
-          .getManyAndCount();
+          .getManyAndCount(),
+        getDefaultStoreCountry(),
+      ]);
 
       res.json({
-        data,
+        data: withIsDefault(data, defaultCountry),
         meta: {
           total,
           page,
@@ -114,6 +237,41 @@ export class CountryController {
     } catch (error) {
       console.error(
         "Get countries error:",
+        error,
+      );
+
+      res.status(500).json({
+        message: "Failed to get countries",
+      });
+    }
+  }
+
+  // Storefront: enabled countries only, for address and checkout dropdowns.
+  static async getEnabledCountries(
+    _req: Request,
+    res: Response,
+  ): Promise<void> {
+    try {
+      const [countries, defaultCountry] = await Promise.all([
+        AppDataSource.getRepository(Country).find({
+          where: { status: true },
+          select: [
+            "id",
+            "name",
+            "isoCode2",
+            "isoCode3",
+            "addressFormat",
+            "postcodeRequired",
+          ],
+          order: { name: "ASC" },
+        }),
+        getDefaultStoreCountry(),
+      ]);
+
+      res.json({ data: withIsDefault(countries, defaultCountry) });
+    } catch (error) {
+      console.error(
+        "Get enabled countries error:",
         error,
       );
 
@@ -178,37 +336,45 @@ export class CountryController {
         return;
       }
 
-      const dto = req.body as UpdateCountryDto;
+      const dto = plainToInstance(UpdateCountryDto, req.body);
+      const errors = await validationErrors(dto);
 
-      if (dto.name !== undefined) {
-        const name = dto.name.trim();
+      if (errors.length) {
+        res.status(400).json({
+          message: errors[0],
+          errors,
+        });
+        return;
+      }
 
-        const existing =
-          await repository.findOne({
-            where: { name },
-          });
+      const name = dto.name?.trim();
+      const isoCode2 =
+        dto.isoCode2 !== undefined ? normalizeIso(dto.isoCode2) : undefined;
+      const isoCode3 =
+        dto.isoCode3 !== undefined ? normalizeIso(dto.isoCode3) : undefined;
 
-        if (
-          existing &&
-          existing.id !== country.id
-        ) {
-          res.status(409).json({
-            message: "Country already exists",
-          });
-          return;
-        }
+      const conflict = await findConflict(
+        { name, isoCode2, isoCode3 },
+        country.id,
+      );
 
+      if (conflict) {
+        res.status(409).json({
+          message: conflict,
+        });
+        return;
+      }
+
+      if (name !== undefined) {
         country.name = name;
       }
 
-      if (dto.isoCode2 !== undefined) {
-        country.isoCode2 =
-          dto.isoCode2.trim() || null;
+      if (isoCode2 !== undefined) {
+        country.isoCode2 = isoCode2;
       }
 
-      if (dto.isoCode3 !== undefined) {
-        country.isoCode3 =
-          dto.isoCode3.trim() || null;
+      if (isoCode3 !== undefined) {
+        country.isoCode3 = isoCode3;
       }
 
       if (dto.addressFormat !== undefined) {
@@ -258,6 +424,40 @@ export class CountryController {
       if (!country) {
         res.status(404).json({
           message: "Country not found",
+        });
+        return;
+      }
+
+      const storeCountryValues = countryMatchValues(country);
+
+      const [zoneCount, geoZoneCount, storeCount] = await Promise.all([
+        AppDataSource.getRepository(Zone).count({
+          where: { countryId: country.id },
+        }),
+        AppDataSource.getRepository(GeoZoneLocation).count({
+          where: { countryId: country.id },
+        }),
+        AppDataSource.getRepository(Store)
+          .createQueryBuilder("store")
+          .where("LOWER(TRIM(store.country)) IN (:...values)", {
+            values: storeCountryValues,
+          })
+          .getCount(),
+      ]);
+
+      if (zoneCount > 0 || geoZoneCount > 0 || storeCount > 0) {
+        const usage = [
+          storeCount > 0 ? `${storeCount} store${storeCount === 1 ? "" : "s"}` : "",
+          zoneCount > 0 ? `${zoneCount} zone${zoneCount === 1 ? "" : "s"}` : "",
+          geoZoneCount > 0
+            ? `${geoZoneCount} geo zone location${geoZoneCount === 1 ? "" : "s"}`
+            : "",
+        ]
+          .filter(Boolean)
+          .join(", ");
+
+        res.status(409).json({
+          message: `${country.name} is used by ${usage}. Change or remove them first.`,
         });
         return;
       }

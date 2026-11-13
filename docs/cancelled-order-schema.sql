@@ -5,13 +5,16 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS "order_history" (
   "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   "orderId" UUID NOT NULL REFERENCES "orders"("id") ON DELETE CASCADE,
-  "status" VARCHAR(50) NOT NULL,
+  "previousStatus" VARCHAR(100),
+  "status" VARCHAR(100) NOT NULL,
   "comment" TEXT NOT NULL DEFAULT '',
   "carrierName" VARCHAR(255),
   "trackingNumber" VARCHAR(255),
   "customerNotified" BOOLEAN NOT NULL DEFAULT false,
   "override" BOOLEAN NOT NULL DEFAULT false,
   "createdBy" UUID,
+  "createdByName" VARCHAR(255),
+  "createdByAccountType" VARCHAR(30),
   "createdAt" TIMESTAMP NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS "IDX_order_history_order" ON "order_history" ("orderId", "createdAt");

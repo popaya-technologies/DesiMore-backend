@@ -13,9 +13,15 @@ export const OptionController = {
   create: handle(async (req, res) => { res.status(201).json(await new OptionService().save(req.body)); }),
   update: handle(async (req, res) => { res.json(await new OptionService().save(req.body, String(req.params.id))); }),
   remove: handle(async (req, res) => {
-    const result = await AppDataSource.getRepository(CatalogOption).delete(String(req.params.id));
-    if (!result.affected) throw new ApiError(404, "Option not found");
-    res.json({ message: "Option deleted successfully" });
+    try {
+      const result = await AppDataSource.getRepository(CatalogOption).delete(String(req.params.id));
+      if (!result.affected) throw new ApiError(404, "Option not found");
+      res.json({ message: "Option deleted successfully" });
+    } catch (error) {
+      if ((error as any)?.code === "23503")
+        throw new ApiError(409, "Option is assigned to products and cannot be deleted");
+      throw error;
+    }
   }),
   get: handle(async (req, res) => {
     const row = await AppDataSource.getRepository(CatalogOption).findOneBy({ id: String(req.params.id) });

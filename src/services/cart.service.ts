@@ -19,6 +19,7 @@ export const cartRelations = [
   "items.product",
   "items.product.options",
   "items.product.discounts",
+  "items.product.categories",
 ];
 export const cartSummary = (cart: Cart) => ({
   ...cart,

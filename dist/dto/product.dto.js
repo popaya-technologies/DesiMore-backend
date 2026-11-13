@@ -26,6 +26,7 @@ exports.OPTION_TYPES = [
     "radio",
     "text",
     "textarea",
+    "file",
     "date",
     "time",
     "datetime",
@@ -41,6 +42,10 @@ __decorate([
     (0, class_validator_1.IsUUID)(),
     __metadata("design:type", String)
 ], AttributeDto.prototype, "id", void 0);
+__decorate([
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], AttributeDto.prototype, "attributeId", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.MaxLength)(255),
@@ -66,6 +71,11 @@ __decorate([
     (0, class_validator_1.IsUUID)(),
     __metadata("design:type", String)
 ], OptionValueDto.prototype, "id", void 0);
+__decorate([
+    (0, class_validator_1.ValidateIf)(optional),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], OptionValueDto.prototype, "optionValueId", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.MaxLength)(255),
@@ -127,6 +137,10 @@ __decorate([
     (0, class_validator_1.IsUUID)(),
     __metadata("design:type", String)
 ], OptionDto.prototype, "id", void 0);
+__decorate([
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], OptionDto.prototype, "optionId", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.MaxLength)(255),
@@ -306,6 +320,15 @@ __decorate([
     (0, class_validator_1.MaxLength)(255),
     __metadata("design:type", String)
 ], CreateProductDto.prototype, "metaKeyword", void 0);
+__decorate([
+    (0, class_validator_1.ValidateIf)(optional),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(500),
+    (0, class_validator_1.Matches)(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
+        message: "seoKeyword must contain lowercase letters, numbers and single hyphens only",
+    }),
+    __metadata("design:type", String)
+], CreateProductDto.prototype, "seoKeyword", void 0);
 __decorate([
     (0, class_validator_1.ValidateIf)(nullable),
     (0, class_validator_1.IsString)(),

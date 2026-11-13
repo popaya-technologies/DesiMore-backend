@@ -14,8 +14,37 @@ const data_source_1 = require("../data-source");
 const gift_voucher_entity_1 = require("../entities/gift_voucher.entity");
 const gift_voucher_dto_1 = require("../dto/gift_voucher.dto");
 const class_validator_1 = require("class-validator");
+const class_transformer_1 = require("class-transformer");
+const api_error_1 = require("../utils/api-error");
+const cart_entity_1 = require("../entities/cart.entity");
+const cart_service_1 = require("../services/cart.service");
+const coupon_service_1 = require("../services/coupon.service");
+const gift_voucher_service_1 = require("../services/gift-voucher.service");
 const giftVoucherRepository = data_source_1.AppDataSource.getRepository(gift_voucher_entity_1.GiftVoucher);
 exports.GiftVoucherController = {
+    applyGiftVoucher: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+        try {
+            const dto = (0, class_transformer_1.plainToInstance)(gift_voucher_dto_1.ApplyGiftVoucherDto, req.body);
+            const errors = yield (0, class_validator_1.validate)(dto, {
+                whitelist: true,
+                forbidNonWhitelisted: true,
+                validationError: { target: false, value: false },
+            });
+            if (errors.length)
+                throw new api_error_1.ApiError(400, "Invalid gift voucher data", errors);
+            const result = yield data_source_1.AppDataSource.transaction((manager) => __awaiter(void 0, void 0, void 0, function* () {
+                const cart = yield (0, cart_service_1.loadCart)(manager, req.user.id, dto.cartType === "buy-now" ? cart_entity_1.CartType.BUY_NOW : cart_entity_1.CartType.REGULAR, false);
+                const coupon = dto.couponCode
+                    ? yield (0, coupon_service_1.calculateCoupon)(manager, dto.couponCode, cart, req.user.id)
+                    : null;
+                return (0, gift_voucher_service_1.calculateGiftVoucher)(manager, dto.code, cart, (coupon === null || coupon === void 0 ? void 0 : coupon.discount) || 0);
+            }));
+            res.json(Object.assign({ message: "Success: Your gift voucher has been applied!" }, result));
+        }
+        catch (error) {
+            (0, api_error_1.respondError)(res, error);
+        }
+    }),
     // Create Gift Voucher
     createGiftVoucher: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         var _a, _b, _c, _d;

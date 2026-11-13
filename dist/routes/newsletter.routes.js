@@ -1,0 +1,10 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const newsletter_controller_1 = require("../controllers/newsletter.controller");
+const auth_middleware_1 = require("../middlewares/auth.middleware");
+const router = (0, express_1.Router)();
+router.post("/subscribe", newsletter_controller_1.NewsletterController.subscribe);
+router.get("/me", auth_middleware_1.authenticate, newsletter_controller_1.NewsletterController.getMyPreference);
+router.put("/me", auth_middleware_1.authenticate, newsletter_controller_1.NewsletterController.updateMyPreference);
+exports.default = router;

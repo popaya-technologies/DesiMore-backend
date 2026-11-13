@@ -176,6 +176,22 @@ class RecipeCategoryService {
                         if (!parent) {
                             throw new api_error_1.ApiError(400, "Parent recipe category not found");
                         }
+                        if (id) {
+                            let ancestor = parent;
+                            const visited = new Set();
+                            while (ancestor) {
+                                if (ancestor.id === id) {
+                                    throw new api_error_1.ApiError(400, "A recipe category cannot use one of its descendants as its parent");
+                                }
+                                if (visited.has(ancestor.id)) {
+                                    throw new api_error_1.ApiError(400, "Recipe category hierarchy contains a cycle");
+                                }
+                                visited.add(ancestor.id);
+                                ancestor = ancestor.parent
+                                    ? yield repository.findOne({ where: { id: ancestor.parent } })
+                                    : null;
+                            }
+                        }
                     }
                 }
                 Object.assign(category, dto);

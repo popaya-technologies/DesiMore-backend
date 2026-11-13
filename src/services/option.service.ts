@@ -60,10 +60,22 @@ export class OptionService {
         const existing = id ? await repo.findOne({ where: { id }, lock: { mode: "pessimistic_write" } }) : null;
         if (id && !existing) throw new ApiError(404, "Option not found");
         const option = existing ?? repo.create({ type: "select", sortOrder: 0, values: [] });
+        const assignments = existing ? await manager.query(
+          'SELECT values FROM product_options WHERE "optionId" = $1', [existing.id],
+        ) : [];
+        if (existing && dto.type !== undefined && dto.type !== existing.type && assignments.length)
+          throw new ApiError(409, "Option type cannot be changed while it is assigned to products");
         for (const key of ["name", "type", "sortOrder"])
           if (dto[key] !== undefined) option[key] = dto[key];
         if (dto.values !== undefined) {
           const previous = new Map((existing?.values ?? []).map(row => [row.id, row]));
+          const retainedIds = new Set(dto.values.flatMap(row => row.id ? [row.id] : []));
+          const usedIds = new Set<string>();
+          for (const assignment of assignments)
+            for (const value of Array.isArray(assignment.values) ? assignment.values : [])
+              if (value?.optionValueId) usedIds.add(value.optionValueId);
+          if ([...usedIds].some(valueId => !retainedIds.has(valueId)))
+            throw new ApiError(409, "Option values assigned to products cannot be removed");
           option.values = dto.values.map(row => {
             const old = row.id ? previous.get(row.id) : undefined;
             if (row.id && !old) throw new ApiError(400, "Option value ID does not belong to this option");

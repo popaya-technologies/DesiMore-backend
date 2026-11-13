@@ -7,14 +7,14 @@ import {
 
 export class CreateReturnActionDto {
   @IsString()
-  @IsNotEmpty()
+  @IsNotEmpty({ message: "Name is required" })
   @MaxLength(255)
   name!: string;
 }
 
 export class UpdateReturnActionDto {
   @IsString()
-  @IsNotEmpty()
+  @IsNotEmpty({ message: "Name is required" })
   @MaxLength(255)
   @IsOptional()
   name?: string;

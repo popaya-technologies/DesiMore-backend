@@ -3,6 +3,7 @@ const supplied = (_: unknown, value: unknown) => value !== undefined;
 export class CreateTranslationDto {
   @ValidateIf(supplied) @IsString() @Matches(/\S/) @MaxLength(100) store?: string;
   @ValidateIf(supplied) @IsString() @Matches(/\S/) @MaxLength(50) language?: string;
+  @ValidateIf(supplied) @IsUUID() languageId?: string;
   @IsString() @Matches(/\S/) @MaxLength(255) route: string;
   @IsString() @Matches(/\S/) @MaxLength(255) key: string;
   @IsString() @MaxLength(20000) value: string;
@@ -10,6 +11,7 @@ export class CreateTranslationDto {
 export class UpdateTranslationDto {
   @ValidateIf(supplied) @IsString() @Matches(/\S/) @MaxLength(100) store?: string;
   @ValidateIf(supplied) @IsString() @Matches(/\S/) @MaxLength(50) language?: string;
+  @ValidateIf(supplied) @IsUUID() languageId?: string;
   @ValidateIf(supplied) @IsString() @Matches(/\S/) @MaxLength(255) route?: string;
   @ValidateIf(supplied) @IsString() @Matches(/\S/) @MaxLength(255) key?: string;
   @ValidateIf(supplied) @IsString() @MaxLength(20000) value?: string;

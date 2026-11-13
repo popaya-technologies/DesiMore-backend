@@ -3,8 +3,20 @@ import { AppDataSource } from "../data-source";
 import { SeoUrl } from "../entities/seo-url.entity";
 import { CreateSeoUrlDto, UpdateSeoUrlDto } from "../dto/seo-url.dto";
 import { validate } from "class-validator";
+import { isUUID } from "class-validator";
+import { SystemLanguage } from "../entities/system-language.entity";
 
 const seoUrlRepository = AppDataSource.getRepository(SeoUrl);
+
+const duplicateMessage = (error: any) => {
+  if (error?.code !== "23505") return null;
+  return error?.constraint === "UQ_seo_url_query_scope"
+    ? "This target already has an SEO URL for the selected store and language"
+    : "This SEO keyword already exists for the selected store and language";
+};
+
+const cleanScope = (value: string | undefined, fallback: string) =>
+  value === undefined ? fallback : value.trim();
 
 export const SeoUrlController = {
   createSeoUrl: async (req: Request, res: Response) => {
@@ -20,17 +32,38 @@ export const SeoUrlController = {
         return;
       }
 
+      const languageRepository = AppDataSource.getRepository(SystemLanguage);
+      const systemLanguage = seoUrlData.languageId
+        ? await languageRepository.findOne({
+            where: { id: seoUrlData.languageId, status: true },
+          })
+        : await languageRepository.findOne({
+            where: { isDefault: true, status: true },
+          });
+
+      if (!systemLanguage) {
+        res.status(400).json({ message: "Select an enabled language" });
+        return;
+      }
+
       const seoUrl = seoUrlRepository.create({
         query: seoUrlData.query.trim(),
         keyword: seoUrlData.keyword.trim(),
-        store: seoUrlData.store ?? "Default",
-        language: seoUrlData.language ?? "English",
+        store: cleanScope(seoUrlData.store, "Default"),
+        language: systemLanguage.languageName,
+        languageId: systemLanguage.id,
+        systemLanguage,
       });
 
       await seoUrlRepository.save(seoUrl);
 
       res.status(201).json(seoUrl);
-    } catch (error) {
+    } catch (error: any) {
+      const message = duplicateMessage(error);
+      if (message) {
+        res.status(409).json({ message });
+        return;
+      }
       console.error(error);
 
       res.status(500).json({
@@ -47,19 +80,22 @@ export const SeoUrlController = {
         limit = "10",
       } = req.query;
 
-      const currentPage = Math.max(
-        parseInt(page as string, 10) || 1,
-        1,
-      );
-
-      const take = Math.max(
-        parseInt(limit as string, 10) || 10,
-        1,
-      );
+      if (!/^\d+$/.test(String(page)) || !/^\d+$/.test(String(limit))) {
+        res.status(400).json({ message: "Page and limit must be positive integers" });
+        return;
+      }
+      const currentPage = Number(page);
+      const take = Number(limit);
+      if (currentPage < 1 || take < 1 || take > 100) {
+        res.status(400).json({ message: "Page must be positive and limit must be between 1 and 100" });
+        return;
+      }
 
       const skip = (currentPage - 1) * take;
 
-      const query = seoUrlRepository.createQueryBuilder("seoUrl");
+      const query = seoUrlRepository
+        .createQueryBuilder("seoUrl")
+        .leftJoinAndSelect("seoUrl.systemLanguage", "systemLanguage");
 
       if (search && String(search).trim()) {
         query.andWhere(
@@ -95,12 +131,46 @@ export const SeoUrlController = {
     }
   },
 
+  resolveSeoUrl: async (req: Request, res: Response) => {
+    try {
+      const keyword = String(req.params.keyword ?? "").trim().toLowerCase();
+      const store = cleanScope(typeof req.query.store === "string" ? req.query.store : undefined, "Default");
+      const language = cleanScope(typeof req.query.language === "string" ? req.query.language : undefined, "English");
+      if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(keyword) || keyword.length > 500 || !store || !language) {
+        res.status(400).json({ message: "Invalid SEO URL lookup" });
+        return;
+      }
+      const seoUrl = await seoUrlRepository.findOne({ where: { keyword, store, language } });
+      if (!seoUrl) {
+        res.status(404).json({ message: "SEO URL not found" });
+        return;
+      }
+      const target = /^([a-z_]+)_id=(.+)$/.exec(seoUrl.query);
+      res.set("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
+      res.status(200).json({
+        keyword: seoUrl.keyword,
+        query: seoUrl.query,
+        store: seoUrl.store,
+        language: seoUrl.language,
+        target: target ? { type: target[1], id: target[2] } : null,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
   getSeoUrlById: async (req: Request, res: Response) => {
     try {
+      if (!isUUID(req.params.id)) {
+        res.status(400).json({ message: "Invalid SEO URL ID" });
+        return;
+      }
       const seoUrl = await seoUrlRepository.findOne({
         where: {
           id: req.params.id,
         },
+        relations: { systemLanguage: true },
       });
 
       if (!seoUrl) {
@@ -123,10 +193,15 @@ export const SeoUrlController = {
 
   updateSeoUrl: async (req: Request, res: Response) => {
     try {
+      if (!isUUID(req.params.id)) {
+        res.status(400).json({ message: "Invalid SEO URL ID" });
+        return;
+      }
       const seoUrl = await seoUrlRepository.findOne({
         where: {
           id: req.params.id,
         },
+        relations: { systemLanguage: true },
       });
 
       if (!seoUrl) {
@@ -157,17 +232,36 @@ export const SeoUrlController = {
       }
 
       if (updateData.store !== undefined) {
-        seoUrl.store = updateData.store;
+        seoUrl.store = updateData.store.trim();
       }
 
-      if (updateData.language !== undefined) {
-        seoUrl.language = updateData.language;
+      if (updateData.languageId !== undefined) {
+        const systemLanguage =
+          updateData.languageId === seoUrl.languageId
+            ? seoUrl.systemLanguage
+            : await AppDataSource.getRepository(SystemLanguage).findOne({
+                where: { id: updateData.languageId, status: true },
+              });
+
+        if (!systemLanguage) {
+          res.status(400).json({ message: "Select an enabled language" });
+          return;
+        }
+
+        seoUrl.language = systemLanguage.languageName;
+        seoUrl.languageId = systemLanguage.id;
+        seoUrl.systemLanguage = systemLanguage;
       }
 
       await seoUrlRepository.save(seoUrl);
 
       res.status(200).json(seoUrl);
-    } catch (error) {
+    } catch (error: any) {
+      const message = duplicateMessage(error);
+      if (message) {
+        res.status(409).json({ message });
+        return;
+      }
       console.error(error);
 
       res.status(500).json({
@@ -176,8 +270,24 @@ export const SeoUrlController = {
     }
   },
 
+  getFormOptions: async (_req: Request, res: Response) => {
+    try {
+      const languages = await AppDataSource.getRepository(SystemLanguage).find({
+        order: { sortOrder: "ASC", languageName: "ASC" },
+      });
+      res.json({ languages });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
   deleteSeoUrl: async (req: Request, res: Response) => {
     try {
+      if (!isUUID(req.params.id)) {
+        res.status(400).json({ message: "Invalid SEO URL ID" });
+        return;
+      }
       const seoUrl = await seoUrlRepository.findOne({
         where: {
           id: req.params.id,

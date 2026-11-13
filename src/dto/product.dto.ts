@@ -31,6 +31,7 @@ export const OPTION_TYPES = [
   "radio",
   "text",
   "textarea",
+  "file",
   "date",
   "time",
   "datetime",
@@ -41,12 +42,14 @@ const nullable = (_: unknown, value: unknown) =>
   value !== undefined && value !== null;
 export class AttributeDto {
   @ValidateIf(optional) @IsUUID() id?: string;
+  @IsUUID() attributeId: string;
   @IsString() @MaxLength(255) @Matches(/\S/) name: string;
   @IsString() @MaxLength(50000) text: string;
   @ValidateIf(optional) @IsInt() @Min(0) sortOrder?: number;
 }
 export class OptionValueDto {
   @ValidateIf(optional) @IsUUID() id?: string;
+  @ValidateIf(optional) @IsUUID() optionValueId?: string;
   @IsString() @MaxLength(255) @Matches(/\S/) value: string;
   @IsInt() @Min(0) @Max(2147483647) quantity: number;
   @ValidateIf(optional) @IsBoolean() subtractStock?: boolean;
@@ -67,6 +70,7 @@ export class OptionValueDto {
 }
 export class OptionDto {
   @ValidateIf(optional) @IsUUID() id?: string;
+  @IsUUID() optionId: string;
   @IsString() @MaxLength(255) @Matches(/\S/) name: string;
   @IsIn(OPTION_TYPES) type: string;
   @IsBoolean() required: boolean;
@@ -129,6 +133,13 @@ export class CreateProductDto {
   @ValidateIf(nullable) @IsString() @MaxLength(255) metaDescription?:
     string | null;
   @ValidateIf(nullable) @IsString() @MaxLength(255) metaKeyword?: string | null;
+  @ValidateIf(optional)
+  @IsString()
+  @MaxLength(500)
+  @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
+    message: "seoKeyword must contain lowercase letters, numbers and single hyphens only",
+  })
+  seoKeyword?: string;
   @ValidateIf(nullable) @IsString() @MaxLength(2000) tag?: string | null;
   @ValidateIf(optional)
   @IsNumber({ maxDecimalPlaces: 2 })
@@ -226,12 +237,15 @@ export class CreateProductDto {
   @IsDateString({ strict: true })
   @Matches(/^\d{4}-\d{2}-\d{2}$/)
   wholesaleDateAvailable?: string | null;
-  @ValidateIf(optional) @IsIn(LENGTH_CLASSES) lengthClass?: string;
-  @ValidateIf(optional) @IsIn(LENGTH_CLASSES) wholesaleLengthClass?: string;
-  @ValidateIf(optional) @IsIn(WEIGHT_CLASSES) weightClass?: string;
-  @ValidateIf(optional) @IsIn(WEIGHT_CLASSES) wholesaleWeightClass?: string;
+  // Must match a Length / Weight Class from admin (checked in the product service).
+  @ValidateIf(optional) @IsString() @MaxLength(100) lengthClass?: string;
+  @ValidateIf(optional) @IsString() @MaxLength(100) wholesaleLengthClass?: string;
+  @ValidateIf(optional) @IsString() @MaxLength(100) weightClass?: string;
+  @ValidateIf(optional) @IsString() @MaxLength(100) wholesaleWeightClass?: string;
   @ValidateIf(optional) @IsIn(STOCK_STATUSES) outOfStockStatus?: string;
+  @ValidateIf(optional) @IsUUID() stockStatusId?: string;
   @ValidateIf(nullable) @IsUUID() brandId?: string | null;
+  @ValidateIf(nullable) @IsUUID() taxClassId?: string | null;
   @ValidateIf(optional)
   @IsArray()
   @ArrayUnique()

@@ -5,6 +5,8 @@ import { checkPermission } from "../middlewares/rbac.middleware";
 import { BannerController } from "../controllers/banner.controller";
 
 const router = Router();
+router.get("/public/placement/:placement", BannerController.publicGetByPlacement);
+router.get("/public/:name", BannerController.publicGet);
 router.use(authenticate);
 router.param("id", (_req, res, next, id) => {
   if (!isUUID(id)) { res.status(400).json({ message: "Invalid banner ID" }); return; }

@@ -22,6 +22,7 @@ exports.cartRelations = [
     "items.product",
     "items.product.options",
     "items.product.discounts",
+    "items.product.categories",
 ];
 const cartSummary = (cart) => (Object.assign(Object.assign({}, cart), { wholesaleSummary: {
         subtotal: Number(cart.wholesaleSubtotal),

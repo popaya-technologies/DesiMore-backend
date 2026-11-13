@@ -4,9 +4,15 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
+  Unique,
+  JoinColumn,
+  ManyToOne,
 } from "typeorm";
+import { SystemLanguage } from "./system-language.entity";
 
 @Entity("seo_urls")
+@Unique("UQ_seo_url_keyword_scope", ["store", "language", "keyword"])
+@Unique("UQ_seo_url_query_scope", ["store", "language", "query"])
 export class SeoUrl {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
@@ -30,6 +36,13 @@ export class SeoUrl {
     default: "English",
   })
   language!: string;
+
+  @Column({ type: "uuid" })
+  languageId!: string;
+
+  @ManyToOne(() => SystemLanguage, { onDelete: "RESTRICT" })
+  @JoinColumn({ name: "languageId" })
+  systemLanguage!: SystemLanguage;
 
   @CreateDateColumn()
   createdAt!: Date;

@@ -25,9 +25,15 @@ export const AttributeController = {
     res.json(row);
   }),
   remove: handle(async (req, res) => {
-    const result = await repo().delete(String(req.params.id));
-    if (!result.affected) throw new ApiError(404, "Attribute not found");
-    res.json({ message: "Attribute deleted successfully" });
+    try {
+      const result = await repo().delete(String(req.params.id));
+      if (!result.affected) throw new ApiError(404, "Attribute not found");
+      res.json({ message: "Attribute deleted successfully" });
+    } catch (error) {
+      if ((error as any)?.code === "23503")
+        throw new ApiError(409, "Attribute is assigned to one or more products and cannot be deleted");
+      throw error;
+    }
   }),
   options: handle(async (_req, res) => {
     const attributeGroups = await AppDataSource.getRepository(AttributeGroup).find({

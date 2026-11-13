@@ -7,23 +7,35 @@ import { AppDataSource } from "../data-source";
 import { Product } from "../entities/product.entity";
 import { Category } from "../entities/category.entity";
 import { Brand } from "../entities/brand.entity";
+import { TaxClass } from "../entities/tax-class.entity";
+import { LengthClass } from "../entities/length-class.entity";
+import { WeightClass } from "../entities/weight-class.entity";
 import { Download } from "../entities/download.entity";
+import { Attribute } from "../entities/attribute.entity";
 import { ProductAttribute } from "../entities/product-attribute.entity";
 import { ProductOption } from "../entities/product-option.entity";
+import { CatalogOption } from "../entities/option.entity";
 import { ProductDiscount } from "../entities/product-discount.entity";
 import { ProductImage } from "../entities/product-image.entity";
+import { SeoUrl } from "../entities/seo-url.entity";
 import { CreateProductDto } from "../dto/product.dto";
 import { ApiError } from "../utils/api-error";
+import { StockStatus } from "../entities/stock-status.entity";
+import { getDefaultSystemLanguage } from "./system-language.service";
 
 export const PRODUCT_RELATIONS = [
   "categories",
   "brand",
   "attributes",
+  "attributes.attribute",
+  "attributes.attribute.attributeGroup",
   "options",
+  "options.option",
   "discounts",
   "imageDetails",
   "downloads",
   "relatedProducts",
+  "stockStatus",
 ];
 const scalars = [
   "title",
@@ -51,6 +63,7 @@ const scalars = [
   "minimumQuantity",
   "subtractStock",
   "outOfStockStatus",
+  "stockStatusId",
   "requiresShipping",
   "dateAvailable",
   "lengthClass",
@@ -67,6 +80,116 @@ const scalars = [
   "wholesaleLengthClass",
   "wholesaleWeightClass",
 ] as const;
+const DEFAULT_SEO_STORE = "Default";
+const DEFAULT_SEO_LANGUAGE = "English";
+const productSeoQuery = (id: string) => `product_id=${id}`;
+export const seoKeywordFromTitle = (title: string) =>
+  title
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 500)
+    .replace(/-+$/g, "") || "product";
+
+const syncProductSeoUrl = async (
+  manager: EntityManager,
+  product: Product,
+  requestedKeyword?: string,
+) => {
+  const repo = manager.getRepository(SeoUrl);
+  const defaultLanguage = await getDefaultSystemLanguage(manager);
+  const query = productSeoQuery(product.id);
+  const existing = await repo.findOne({
+    where: { query, store: DEFAULT_SEO_STORE, languageId: defaultLanguage.id },
+  });
+  let keyword = requestedKeyword?.trim() || existing?.keyword;
+  if (!keyword) {
+    const base = seoKeywordFromTitle(product.title);
+    keyword = base;
+    for (let suffix = 2; await repo.findOne({
+      where: { keyword, store: DEFAULT_SEO_STORE, languageId: defaultLanguage.id },
+    }); suffix++) keyword = `${base.slice(0, 490)}-${suffix}`;
+  }
+  const conflict = await repo.findOne({
+    where: { keyword, store: DEFAULT_SEO_STORE, languageId: defaultLanguage.id },
+  });
+  if (conflict && conflict.id !== existing?.id)
+    throw new ApiError(409, "This SEO keyword already exists for the default English store");
+  try {
+    return await repo.save(
+      existing
+        ? Object.assign(existing, {
+            keyword,
+            language: defaultLanguage.languageName,
+            languageId: defaultLanguage.id,
+            systemLanguage: defaultLanguage,
+          })
+        : repo.create({
+            query,
+            keyword,
+            store: DEFAULT_SEO_STORE,
+            language: defaultLanguage.languageName,
+            languageId: defaultLanguage.id,
+            systemLanguage: defaultLanguage,
+          }),
+    );
+  } catch (error) {
+    if ((error as any)?.code === "23505")
+      throw new ApiError(409, "This product or SEO keyword already has an SEO URL");
+    throw error;
+  }
+};
+
+export const getProductSeoKeyword = async (productId: string) => {
+  const defaultLanguage = await getDefaultSystemLanguage();
+  return (
+    await AppDataSource.getRepository(SeoUrl).findOne({
+      where: {
+        query: productSeoQuery(productId),
+        store: DEFAULT_SEO_STORE,
+        languageId: defaultLanguage.id,
+      },
+    })
+  )?.keyword ?? null;
+};
+
+export const attachProductSeoKeywords = async <T extends { id: string }>(
+  products: T[],
+): Promise<Array<T & { seoKeyword: string | null }>> => {
+  if (!products.length) return [];
+  const defaultLanguage = await getDefaultSystemLanguage();
+  const prefix = "product_id=";
+  const rows = await AppDataSource.getRepository(SeoUrl).find({
+    where: {
+      query: In(products.map((product) => productSeoQuery(product.id))),
+      store: DEFAULT_SEO_STORE,
+      languageId: defaultLanguage.id,
+    },
+  });
+  const byProductId = new Map(
+    rows.map((row) => [row.query.slice(prefix.length), row.keyword]),
+  );
+  return products.map((product) => ({
+    ...product,
+    seoKeyword: byProductId.get(product.id) ?? null,
+  }));
+};
+
+export const deleteProductWithSeo = async (id: string) =>
+  AppDataSource.transaction(async (manager) => {
+    const productRepo = manager.getRepository(Product);
+    const product = await productRepo.findOne({ where: { id } });
+    if (!product) throw new ApiError(404, "Product not found");
+    const defaultLanguage = await getDefaultSystemLanguage(manager);
+    await manager.getRepository(SeoUrl).delete({
+      query: productSeoQuery(id),
+      store: DEFAULT_SEO_STORE,
+      languageId: defaultLanguage.id,
+    });
+    await productRepo.remove(product);
+  });
 export const cleanRichText = (value: string) =>
   sanitizeHtml(value, {
     allowedTags: [
@@ -202,11 +325,23 @@ export const validateProductInput = async (input: any, creating: boolean) => {
         "Text and date options cannot have choice values",
       );
     if (
-      new Set(option.values.map((v) => v.value.trim().toLowerCase())).size !==
+      new Set(option.values.map((v) => v.optionValueId)).size !==
       option.values.length
     )
       throw new ApiError(400, "Duplicate option values");
   }
+  if (
+    dto.options &&
+    new Set(dto.options.map((option) => option.optionId)).size !==
+      dto.options.length
+  )
+    throw new ApiError(400, "Duplicate product options");
+  if (
+    dto.attributes &&
+    new Set(dto.attributes.map((attribute) => attribute.attributeId)).size !==
+      dto.attributes.length
+  )
+    throw new ApiError(400, "Duplicate product attributes");
   return dto;
 };
 export const productResponse = (product: Product, admin = false): any => {
@@ -241,12 +376,58 @@ export const productResponse = (product: Product, admin = false): any => {
     result.images = orderedImages.map((i) => i.url);
     result.mainImage = orderedImages.find((i) => i.isMain)?.url ?? null;
   } else result.mainImage = product.images?.[0] ?? null;
+  if (result.attributes)
+    result.attributes = result.attributes.map((row: ProductAttribute) => ({
+      id: row.id,
+      productId: row.productId,
+      attributeId: row.attributeId,
+      name: row.attribute?.name ?? row.name,
+      text: row.text,
+      sortOrder: row.sortOrder,
+      attribute: row.attribute ?? null,
+    }));
+  if (result.options)
+    result.options = result.options.map((row: ProductOption) => ({
+      id: row.id,
+      productId: row.productId,
+      optionId: row.optionId,
+      name: row.option?.name ?? row.name,
+      type: row.option?.type ?? row.type,
+      required: row.required,
+      sortOrder: row.sortOrder,
+      values: row.values,
+      option: row.option ?? null,
+    }));
   for (const key of ["attributes", "options"])
     if (result[key])
       result[key] = [...result[key]].sort(
         (a, b) => a.sortOrder - b.sortOrder || a.id.localeCompare(b.id),
       );
   return result;
+};
+// A product's weight / length class must exist in Localisation (matched by title or
+// unit, ignoring case); it is stored as the class's lowercase title, e.g. "pound".
+const resolveMeasureClass = async (
+  manager: EntityManager,
+  kind: "weight" | "length",
+  value: string,
+) => {
+  const name = value.trim().toLowerCase();
+  const [entity, alias, title, unit] =
+    kind === "weight"
+      ? [WeightClass, "weightClass", "weightTitle", "weightUnit"] as const
+      : [LengthClass, "lengthClass", "lengthTitle", "lengthUnit"] as const;
+  const match = await manager
+    .getRepository<WeightClass | LengthClass>(entity)
+    .createQueryBuilder(alias)
+    .where(
+      `(LOWER(${alias}.${title}) = :name OR LOWER(${alias}.${unit}) = :name)`,
+      { name },
+    )
+    .getOne();
+  if (!match)
+    throw new ApiError(400, `Unknown ${kind} class "${value}". Add it in Localisation first.`);
+  return (match as any)[title].trim().toLowerCase() as string;
 };
 const resolveIds = async (
   manager: EntityManager,
@@ -310,6 +491,32 @@ export const saveProduct = async (
     if (!product) throw new ApiError(404, "Product not found");
     for (const key of scalars)
       if (dto[key] !== undefined) (product as any)[key] = dto[key];
+    for (const [key, kind] of [
+      ["weightClass", "weight"],
+      ["wholesaleWeightClass", "weight"],
+      ["lengthClass", "length"],
+      ["wholesaleLengthClass", "length"],
+    ] as const)
+      if (dto[key] !== undefined)
+        product[key] = await resolveMeasureClass(manager, kind, dto[key] as string);
+    if (dto.stockStatusId !== undefined) {
+      product.stockStatus = (
+        await resolveIds(manager, StockStatus, [dto.stockStatusId], "stockStatusId")
+      )[0];
+      product.stockStatusId = product.stockStatus.id;
+    } else if (!id && !product.stockStatusId) {
+      const statusRepository = manager.getRepository(StockStatus);
+      product.stockStatus =
+        (await statusRepository
+          .createQueryBuilder("status")
+          .where("LOWER(status.name) = LOWER(:name)", { name: "Out Of Stock" })
+          .getOne()) ??
+        (await statusRepository.findOne({ order: { name: "ASC" } }));
+      if (!product.stockStatus) {
+        throw new ApiError(400, "Create a stock status before creating products");
+      }
+      product.stockStatusId = product.stockStatus.id;
+    }
     if (dto.summary !== undefined) product.summary = cleanRichText(dto.summary);
     if (dto.unitsPerCarton !== undefined)
       product.wholesaleOrderQuantity =
@@ -331,6 +538,13 @@ export const saveProduct = async (
         dto.brandId === null
           ? null
           : (await resolveIds(manager, Brand, [dto.brandId], "brandId"))[0];
+    if (dto.taxClassId !== undefined) {
+      product.taxClass =
+        dto.taxClassId === null
+          ? null
+          : (await resolveIds(manager, TaxClass, [dto.taxClassId], "taxClassId"))[0];
+      product.taxClassId = product.taxClass?.id ?? null;
+    }
     if (dto.relatedProductIds !== undefined) {
       if (id && dto.relatedProductIds.includes(id))
         throw new ApiError(400, "Product cannot be related to itself");
@@ -361,18 +575,30 @@ export const saveProduct = async (
       };
     }
     await repo.save(product);
-    if (dto.attributes !== undefined)
+    const seoUrl = await syncProductSeoUrl(manager, product, dto.seoKeyword);
+    if (dto.attributes !== undefined) {
+      const masterAttributes = await resolveIds(
+        manager,
+        Attribute,
+        dto.attributes.map((row) => row.attributeId),
+        "attributeId",
+      );
+      const attributeById = new Map(
+        masterAttributes.map((attribute) => [attribute.id, attribute]),
+      );
       await replaceRows(
         manager,
         ProductAttribute,
         product.id,
         dto.attributes,
         (row, index) => ({
-          name: row.name.trim(),
+          attributeId: row.attributeId,
+          name: attributeById.get(row.attributeId).name,
           text: cleanRichText(row.text),
           sortOrder: row.sortOrder ?? index,
         }),
       );
+    }
     if (dto.discounts !== undefined)
       await replaceRows(
         manager,
@@ -385,13 +611,38 @@ export const saveProduct = async (
           dateEnd: row.dateEnd || null,
         }),
       );
-    if (dto.options !== undefined)
+    if (dto.options !== undefined) {
+      const masterOptions = await resolveIds(
+        manager,
+        CatalogOption,
+        dto.options.map((row) => row.optionId),
+        "optionId",
+      );
+      const optionById = new Map<string, CatalogOption>(
+        masterOptions.map((option) => [option.id, option]),
+      );
       await replaceRows(
         manager,
         ProductOption,
         product.id,
         dto.options,
         (row, index, old) => {
+          const master = optionById.get(row.optionId);
+          if (!master) throw new ApiError(400, "Invalid optionId");
+          if (row.type !== master.type)
+            throw new ApiError(400, "Product option type does not match the master option");
+          const choice = ["checkbox", "select", "radio"].includes(master.type);
+          const masterValueById = new Map<string, CatalogOption["values"][number]>(
+            (master.values || []).map((value) => [value.id, value]),
+          );
+          if (
+            choice &&
+            row.values.some(
+              (value) =>
+                !value.optionValueId || !masterValueById.has(value.optionValueId),
+            )
+          )
+            throw new ApiError(400, "Invalid master option value");
           const oldIds = new Set((old?.values || []).map((v) => v.id));
           const incomingIds = row.values.filter((v) => v.id).map((v) => v.id);
           if (
@@ -400,8 +651,9 @@ export const saveProduct = async (
           )
             throw new ApiError(400, "Invalid or duplicate option value ID");
           return {
-            name: row.name.trim(),
-            type: row.type,
+            optionId: master.id,
+            name: master.name,
+            type: master.type,
             required: row.required,
             sortOrder: row.sortOrder ?? index,
             values: row.values.map((v) => ({
@@ -414,11 +666,16 @@ export const saveProduct = async (
               weightPrefix: "+",
               weight: 0,
               ...v,
+              optionValueId: v.optionValueId || null,
+              value: v.optionValueId
+                ? masterValueById.get(v.optionValueId).name
+                : v.value.trim(),
               id: v.id || randomUUID(),
             })),
           };
         },
       );
+    }
     const images =
       dto.imageDetails ??
       dto.images?.map((url, i) => ({ url, isMain: i === 0, sortOrder: i }));
@@ -440,12 +697,14 @@ export const saveProduct = async (
         .map((i) => i.url);
       await repo.save(product);
     }
-    return productResponse(
+    const response = productResponse(
       await repo.findOne({
         where: { id: product.id },
         relations: PRODUCT_RELATIONS,
       }),
       true,
     );
+    response.seoKeyword = seoUrl.keyword;
+    return response;
   });
 };

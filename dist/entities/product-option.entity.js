@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ProductOption = void 0;
 const typeorm_1 = require("typeorm");
 const product_entity_1 = require("./product.entity");
+const option_entity_1 = require("./option.entity");
 let ProductOption = class ProductOption {
 };
 exports.ProductOption = ProductOption;
@@ -28,6 +29,15 @@ __decorate([
     (0, typeorm_1.JoinColumn)({ name: "productId" }),
     __metadata("design:type", product_entity_1.Product)
 ], ProductOption.prototype, "product", void 0);
+__decorate([
+    (0, typeorm_1.Column)("uuid", { nullable: true }),
+    __metadata("design:type", String)
+], ProductOption.prototype, "optionId", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => option_entity_1.CatalogOption, { nullable: true, onDelete: "RESTRICT" }),
+    (0, typeorm_1.JoinColumn)({ name: "optionId" }),
+    __metadata("design:type", option_entity_1.CatalogOption)
+], ProductOption.prototype, "option", void 0);
 __decorate([
     (0, typeorm_1.Column)({ length: 255 }),
     __metadata("design:type", String)

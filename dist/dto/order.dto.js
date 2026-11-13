@@ -13,6 +13,7 @@ exports.UpdateOrderTrackingDto = exports.UpdatePaymentStatusDto = exports.Update
 const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
 const order_entity_1 = require("../entities/order.entity");
+const shipping_constants_1 = require("../shipping.constants");
 class AddressDto {
 }
 exports.AddressDto = AddressDto;
@@ -55,6 +56,23 @@ __decorate([
 class CreateOrderDto {
 }
 exports.CreateOrderDto = CreateOrderDto;
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(255),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateOrderDto.prototype, "giftVoucherCode", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(255),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateOrderDto.prototype, "couponCode", void 0);
+__decorate([
+    (0, class_validator_1.IsIn)(shipping_constants_1.UPS_SHIPPING_CODES),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateOrderDto.prototype, "shippingCode", void 0);
 __decorate([
     (0, class_validator_1.ValidateNested)(),
     (0, class_transformer_1.Type)(() => AddressDto),

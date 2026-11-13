@@ -60,6 +60,8 @@ const return_action_routes_1 = __importDefault(require("./routes/return-action.r
 const return_reason_routes_1 = __importDefault(require("./routes/return-reason.routes"));
 const country_routes_1 = __importDefault(require("./routes/country.routes"));
 const zone_routes_1 = __importDefault(require("./routes/zone.routes"));
+const shipping_routes_1 = __importDefault(require("./routes/shipping.routes"));
+const newsletter_routes_1 = __importDefault(require("./routes/newsletter.routes"));
 const geo_zone_routes_1 = __importDefault(require("./routes/geo_zone.routes"));
 const auth_middleware_1 = require("./middlewares/auth.middleware");
 const rbac_middleware_1 = require("./middlewares/rbac.middleware");
@@ -149,6 +151,8 @@ app.use("/api/return-reasons", return_reason_routes_1.default);
 app.use("/api/countries", country_routes_1.default);
 app.use("/api/zones", zone_routes_1.default);
 app.use("/api/geo-zones", geo_zone_routes_1.default);
+app.use("/api/shipping", shipping_routes_1.default);
+app.use("/api/newsletter", newsletter_routes_1.default);
 // Example protected route with RBAC
 app.get("/api/admin/dashboard", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("dashboard", "read"), (req, res) => {
     res.json({ message: "Welcome to admin dashboard" });

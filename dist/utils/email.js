@@ -49,64 +49,25 @@ exports.sendPasswordResetOtp = exports.sendEmail = void 0;
 const nodemailer_1 = __importDefault(require("nodemailer"));
 const dotenv = __importStar(require("dotenv"));
 dotenv.config();
-// Prefer SendGrid (HTTP API over 443) when available; fallback to SMTP
-const hasSendgrid = !!process.env.SENDGRID_API_KEY;
-let sgMail = null;
-if (hasSendgrid) {
-    try {
-        // Use require to avoid type dependency at build time
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        sgMail = require("@sendgrid/mail");
-        sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-    }
-    catch (e) {
-        sgMail = null;
-    }
-}
 const fromEmail = process.env.FROM_EMAIL || process.env.SMTP_USER;
-let transporter = null;
-if (!sgMail) {
-    const smtpPort = parseInt(process.env.SMTP_PORT || "587");
-    transporter = nodemailer_1.default.createTransport({
-        host: process.env.SMTP_HOST,
-        port: smtpPort,
-        secure: smtpPort === 465,
-        auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
-        },
-        requireTLS: true,
-        tls: { minVersion: "TLSv1.2" },
-    });
-}
+const smtpPort = parseInt(process.env.SMTP_PORT || "587", 10);
+const transporter = nodemailer_1.default.createTransport({
+    host: process.env.SMTP_HOST,
+    port: smtpPort,
+    secure: smtpPort === 465,
+    auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+    },
+    requireTLS: smtpPort !== 465,
+    tls: { minVersion: "TLSv1.2" },
+});
 const sendEmail = (options) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b;
-    if (sgMail) {
-        if (!fromEmail) {
-            throw new Error("FROM_EMAIL is required when using SendGrid. Set FROM_EMAIL in env.");
-        }
-        try {
-            yield sgMail.send({
-                to: options.to,
-                from: fromEmail,
-                subject: options.subject,
-                html: options.html,
-            });
-            return;
-        }
-        catch (err) {
-            const sgErrors = (_b = (_a = err === null || err === void 0 ? void 0 : err.response) === null || _a === void 0 ? void 0 : _a.body) === null || _b === void 0 ? void 0 : _b.errors;
-            if (Array.isArray(sgErrors) && sgErrors.length > 0) {
-                const msg = sgErrors
-                    .map((e) => `${e.message}${e.field ? ` [${e.field}]` : ""}`)
-                    .join("; ");
-                throw new Error(`SendGrid error: ${msg}`);
-            }
-            throw err;
-        }
-    }
-    if (!transporter) {
-        throw new Error("Email transporter is not configured");
+    const missingConfig = ["SMTP_HOST", "SMTP_USER", "SMTP_PASS"].filter((name) => !process.env[name]);
+    if (!fromEmail)
+        missingConfig.push("FROM_EMAIL");
+    if (missingConfig.length > 0) {
+        throw new Error(`SMTP is not configured. Missing environment variables: ${missingConfig.join(", ")}`);
     }
     yield transporter.sendMail(Object.assign({ from: `"Grocery Store" <${fromEmail}>` }, options));
 });

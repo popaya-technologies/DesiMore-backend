@@ -23,7 +23,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.saveProduct = exports.productResponse = exports.validateProductInput = exports.normalizeProductInput = exports.validateAssetUrl = exports.cleanRichText = exports.PRODUCT_RELATIONS = void 0;
+exports.saveProduct = exports.productResponse = exports.validateProductInput = exports.normalizeProductInput = exports.validateAssetUrl = exports.cleanRichText = exports.deleteProductWithSeo = exports.attachProductSeoKeywords = exports.getProductSeoKeyword = exports.seoKeywordFromTitle = exports.PRODUCT_RELATIONS = void 0;
 const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
 const typeorm_1 = require("typeorm");
@@ -34,17 +34,23 @@ const product_entity_1 = require("../entities/product.entity");
 const category_entity_1 = require("../entities/category.entity");
 const brand_entity_1 = require("../entities/brand.entity");
 const download_entity_1 = require("../entities/download.entity");
+const attribute_entity_1 = require("../entities/attribute.entity");
 const product_attribute_entity_1 = require("../entities/product-attribute.entity");
 const product_option_entity_1 = require("../entities/product-option.entity");
+const option_entity_1 = require("../entities/option.entity");
 const product_discount_entity_1 = require("../entities/product-discount.entity");
 const product_image_entity_1 = require("../entities/product-image.entity");
+const seo_url_entity_1 = require("../entities/seo-url.entity");
 const product_dto_1 = require("../dto/product.dto");
 const api_error_1 = require("../utils/api-error");
 exports.PRODUCT_RELATIONS = [
     "categories",
     "brand",
     "attributes",
+    "attributes.attribute",
+    "attributes.attribute.attributeGroup",
     "options",
+    "options.option",
     "discounts",
     "imageDetails",
     "downloads",
@@ -92,6 +98,98 @@ const scalars = [
     "wholesaleLengthClass",
     "wholesaleWeightClass",
 ];
+const DEFAULT_SEO_STORE = "Default";
+const DEFAULT_SEO_LANGUAGE = "English";
+const productSeoQuery = (id) => `product_id=${id}`;
+const seoKeywordFromTitle = (title) => title
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 500)
+    .replace(/-+$/g, "") || "product";
+exports.seoKeywordFromTitle = seoKeywordFromTitle;
+const syncProductSeoUrl = (manager, product, requestedKeyword) => __awaiter(void 0, void 0, void 0, function* () {
+    const repo = manager.getRepository(seo_url_entity_1.SeoUrl);
+    const query = productSeoQuery(product.id);
+    const existing = yield repo.findOne({
+        where: { query, store: DEFAULT_SEO_STORE, language: DEFAULT_SEO_LANGUAGE },
+    });
+    let keyword = (requestedKeyword === null || requestedKeyword === void 0 ? void 0 : requestedKeyword.trim()) || (existing === null || existing === void 0 ? void 0 : existing.keyword);
+    if (!keyword) {
+        const base = (0, exports.seoKeywordFromTitle)(product.title);
+        keyword = base;
+        for (let suffix = 2; yield repo.findOne({
+            where: { keyword, store: DEFAULT_SEO_STORE, language: DEFAULT_SEO_LANGUAGE },
+        }); suffix++)
+            keyword = `${base.slice(0, 490)}-${suffix}`;
+    }
+    const conflict = yield repo.findOne({
+        where: { keyword, store: DEFAULT_SEO_STORE, language: DEFAULT_SEO_LANGUAGE },
+    });
+    if (conflict && conflict.id !== (existing === null || existing === void 0 ? void 0 : existing.id))
+        throw new api_error_1.ApiError(409, "This SEO keyword already exists for the default English store");
+    try {
+        return yield repo.save(existing
+            ? Object.assign(existing, { keyword })
+            : repo.create({
+                query,
+                keyword,
+                store: DEFAULT_SEO_STORE,
+                language: DEFAULT_SEO_LANGUAGE,
+            }));
+    }
+    catch (error) {
+        if ((error === null || error === void 0 ? void 0 : error.code) === "23505")
+            throw new api_error_1.ApiError(409, "This product or SEO keyword already has an SEO URL");
+        throw error;
+    }
+});
+const getProductSeoKeyword = (productId) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b;
+    return (_b = (_a = (yield data_source_1.AppDataSource.getRepository(seo_url_entity_1.SeoUrl).findOne({
+        where: {
+            query: productSeoQuery(productId),
+            store: DEFAULT_SEO_STORE,
+            language: DEFAULT_SEO_LANGUAGE,
+        },
+    }))) === null || _a === void 0 ? void 0 : _a.keyword) !== null && _b !== void 0 ? _b : null;
+});
+exports.getProductSeoKeyword = getProductSeoKeyword;
+const attachProductSeoKeywords = (products) => __awaiter(void 0, void 0, void 0, function* () {
+    if (!products.length)
+        return [];
+    const prefix = "product_id=";
+    const rows = yield data_source_1.AppDataSource.getRepository(seo_url_entity_1.SeoUrl).find({
+        where: {
+            query: (0, typeorm_1.In)(products.map((product) => productSeoQuery(product.id))),
+            store: DEFAULT_SEO_STORE,
+            language: DEFAULT_SEO_LANGUAGE,
+        },
+    });
+    const byProductId = new Map(rows.map((row) => [row.query.slice(prefix.length), row.keyword]));
+    return products.map((product) => {
+        var _a;
+        return (Object.assign(Object.assign({}, product), { seoKeyword: (_a = byProductId.get(product.id)) !== null && _a !== void 0 ? _a : null }));
+    });
+});
+exports.attachProductSeoKeywords = attachProductSeoKeywords;
+const deleteProductWithSeo = (id) => __awaiter(void 0, void 0, void 0, function* () {
+    return data_source_1.AppDataSource.transaction((manager) => __awaiter(void 0, void 0, void 0, function* () {
+        const productRepo = manager.getRepository(product_entity_1.Product);
+        const product = yield productRepo.findOne({ where: { id } });
+        if (!product)
+            throw new api_error_1.ApiError(404, "Product not found");
+        yield manager.getRepository(seo_url_entity_1.SeoUrl).delete({
+            query: productSeoQuery(id),
+            store: DEFAULT_SEO_STORE,
+            language: DEFAULT_SEO_LANGUAGE,
+        });
+        yield productRepo.remove(product);
+    }));
+});
+exports.deleteProductWithSeo = deleteProductWithSeo;
 const cleanRichText = (value) => (0, sanitize_html_1.default)(value, {
     allowedTags: [
         "p",
@@ -213,10 +311,18 @@ const validateProductInput = (input, creating) => __awaiter(void 0, void 0, void
             throw new api_error_1.ApiError(400, "Choice options require values");
         if (!choice && option.values.length)
             throw new api_error_1.ApiError(400, "Text and date options cannot have choice values");
-        if (new Set(option.values.map((v) => v.value.trim().toLowerCase())).size !==
+        if (new Set(option.values.map((v) => v.optionValueId)).size !==
             option.values.length)
             throw new api_error_1.ApiError(400, "Duplicate option values");
     }
+    if (dto.options &&
+        new Set(dto.options.map((option) => option.optionId)).size !==
+            dto.options.length)
+        throw new api_error_1.ApiError(400, "Duplicate product options");
+    if (dto.attributes &&
+        new Set(dto.attributes.map((attribute) => attribute.attributeId)).size !==
+            dto.attributes.length)
+        throw new api_error_1.ApiError(400, "Duplicate product attributes");
     return dto;
 });
 exports.validateProductInput = validateProductInput;
@@ -236,6 +342,34 @@ const productResponse = (product, admin = false) => {
     }
     else
         result.mainImage = (_h = (_g = product.images) === null || _g === void 0 ? void 0 : _g[0]) !== null && _h !== void 0 ? _h : null;
+    if (result.attributes)
+        result.attributes = result.attributes.map((row) => {
+            var _a, _b, _c;
+            return ({
+                id: row.id,
+                productId: row.productId,
+                attributeId: row.attributeId,
+                name: (_b = (_a = row.attribute) === null || _a === void 0 ? void 0 : _a.name) !== null && _b !== void 0 ? _b : row.name,
+                text: row.text,
+                sortOrder: row.sortOrder,
+                attribute: (_c = row.attribute) !== null && _c !== void 0 ? _c : null,
+            });
+        });
+    if (result.options)
+        result.options = result.options.map((row) => {
+            var _a, _b, _c, _d, _e;
+            return ({
+                id: row.id,
+                productId: row.productId,
+                optionId: row.optionId,
+                name: (_b = (_a = row.option) === null || _a === void 0 ? void 0 : _a.name) !== null && _b !== void 0 ? _b : row.name,
+                type: (_d = (_c = row.option) === null || _c === void 0 ? void 0 : _c.type) !== null && _d !== void 0 ? _d : row.type,
+                required: row.required,
+                sortOrder: row.sortOrder,
+                values: row.values,
+                option: (_e = row.option) !== null && _e !== void 0 ? _e : null,
+            });
+        });
     for (const key of ["attributes", "options"])
         if (result[key])
             result[key] = [...result[key]].sort((a, b) => a.sortOrder - b.sortOrder || a.id.localeCompare(b.id));
@@ -322,33 +456,54 @@ const saveProduct = (input_1, id_1, ...args_1) => __awaiter(void 0, [input_1, id
             };
         }
         yield repo.save(product);
-        if (dto.attributes !== undefined)
+        const seoUrl = yield syncProductSeoUrl(manager, product, dto.seoKeyword);
+        if (dto.attributes !== undefined) {
+            const masterAttributes = yield resolveIds(manager, attribute_entity_1.Attribute, dto.attributes.map((row) => row.attributeId), "attributeId");
+            const attributeById = new Map(masterAttributes.map((attribute) => [attribute.id, attribute]));
             yield replaceRows(manager, product_attribute_entity_1.ProductAttribute, product.id, dto.attributes, (row, index) => {
                 var _a;
                 return ({
-                    name: row.name.trim(),
+                    attributeId: row.attributeId,
+                    name: attributeById.get(row.attributeId).name,
                     text: (0, exports.cleanRichText)(row.text),
                     sortOrder: (_a = row.sortOrder) !== null && _a !== void 0 ? _a : index,
                 });
             });
+        }
         if (dto.discounts !== undefined)
             yield replaceRows(manager, product_discount_entity_1.ProductDiscount, product.id, dto.discounts, (row) => (Object.assign(Object.assign({}, row), { dateStart: row.dateStart || null, dateEnd: row.dateEnd || null })));
-        if (dto.options !== undefined)
+        if (dto.options !== undefined) {
+            const masterOptions = yield resolveIds(manager, option_entity_1.CatalogOption, dto.options.map((row) => row.optionId), "optionId");
+            const optionById = new Map(masterOptions.map((option) => [option.id, option]));
             yield replaceRows(manager, product_option_entity_1.ProductOption, product.id, dto.options, (row, index, old) => {
                 var _a;
+                const master = optionById.get(row.optionId);
+                if (!master)
+                    throw new api_error_1.ApiError(400, "Invalid optionId");
+                if (row.type !== master.type)
+                    throw new api_error_1.ApiError(400, "Product option type does not match the master option");
+                const choice = ["checkbox", "select", "radio"].includes(master.type);
+                const masterValueById = new Map((master.values || []).map((value) => [value.id, value]));
+                if (choice &&
+                    row.values.some((value) => !value.optionValueId || !masterValueById.has(value.optionValueId)))
+                    throw new api_error_1.ApiError(400, "Invalid master option value");
                 const oldIds = new Set(((old === null || old === void 0 ? void 0 : old.values) || []).map((v) => v.id));
                 const incomingIds = row.values.filter((v) => v.id).map((v) => v.id);
                 if (new Set(incomingIds).size !== incomingIds.length ||
                     incomingIds.some((v) => !oldIds.has(v)))
                     throw new api_error_1.ApiError(400, "Invalid or duplicate option value ID");
                 return {
-                    name: row.name.trim(),
-                    type: row.type,
+                    optionId: master.id,
+                    name: master.name,
+                    type: master.type,
                     required: row.required,
                     sortOrder: (_a = row.sortOrder) !== null && _a !== void 0 ? _a : index,
-                    values: row.values.map((v) => (Object.assign(Object.assign({ quantity: 0, subtractStock: true, pricePrefix: "+", price: 0, pointsPrefix: "+", points: 0, weightPrefix: "+", weight: 0 }, v), { id: v.id || (0, crypto_1.randomUUID)() }))),
+                    values: row.values.map((v) => (Object.assign(Object.assign({ quantity: 0, subtractStock: true, pricePrefix: "+", price: 0, pointsPrefix: "+", points: 0, weightPrefix: "+", weight: 0 }, v), { optionValueId: v.optionValueId || null, value: v.optionValueId
+                            ? masterValueById.get(v.optionValueId).name
+                            : v.value.trim(), id: v.id || (0, crypto_1.randomUUID)() }))),
                 };
             });
+        }
         const images = (_c = dto.imageDetails) !== null && _c !== void 0 ? _c : (_d = dto.images) === null || _d === void 0 ? void 0 : _d.map((url, i) => ({ url, isMain: i === 0, sortOrder: i }));
         if (images !== undefined) {
             if (new Set(images.map((i) => i.url)).size !== images.length)
@@ -359,10 +514,12 @@ const saveProduct = (input_1, id_1, ...args_1) => __awaiter(void 0, [input_1, id
                 .map((i) => i.url);
             yield repo.save(product);
         }
-        return (0, exports.productResponse)(yield repo.findOne({
+        const response = (0, exports.productResponse)(yield repo.findOne({
             where: { id: product.id },
             relations: exports.PRODUCT_RELATIONS,
         }), true);
+        response.seoKeyword = seoUrl.keyword;
+        return response;
     }));
 });
 exports.saveProduct = saveProduct;

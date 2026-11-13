@@ -18,6 +18,8 @@ import { ProductOption } from "./product-option.entity";
 import { ProductDiscount } from "./product-discount.entity";
 import { ProductImage } from "./product-image.entity";
 import { Download } from "./download.entity";
+import { StockStatus } from "./stock-status.entity";
+import { TaxClass } from "./tax-class.entity";
 
 @Entity("products")
 export class Product {
@@ -35,6 +37,21 @@ export class Product {
 
   @Column({ type: "varchar", default: "out_of_stock", length: 30 })
   outOfStockStatus: string;
+
+  @Column({ type: "uuid" })
+  stockStatusId: string;
+
+  @ManyToOne(() => StockStatus, { onDelete: "RESTRICT" })
+  @JoinColumn({ name: "stockStatusId" })
+  stockStatus: StockStatus;
+
+  // Tax class used to calculate tax for this product; null means no tax.
+  @Column({ type: "uuid", nullable: true })
+  taxClassId: string | null;
+
+  @ManyToOne(() => TaxClass, { nullable: true, onDelete: "RESTRICT" })
+  @JoinColumn({ name: "taxClassId" })
+  taxClass: TaxClass | null;
 
   @Column({ type: "boolean", default: true })
   requiresShipping: boolean;

@@ -6,6 +6,7 @@ import {
 import { respondError } from "../utils/api-error";
 import { AppDataSource } from "../data-source";
 import { Order, OrderStatus, PaymentStatus } from "../entities/order.entity";
+import { OrderStatus as OrderStatusSetting } from "../entities/order-status.entity";
 import {
   UpdateOrderStatusDto,
   UpdatePaymentStatusDto,
@@ -14,8 +15,34 @@ import {
 import { validate } from "class-validator";
 import { plainToInstance } from "class-transformer";
 import { Between } from "typeorm";
+import { OrderHistory } from "../entities/cancelled-order.entity";
+import { sendEmail } from "../utils/email";
 
 const orderRepository = AppDataSource.getRepository(Order);
+
+const actorDetails = (user: any) => ({
+  createdBy: user?.id ?? null,
+  createdByName:
+    [user?.firstName ?? user?.firstname, user?.lastName ?? user?.lastname]
+      .filter(Boolean)
+      .join(" ") || user?.username || user?.email || "Unknown",
+  createdByAccountType: user?.accountType ?? "user",
+});
+
+const escapeHtml = (value: string) =>
+  value.replace(/[&<>"']/g, (character) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]!,
+  );
+
+async function notifyStatusChange(order: Order, statusName: string, comment: string) {
+  const recipient = order.shippingAddress?.email;
+  if (!recipient) throw new Error("Order has no customer email address");
+  await sendEmail({
+    to: recipient,
+    subject: `Order ${order.orderNumber} status: ${statusName}`,
+    html: `<p>Your order <strong>${escapeHtml(order.orderNumber)}</strong> status is now ${escapeHtml(statusName)}.</p>${comment ? `<p>${escapeHtml(comment).replace(/\n/g, "<br>")}</p>` : ""}`,
+  });
+}
 
 const buildDateRange = (from?: any, to?: any) => {
   if (!from && !to) return undefined;
@@ -103,7 +130,12 @@ export const OrderController = {
         return;
       }
 
-      res.status(200).json(order);
+      const history = await AppDataSource.getRepository(OrderHistory).find({
+        where: { orderId: order.id },
+        order: { createdAt: "DESC", id: "DESC" },
+      });
+
+      res.status(200).json({ ...order, history });
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: "Internal server error" });
@@ -237,15 +269,47 @@ export const OrderController = {
         return;
       }
 
-      if (updateDto.status === OrderStatus.CANCELLED) {
-        try {
-          res.json(await cancelRetailOrder(id));
-        } catch (error) {
-          respondError(res, error);
-        }
+      const selectedStatus = await AppDataSource.getRepository(OrderStatusSetting).findOne({
+        where: { code: updateDto.status, isActive: true },
+      });
+
+      if (!selectedStatus) {
+        res.status(400).json({ message: "Select an enabled order status" });
         return;
       }
-      if (
+
+      if (order.status === updateDto.status) {
+        res.status(409).json({ message: "The order already has this status" });
+        return;
+      }
+
+      const previousStatus = order.status;
+      const comment = updateDto.notes?.trim() ?? "";
+      const audit = actorDetails(req.user);
+      let updatedOrder: Order;
+      let historyEntry: OrderHistory;
+
+      if (updateDto.status === OrderStatus.CANCELLED) {
+        try {
+          updatedOrder = await cancelRetailOrder(id);
+          historyEntry = await AppDataSource.getRepository(OrderHistory).save(
+            AppDataSource.getRepository(OrderHistory).create({
+              orderId: id,
+              previousStatus,
+              status: updateDto.status,
+              comment,
+              customerNotified: false,
+              override: false,
+              carrierName: updatedOrder.tracking?.carrier ?? null,
+              trackingNumber: updatedOrder.tracking?.trackingNumber ?? null,
+              ...audit,
+            }),
+          );
+        } catch (error) {
+          respondError(res, error);
+          return;
+        }
+      } else if (
         order.status === OrderStatus.CANCELLED ||
         updateDto.status === OrderStatus.REFUNDED
       ) {
@@ -256,15 +320,47 @@ export const OrderController = {
               "Use the payment refund flow; cancelled orders cannot be reopened",
           });
         return;
-      }
-      order.status = updateDto.status;
-      if (updateDto.notes) {
-        order.notes = updateDto.notes;
+      } else {
+        const result = await AppDataSource.transaction(async (manager) => {
+          order.status = updateDto.status as OrderStatus;
+          if (comment) order.notes = comment;
+          const savedOrder = await manager.getRepository(Order).save(order);
+          const historyRepository = manager.getRepository(OrderHistory);
+          const savedHistory = await historyRepository.save(
+            historyRepository.create({
+              orderId: order.id,
+              previousStatus,
+              status: updateDto.status,
+              comment,
+              customerNotified: false,
+              override: false,
+              carrierName: order.tracking?.carrier ?? null,
+              trackingNumber: order.tracking?.trackingNumber ?? null,
+              ...audit,
+            }),
+          );
+          return { savedOrder, savedHistory };
+        });
+        updatedOrder = result.savedOrder;
+        historyEntry = result.savedHistory;
       }
 
-      await orderRepository.save(order);
+      let notification: "not_requested" | "sent" | "failed" = "not_requested";
+      if (updateDto.notifyCustomer) {
+        try {
+          await notifyStatusChange(updatedOrder, selectedStatus.name, comment);
+          await AppDataSource.getRepository(OrderHistory).update(historyEntry.id, {
+            customerNotified: true,
+          });
+          historyEntry.customerNotified = true;
+          notification = "sent";
+        } catch (error) {
+          console.error("Order status notification error:", error);
+          notification = "failed";
+        }
+      }
 
-      res.status(200).json(order);
+      res.status(200).json({ ...updatedOrder, historyEntry, notification });
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: "Internal server error" });

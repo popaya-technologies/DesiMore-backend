@@ -55,6 +55,9 @@ import returnActionRoutes from "./routes/return-action.routes";
 import returnReasonRoutes from "./routes/return-reason.routes";
 import countryRoutes from "./routes/country.routes";
 import zoneRoutes from "./routes/zone.routes";
+import shippingRoutes from "./routes/shipping.routes";
+import taxRoutes from "./routes/tax.routes";
+import newsletterRoutes from "./routes/newsletter.routes";
 import geoZoneRoutes from "./routes/geo_zone.routes";
 import { authenticate } from "./middlewares/auth.middleware";
 import { checkPermission } from "./middlewares/rbac.middleware";
@@ -72,8 +75,25 @@ app.use(express.json({ limit: "2mb" }));
 app.use(cookieParser());
 app.use(
   cors({
-    origin: "*",
-    credentials: false,
+    origin: (origin, callback) => {
+      const configuredOrigins = (process.env.CORS_ORIGINS ?? "")
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean);
+      const allowedOrigins = new Set([
+        "http://localhost:3000",
+        "http://localhost:3001",
+        ...configuredOrigins,
+      ]);
+
+      if (!origin || allowedOrigins.has(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error("Origin is not allowed by CORS"));
+    },
+    credentials: true,
   }),
 );
 
@@ -157,6 +177,9 @@ app.use("/api/return-reasons", returnReasonRoutes);
 app.use("/api/countries", countryRoutes);
 app.use("/api/zones", zoneRoutes);
 app.use("/api/geo-zones", geoZoneRoutes);
+app.use("/api/shipping", shippingRoutes);
+app.use("/api/tax", taxRoutes);
+app.use("/api/newsletter", newsletterRoutes);
 
 // Example protected route with RBAC
 app.get(

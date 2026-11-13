@@ -2,32 +2,23 @@ import { Request, Response } from "express";
 import { validate } from "class-validator";
 import { AppDataSource } from "../data-source";
 import { SystemUser } from "../entities/system-user.entity";
+import { SystemUserGroup } from "../entities/system-user-group.entity";
 import {
   CreateSystemUserDto,
   UpdateSystemUserDto,
 } from "../dto/system-user.dto";
 
 const systemUserRepository = AppDataSource.getRepository(SystemUser);
-
-const USER_GROUPS = ["Administrator", "Demonstration"] as const;
-
-type UserGroup = (typeof USER_GROUPS)[number];
-
-const normalizeUserGroup = (value: string): UserGroup | null => {
-  const group = value.trim();
-
-  if (USER_GROUPS.includes(group as UserGroup)) {
-    return group as UserGroup;
-  }
-
-  return null;
-};
+const systemUserGroupRepository = AppDataSource.getRepository(SystemUserGroup);
 
 const buildResponse = (user: SystemUser) => {
   return {
     id: user.id,
     username: user.username,
-    userGroup: user.userGroup,
+    userGroupId: user.userGroupId,
+    userGroup: user.userGroup
+      ? { id: user.userGroup.id, name: user.userGroup.name }
+      : null,
     firstName: user.firstName,
     lastName: user.lastName,
     email: user.email,
@@ -53,13 +44,12 @@ export const SystemUserController = {
         return;
       }
 
-      const userGroup = normalizeUserGroup(systemUserData.userGroup);
+      const userGroup = await systemUserGroupRepository.findOne({
+        where: { id: systemUserData.userGroupId },
+      });
 
       if (!userGroup) {
-        res.status(400).json({
-          message:
-            "Invalid User Group. Allowed values are Administrator and Demonstration.",
-        });
+        res.status(400).json({ message: "Selected User Group does not exist." });
         return;
       }
 
@@ -107,6 +97,7 @@ export const SystemUserController = {
 
       const systemUser = systemUserRepository.create({
         username,
+        userGroupId: userGroup.id,
         userGroup,
         firstName: systemUserData.firstName.trim(),
         lastName: systemUserData.lastName.trim(),
@@ -155,7 +146,9 @@ export const SystemUserController = {
       const skip = (currentPage - 1) * take;
 
       const query =
-        systemUserRepository.createQueryBuilder("systemUser");
+        systemUserRepository
+          .createQueryBuilder("systemUser")
+          .leftJoinAndSelect("systemUser.userGroup", "userGroup");
 
       // Username filter
       if (
@@ -248,6 +241,7 @@ export const SystemUserController = {
           where: {
             id: req.params.id,
           },
+          relations: { userGroup: true },
         });
 
       if (!systemUser) {
@@ -283,6 +277,7 @@ export const SystemUserController = {
           where: {
             id: req.params.id,
           },
+          relations: { userGroup: true },
         });
 
       if (!systemUser) {
@@ -303,16 +298,42 @@ export const SystemUserController = {
         return;
       }
 
-      const userGroup = normalizeUserGroup(
-        updateData.userGroup,
-      );
+      if (
+        req.user?.accountType === "system-user" &&
+        req.user.id === systemUser.id &&
+        updateData.isActive === false
+      ) {
+        res.status(409).json({ message: "You cannot disable your own system user account." });
+        return;
+      }
+
+      const userGroup = await systemUserGroupRepository.findOne({
+        where: { id: updateData.userGroupId },
+      });
 
       if (!userGroup) {
-        res.status(400).json({
-          message:
-            "Invalid User Group. Allowed values are Administrator and Demonstration.",
-        });
+        res.status(400).json({ message: "Selected User Group does not exist." });
         return;
+      }
+
+      const isRemovingActiveAdministrator =
+        systemUser.isActive &&
+        systemUser.userGroup?.name.toLowerCase() === "administrator" &&
+        (!updateData.isActive || userGroup.name.toLowerCase() !== "administrator");
+
+      if (isRemovingActiveAdministrator) {
+        const otherActiveAdministrators = await systemUserRepository
+          .createQueryBuilder("otherUser")
+          .innerJoin("otherUser.userGroup", "otherGroup")
+          .where("otherUser.isActive = true")
+          .andWhere("LOWER(otherGroup.name) = :groupName", { groupName: "administrator" })
+          .andWhere("otherUser.id != :id", { id: systemUser.id })
+          .getCount();
+
+        if (otherActiveAdministrators === 0) {
+          res.status(409).json({ message: "At least one active Administrator system user is required." });
+          return;
+        }
       }
 
       if (
@@ -394,6 +415,7 @@ export const SystemUserController = {
       }
 
       systemUser.username = username;
+      systemUser.userGroupId = userGroup.id;
       systemUser.userGroup = userGroup;
       systemUser.firstName =
         updateData.firstName.trim();
@@ -441,6 +463,7 @@ export const SystemUserController = {
           where: {
             id: req.params.id,
           },
+          relations: { userGroup: true },
         });
 
       if (!systemUser) {
@@ -448,6 +471,26 @@ export const SystemUserController = {
           message: "System User not found.",
         });
         return;
+      }
+
+      if (req.user?.accountType === "system-user" && req.user.id === systemUser.id) {
+        res.status(409).json({ message: "You cannot delete your own system user account." });
+        return;
+      }
+
+      if (systemUser.isActive && systemUser.userGroup?.name.toLowerCase() === "administrator") {
+        const otherActiveAdministrators = await systemUserRepository
+          .createQueryBuilder("otherUser")
+          .innerJoin("otherUser.userGroup", "otherGroup")
+          .where("otherUser.isActive = true")
+          .andWhere("LOWER(otherGroup.name) = :groupName", { groupName: "administrator" })
+          .andWhere("otherUser.id != :id", { id: systemUser.id })
+          .getCount();
+
+        if (otherActiveAdministrators === 0) {
+          res.status(409).json({ message: "The last active Administrator system user cannot be deleted." });
+          return;
+        }
       }
 
       await systemUserRepository.remove(

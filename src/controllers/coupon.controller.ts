@@ -6,6 +6,12 @@ import {
   UpdateCouponDto,
 } from "../dto/coupon.dto";
 import { validate } from "class-validator";
+import { plainToInstance } from "class-transformer";
+import { ApplyCouponDto } from "../dto/coupon.dto";
+import { ApiError, respondError } from "../utils/api-error";
+import { CartType } from "../entities/cart.entity";
+import { loadCart } from "../services/cart.service";
+import { calculateCoupon } from "../services/coupon.service";
 
 const couponRepository = AppDataSource.getRepository(Coupon);
 
@@ -34,6 +40,8 @@ export const CouponController = {
         totalAmount: couponData.totalAmount ?? 0,
         customerLogin: couponData.customerLogin ?? false,
         freeShipping: couponData.freeShipping ?? false,
+        productIds: couponData.productIds ?? [],
+        categoryIds: couponData.categoryIds ?? [],
         dateStart: couponData.dateStart,
         dateEnd: couponData.dateEnd,
         usesPerCoupon: couponData.usesPerCoupon ?? 1,
@@ -204,6 +212,14 @@ export const CouponController = {
         coupon.freeShipping = updateData.freeShipping;
       }
 
+      if (updateData.productIds !== undefined) {
+        coupon.productIds = updateData.productIds;
+      }
+
+      if (updateData.categoryIds !== undefined) {
+        coupon.categoryIds = updateData.categoryIds;
+      }
+
       if (updateData.dateStart !== undefined) {
         coupon.dateStart = updateData.dateStart;
       }
@@ -265,6 +281,31 @@ export const CouponController = {
       res.status(500).json({
         message: "Internal server error",
       });
+    }
+  },
+
+  applyCoupon: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const dto = plainToInstance(ApplyCouponDto, req.body);
+      const errors = await validate(dto, {
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        validationError: { target: false, value: false },
+      });
+      if (errors.length) throw new ApiError(400, "Invalid coupon data", errors);
+
+      const result = await AppDataSource.transaction(async (manager) => {
+        const cart = await loadCart(
+          manager,
+          req.user.id,
+          dto.cartType === "buy-now" ? CartType.BUY_NOW : CartType.REGULAR,
+          false,
+        );
+        return calculateCoupon(manager, dto.code, cart, req.user.id);
+      });
+      res.json({ message: "Success: Your coupon discount has been applied!", ...result });
+    } catch (error) {
+      respondError(res, error);
     }
   },
 };

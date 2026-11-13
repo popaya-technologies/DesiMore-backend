@@ -1,5 +1,5 @@
 import { Type } from "class-transformer";
-import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsInt, IsString, Matches, Max, MaxLength, Min, ValidateIf, ValidateNested } from "class-validator";
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsIn, IsInt, IsString, Matches, Max, MaxLength, Min, ValidateIf, ValidateNested } from "class-validator";
 
 const supplied = (_: unknown, value: unknown) => value !== undefined;
 export class BannerSlideDto {
@@ -10,12 +10,14 @@ export class BannerSlideDto {
 }
 export class CreateBannerDto {
   @IsString() @Matches(/\S/) @MaxLength(255) name: string;
+  @ValidateIf(supplied) @IsIn(["home_slideshow", "footer_payments", "custom"]) placement?: string;
   @ValidateIf(supplied) @IsBoolean() isActive?: boolean;
   @IsArray() @ArrayMinSize(1) @ArrayMaxSize(100)
   @ValidateNested({ each: true }) @Type(() => BannerSlideDto) slides: BannerSlideDto[];
 }
 export class UpdateBannerDto {
   @ValidateIf(supplied) @IsString() @Matches(/\S/) @MaxLength(255) name?: string;
+  @ValidateIf(supplied) @IsIn(["home_slideshow", "footer_payments", "custom"]) placement?: string;
   @ValidateIf(supplied) @IsBoolean() isActive?: boolean;
   @ValidateIf(supplied) @IsArray() @ArrayMinSize(1) @ArrayMaxSize(100)
   @ValidateNested({ each: true }) @Type(() => BannerSlideDto) slides?: BannerSlideDto[];

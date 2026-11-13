@@ -11,6 +11,42 @@ import { ApiError, respondError } from "../utils/api-error";
 
 const repository = () => AppDataSource.getRepository(Banner);
 export const BannerController = {
+  publicGetByPlacement: async (req: Request, res: Response) => {
+    try {
+      const placement = String(req.params.placement ?? "");
+      if (!["home_slideshow", "footer_payments"].includes(placement))
+        throw new ApiError(400, "Invalid public banner placement");
+      const banner = await repository()
+        .createQueryBuilder("banner")
+        .where("banner.placement = :placement", { placement })
+        .andWhere("banner.isActive = true")
+        .orderBy('banner."updatedAt"', "DESC")
+        .getOne();
+      if (!banner) throw new ApiError(404, "Active banner not found");
+      res.set("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+      res.json(bannerResponse(banner));
+    } catch (error) {
+      respondError(res, error);
+    }
+  },
+  publicGet: async (req: Request, res: Response) => {
+    try {
+      const name = String(req.params.name ?? "").trim();
+      if (!name || name.length > 255 || /[\u0000-\u001f\u007f]/.test(name))
+        throw new ApiError(400, "Invalid banner name");
+      const banner = await repository()
+        .createQueryBuilder("banner")
+        .where("LOWER(banner.name) = LOWER(:name)", { name })
+        .andWhere("banner.isActive = true")
+        .orderBy('banner."updatedAt"', "DESC")
+        .getOne();
+      if (!banner) throw new ApiError(404, "Active banner not found");
+      res.set("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+      res.json(bannerResponse(banner));
+    } catch (error) {
+      respondError(res, error);
+    }
+  },
   create: async (req: Request, res: Response) => {
     try {
       const dto = await validateBannerInput(req.body, true);

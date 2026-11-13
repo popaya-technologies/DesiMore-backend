@@ -5,6 +5,11 @@ import { checkPermission } from "../middlewares/rbac.middleware";
 
 const router = Router();
 
+router.get(
+  "/public/default",
+  CurrencyController.getDefaultCurrency,
+);
+
 router.post(
   "/",
   authenticate,

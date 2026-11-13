@@ -12,7 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.UpdateOptionDto = exports.CreateOptionDto = exports.CatalogOptionValueDto = exports.CATALOG_OPTION_TYPES = void 0;
 const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
-exports.CATALOG_OPTION_TYPES = ["select", "radio", "checkbox", "text", "textarea", "date", "time", "datetime"];
+exports.CATALOG_OPTION_TYPES = ["select", "radio", "checkbox", "text", "textarea", "file", "date", "time", "datetime"];
 const supplied = (_, value) => value !== undefined;
 class CatalogOptionValueDto {
 }

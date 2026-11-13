@@ -93,11 +93,22 @@ class OptionService {
                     if (id && !existing)
                         throw new api_error_1.ApiError(404, "Option not found");
                     const option = existing !== null && existing !== void 0 ? existing : repo.create({ type: "select", sortOrder: 0, values: [] });
+                    const assignments = existing ? yield manager.query('SELECT values FROM product_options WHERE "optionId" = $1', [existing.id]) : [];
+                    if (existing && dto.type !== undefined && dto.type !== existing.type && assignments.length)
+                        throw new api_error_1.ApiError(409, "Option type cannot be changed while it is assigned to products");
                     for (const key of ["name", "type", "sortOrder"])
                         if (dto[key] !== undefined)
                             option[key] = dto[key];
                     if (dto.values !== undefined) {
                         const previous = new Map(((_a = existing === null || existing === void 0 ? void 0 : existing.values) !== null && _a !== void 0 ? _a : []).map(row => [row.id, row]));
+                        const retainedIds = new Set(dto.values.flatMap(row => row.id ? [row.id] : []));
+                        const usedIds = new Set();
+                        for (const assignment of assignments)
+                            for (const value of Array.isArray(assignment.values) ? assignment.values : [])
+                                if (value === null || value === void 0 ? void 0 : value.optionValueId)
+                                    usedIds.add(value.optionValueId);
+                        if ([...usedIds].some(valueId => !retainedIds.has(valueId)))
+                            throw new api_error_1.ApiError(409, "Option values assigned to products cannot be removed");
                         option.values = dto.values.map(row => {
                             var _a, _b, _c, _d;
                             const old = row.id ? previous.get(row.id) : undefined;

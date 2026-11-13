@@ -32,6 +32,12 @@ export class Coupon {
   @Column({ type: "boolean", default: false })
   freeShipping!: boolean;
 
+  @Column({ type: "uuid", array: true, default: "{}" })
+  productIds!: string[];
+
+  @Column({ type: "uuid", array: true, default: "{}" })
+  categoryIds!: string[];
+
   @Column({ type: "date" })
   dateStart!: string;
 
