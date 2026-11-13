@@ -29,7 +29,11 @@ __decorate([
     __metadata("design:type", order_entity_1.Order)
 ], OrderHistory.prototype, "order", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: "varchar", length: 50 }),
+    (0, typeorm_1.Column)({ type: "varchar", length: 100, nullable: true }),
+    __metadata("design:type", String)
+], OrderHistory.prototype, "previousStatus", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "varchar", length: 100 }),
     __metadata("design:type", String)
 ], OrderHistory.prototype, "status", void 0);
 __decorate([
@@ -56,6 +60,14 @@ __decorate([
     (0, typeorm_1.Column)({ type: "uuid", nullable: true }),
     __metadata("design:type", String)
 ], OrderHistory.prototype, "createdBy", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "varchar", length: 255, nullable: true }),
+    __metadata("design:type", String)
+], OrderHistory.prototype, "createdByName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "varchar", length: 30, nullable: true }),
+    __metadata("design:type", String)
+], OrderHistory.prototype, "createdByAccountType", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)

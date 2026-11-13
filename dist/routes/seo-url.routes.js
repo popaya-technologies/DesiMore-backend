@@ -7,6 +7,7 @@ const rbac_middleware_1 = require("../middlewares/rbac.middleware");
 const router = (0, express_1.Router)();
 router.post("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("seo_url", "create"), seo_url_controller_1.SeoUrlController.createSeoUrl);
 router.get("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("seo_url", "read"), seo_url_controller_1.SeoUrlController.getSeoUrls);
+router.get("/form-options", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkAnyPermission)("seo_url", ["create", "update"]), seo_url_controller_1.SeoUrlController.getFormOptions);
 router.get("/resolve/:keyword", seo_url_controller_1.SeoUrlController.resolveSeoUrl);
 router.get("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("seo_url", "read"), seo_url_controller_1.SeoUrlController.getSeoUrlById);
 router.put("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("seo_url", "update"), seo_url_controller_1.SeoUrlController.updateSeoUrl);

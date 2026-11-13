@@ -90,6 +90,7 @@ __decorate([
 ], CreateOrderDto.prototype, "paymentMethod", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(10000),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], CreateOrderDto.prototype, "notes", void 0);
@@ -102,7 +103,11 @@ class UpdateOrderStatusDto {
 }
 exports.UpdateOrderStatusDto = UpdateOrderStatusDto;
 __decorate([
-    (0, class_validator_1.IsEnum)(order_entity_1.OrderStatus),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(100),
+    (0, class_validator_1.Matches)(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
+        message: "status must be a valid order status code",
+    }),
     __metadata("design:type", String)
 ], UpdateOrderStatusDto.prototype, "status", void 0);
 __decorate([
@@ -110,6 +115,11 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], UpdateOrderStatusDto.prototype, "notes", void 0);
+__decorate([
+    (0, class_validator_1.IsBoolean)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Boolean)
+], UpdateOrderStatusDto.prototype, "notifyCustomer", void 0);
 class UpdatePaymentStatusDto {
 }
 exports.UpdatePaymentStatusDto = UpdatePaymentStatusDto;

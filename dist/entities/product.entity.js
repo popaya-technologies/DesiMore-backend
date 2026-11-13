@@ -19,6 +19,8 @@ const product_option_entity_1 = require("./product-option.entity");
 const product_discount_entity_1 = require("./product-discount.entity");
 const product_image_entity_1 = require("./product-image.entity");
 const download_entity_1 = require("./download.entity");
+const stock_status_entity_1 = require("./stock-status.entity");
+const tax_class_entity_1 = require("./tax-class.entity");
 let Product = class Product {
 };
 exports.Product = Product;
@@ -42,6 +44,24 @@ __decorate([
     (0, typeorm_1.Column)({ type: "varchar", default: "out_of_stock", length: 30 }),
     __metadata("design:type", String)
 ], Product.prototype, "outOfStockStatus", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "uuid" }),
+    __metadata("design:type", String)
+], Product.prototype, "stockStatusId", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => stock_status_entity_1.StockStatus, { onDelete: "RESTRICT" }),
+    (0, typeorm_1.JoinColumn)({ name: "stockStatusId" }),
+    __metadata("design:type", stock_status_entity_1.StockStatus)
+], Product.prototype, "stockStatus", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "uuid", nullable: true }),
+    __metadata("design:type", String)
+], Product.prototype, "taxClassId", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => tax_class_entity_1.TaxClass, { nullable: true, onDelete: "RESTRICT" }),
+    (0, typeorm_1.JoinColumn)({ name: "taxClassId" }),
+    __metadata("design:type", tax_class_entity_1.TaxClass)
+], Product.prototype, "taxClass", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: "boolean", default: true }),
     __metadata("design:type", Boolean)

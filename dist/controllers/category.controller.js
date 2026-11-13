@@ -50,6 +50,7 @@ const category_dto_1 = require("../dto/category.dto");
 const class_validator_1 = require("class-validator");
 const XLSX = __importStar(require("xlsx"));
 const seo_url_entity_1 = require("../entities/seo-url.entity");
+const system_language_service_1 = require("../services/system-language.service");
 const categoryRepository = data_source_1.AppDataSource.getRepository(category_entity_1.Category);
 const parentCategoryRepository = data_source_1.AppDataSource.getRepository(parent_category_entity_1.ParentCategory);
 const seoUrlRepository = data_source_1.AppDataSource.getRepository(seo_url_entity_1.SeoUrl);
@@ -57,12 +58,13 @@ const categorySeoQuery = (id) => `category_id=${id}`;
 const syncCategorySeoUrl = (category) => __awaiter(void 0, void 0, void 0, function* () {
     if (!category.keyword)
         return;
+    const defaultLanguage = yield (0, system_language_service_1.getDefaultSystemLanguage)();
     const query = categorySeoQuery(category.id);
     const existing = yield seoUrlRepository.findOne({
-        where: { query, store: "Default", language: "English" },
+        where: { query, store: "Default", languageId: defaultLanguage.id },
     });
     const conflict = yield seoUrlRepository.findOne({
-        where: { keyword: category.keyword, store: "Default", language: "English" },
+        where: { keyword: category.keyword, store: "Default", languageId: defaultLanguage.id },
     });
     if (conflict && conflict.id !== (existing === null || existing === void 0 ? void 0 : existing.id)) {
         const error = new Error("This SEO keyword is already used by another resource");
@@ -70,12 +72,19 @@ const syncCategorySeoUrl = (category) => __awaiter(void 0, void 0, void 0, funct
         throw error;
     }
     yield seoUrlRepository.save(existing
-        ? Object.assign(existing, { keyword: category.keyword })
+        ? Object.assign(existing, {
+            keyword: category.keyword,
+            language: defaultLanguage.languageName,
+            languageId: defaultLanguage.id,
+            systemLanguage: defaultLanguage,
+        })
         : seoUrlRepository.create({
             query,
             keyword: category.keyword,
             store: "Default",
-            language: "English",
+            language: defaultLanguage.languageName,
+            languageId: defaultLanguage.id,
+            systemLanguage: defaultLanguage,
         }));
 });
 const categoryError = (res, error, fallback) => {

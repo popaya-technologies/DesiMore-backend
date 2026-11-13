@@ -29,7 +29,9 @@ const shipping_quote_service_1 = require("./shipping-quote.service");
 const coupon_service_1 = require("./coupon.service");
 const coupon_usage_entity_1 = require("../entities/coupon-usage.entity");
 const gift_voucher_entity_1 = require("../entities/gift_voucher.entity");
+const order_status_entity_1 = require("../entities/order-status.entity");
 const gift_voucher_service_1 = require("./gift-voucher.service");
+const tax_service_1 = require("./tax.service");
 const createRetailOrder = (userId, input) => __awaiter(void 0, void 0, void 0, function* () {
     const dto = (0, class_transformer_1.plainToInstance)(order_dto_1.CreateOrderDto, input);
     const errors = yield (0, class_validator_1.validate)(dto, {
@@ -40,6 +42,7 @@ const createRetailOrder = (userId, input) => __awaiter(void 0, void 0, void 0, f
     if (errors.length || !dto.shippingAddress)
         throw new api_error_1.ApiError(400, "Invalid order data", errors);
     return data_source_1.AppDataSource.transaction((manager) => __awaiter(void 0, void 0, void 0, function* () {
+        var _a;
         yield manager
             .getRepository(user_entity_1.User)
             .findOneOrFail({
@@ -57,6 +60,9 @@ const createRetailOrder = (userId, input) => __awaiter(void 0, void 0, void 0, f
         if (!(cart === null || cart === void 0 ? void 0 : cart.items.length))
             throw new api_error_1.ApiError(400, "Cart is empty");
         const inventoryReservations = yield (0, inventory_service_1.reserveCartInventory)(manager, cart, false);
+        const defaultOrderStatus = yield manager.getRepository(order_status_entity_1.OrderStatus).findOne({
+            where: { isDefault: true, isActive: true },
+        });
         const order = manager.getRepository(order_entity_1.Order).create({
             userId,
             orderNumber: yield (0, reference_number_util_1.generateOrderNumber)(manager),
@@ -64,7 +70,7 @@ const createRetailOrder = (userId, input) => __awaiter(void 0, void 0, void 0, f
             billingAddress: dto.billingAddress || dto.shippingAddress,
             paymentMethod: dto.paymentMethod,
             notes: dto.notes || null,
-            status: order_entity_1.OrderStatus.PENDING,
+            status: ((_a = defaultOrderStatus === null || defaultOrderStatus === void 0 ? void 0 : defaultOrderStatus.code) !== null && _a !== void 0 ? _a : order_entity_1.OrderStatus.PENDING),
             paymentStatus: order_entity_1.PaymentStatus.PENDING,
             inventoryReservations,
         });
@@ -79,7 +85,13 @@ const createRetailOrder = (userId, input) => __awaiter(void 0, void 0, void 0, f
             selectedOptions: item.selectedOptions,
         }));
         order.subtotal = (0, product_pricing_service_1.roundMoney)(order.items.reduce((sum, item) => sum + item.total, 0));
-        order.tax = 0;
+        // Tax from each product's tax class and the order's shipping/billing addresses.
+        const tax = yield (0, tax_service_1.calculateTax)((0, tax_service_1.cartTaxItems)(cart), {
+            shipping: dto.shippingAddress,
+            payment: dto.billingAddress || dto.shippingAddress,
+        }, manager);
+        order.tax = tax.total;
+        order.taxLines = tax.lines;
         const coupon = dto.couponCode
             ? yield (0, coupon_service_1.calculateCoupon)(manager, dto.couponCode, cart, userId, true)
             : null;
@@ -93,13 +105,15 @@ const createRetailOrder = (userId, input) => __awaiter(void 0, void 0, void 0, f
         const shippingRequired = (0, shipping_service_1.retailCartRequiresShipping)(cart);
         if (shippingRequired && !dto.shippingCode)
             throw new api_error_1.ApiError(400, "A shipping method is required");
-        const shippingWeight = (0, shipping_service_1.calculateRetailShippingWeight)(cart);
+        const shippingWeight = (0, shipping_service_1.calculateRetailShippingWeight)(cart, yield (0, shipping_service_1.loadWeightClassValues)(manager));
         if (shippingRequired && shippingWeight <= 0)
             throw new api_error_1.ApiError(400, "Shipping weight is unavailable for this cart");
         order.shipping = shippingRequired && !(coupon === null || coupon === void 0 ? void 0 : coupon.freeShipping)
             ? (0, shipping_quote_service_1.getMockShippingQuote)(shippingWeight, dto.shippingCode).price
             : 0;
-        order.total = (0, product_pricing_service_1.roundMoney)(Math.max(0, order.subtotal - order.discount - order.giftVoucherAmount) + order.shipping);
+        order.total = (0, product_pricing_service_1.roundMoney)(Math.max(0, order.subtotal - order.discount - order.giftVoucherAmount) +
+            order.shipping +
+            order.tax);
         yield manager.getRepository(order_entity_1.Order).save(order);
         if (giftVoucher) {
             const voucher = yield manager.getRepository(gift_voucher_entity_1.GiftVoucher).findOneByOrFail({

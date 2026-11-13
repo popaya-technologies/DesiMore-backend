@@ -11,7 +11,6 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UpdateSystemUserDto = exports.CreateSystemUserDto = void 0;
 const class_validator_1 = require("class-validator");
-const USER_GROUPS = ["Administrator", "Demonstration"];
 class CreateSystemUserDto {
 }
 exports.CreateSystemUserDto = CreateSystemUserDto;
@@ -22,10 +21,9 @@ __decorate([
     __metadata("design:type", String)
 ], CreateSystemUserDto.prototype, "username", void 0);
 __decorate([
-    (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsIn)(USER_GROUPS),
-    __metadata("design:type", Object)
-], CreateSystemUserDto.prototype, "userGroup", void 0);
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], CreateSystemUserDto.prototype, "userGroupId", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.MinLength)(1),
@@ -72,10 +70,9 @@ __decorate([
     __metadata("design:type", String)
 ], UpdateSystemUserDto.prototype, "username", void 0);
 __decorate([
-    (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsIn)(USER_GROUPS),
-    __metadata("design:type", Object)
-], UpdateSystemUserDto.prototype, "userGroup", void 0);
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], UpdateSystemUserDto.prototype, "userGroupId", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.MinLength)(1),

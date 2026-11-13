@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SystemUserGroup = void 0;
 const typeorm_1 = require("typeorm");
+const system_user_entity_1 = require("./system-user.entity");
 let SystemUserGroup = class SystemUserGroup {
 };
 exports.SystemUserGroup = SystemUserGroup;
@@ -26,6 +27,18 @@ __decorate([
     }),
     __metadata("design:type", String)
 ], SystemUserGroup.prototype, "name", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "text", array: true, default: () => "ARRAY[]::text[]" }),
+    __metadata("design:type", Array)
+], SystemUserGroup.prototype, "accessPermissions", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "text", array: true, default: () => "ARRAY[]::text[]" }),
+    __metadata("design:type", Array)
+], SystemUserGroup.prototype, "modifyPermissions", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => system_user_entity_1.SystemUser, (user) => user.userGroup),
+    __metadata("design:type", Array)
+], SystemUserGroup.prototype, "systemUsers", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)

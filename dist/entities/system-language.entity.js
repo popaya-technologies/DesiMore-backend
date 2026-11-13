@@ -39,6 +39,10 @@ __decorate([
     __metadata("design:type", Boolean)
 ], SystemLanguage.prototype, "status", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: "boolean", default: false }),
+    __metadata("design:type", Boolean)
+], SystemLanguage.prototype, "isDefault", void 0);
+__decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)
 ], SystemLanguage.prototype, "createdAt", void 0);

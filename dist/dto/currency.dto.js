@@ -11,19 +11,21 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UpdateCurrencyDto = exports.CreateCurrencyDto = void 0;
 const class_validator_1 = require("class-validator");
+// ISO 4217 style: exactly 3 letters (USD, EUR, INR).
+const CURRENCY_CODE_PATTERN = /^[A-Za-z]{3}$/;
+const CURRENCY_CODE_MESSAGE = "Code must be exactly 3 letters (e.g. USD)";
 class CreateCurrencyDto {
 }
 exports.CreateCurrencyDto = CreateCurrencyDto;
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsNotEmpty)({ message: "Currency title is required" }),
     (0, class_validator_1.MaxLength)(255),
     __metadata("design:type", String)
 ], CreateCurrencyDto.prototype, "currencyTitle", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
-    (0, class_validator_1.MaxLength)(50),
+    (0, class_validator_1.Matches)(CURRENCY_CODE_PATTERN, { message: CURRENCY_CODE_MESSAGE }),
     __metadata("design:type", String)
 ], CreateCurrencyDto.prototype, "code", void 0);
 __decorate([
@@ -39,14 +41,15 @@ __decorate([
     __metadata("design:type", String)
 ], CreateCurrencyDto.prototype, "symbolRight", void 0);
 __decorate([
-    (0, class_validator_1.IsInt)(),
-    (0, class_validator_1.Min)(0),
+    (0, class_validator_1.IsInt)({ message: "Decimal places must be a whole number" }),
+    (0, class_validator_1.Min)(0, { message: "Decimal places must be between 0 and 8" }),
+    (0, class_validator_1.Max)(8, { message: "Decimal places must be between 0 and 8" }),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)
 ], CreateCurrencyDto.prototype, "decimalPlaces", void 0);
 __decorate([
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.Min)(0),
+    (0, class_validator_1.IsNumber)({ maxDecimalPlaces: 8 }, { message: "Value must be a number with at most 8 decimals" }),
+    (0, class_validator_1.IsPositive)({ message: "Value must be greater than 0" }),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)
 ], CreateCurrencyDto.prototype, "value", void 0);
@@ -60,15 +63,14 @@ class UpdateCurrencyDto {
 exports.UpdateCurrencyDto = UpdateCurrencyDto;
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsNotEmpty)({ message: "Currency title is required" }),
     (0, class_validator_1.MaxLength)(255),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], UpdateCurrencyDto.prototype, "currencyTitle", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
-    (0, class_validator_1.MaxLength)(50),
+    (0, class_validator_1.Matches)(CURRENCY_CODE_PATTERN, { message: CURRENCY_CODE_MESSAGE }),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], UpdateCurrencyDto.prototype, "code", void 0);
@@ -85,14 +87,15 @@ __decorate([
     __metadata("design:type", String)
 ], UpdateCurrencyDto.prototype, "symbolRight", void 0);
 __decorate([
-    (0, class_validator_1.IsInt)(),
-    (0, class_validator_1.Min)(0),
+    (0, class_validator_1.IsInt)({ message: "Decimal places must be a whole number" }),
+    (0, class_validator_1.Min)(0, { message: "Decimal places must be between 0 and 8" }),
+    (0, class_validator_1.Max)(8, { message: "Decimal places must be between 0 and 8" }),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)
 ], UpdateCurrencyDto.prototype, "decimalPlaces", void 0);
 __decorate([
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.Min)(0),
+    (0, class_validator_1.IsNumber)({ maxDecimalPlaces: 8 }, { message: "Value must be a number with at most 8 decimals" }),
+    (0, class_validator_1.IsPositive)({ message: "Value must be greater than 0" }),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)
 ], UpdateCurrencyDto.prototype, "value", void 0);

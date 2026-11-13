@@ -15,6 +15,7 @@ const seo_url_entity_1 = require("../entities/seo-url.entity");
 const seo_url_dto_1 = require("../dto/seo-url.dto");
 const class_validator_1 = require("class-validator");
 const class_validator_2 = require("class-validator");
+const system_language_entity_1 = require("../entities/system-language.entity");
 const seoUrlRepository = data_source_1.AppDataSource.getRepository(seo_url_entity_1.SeoUrl);
 const duplicateMessage = (error) => {
     if ((error === null || error === void 0 ? void 0 : error.code) !== "23505")
@@ -34,11 +35,25 @@ exports.SeoUrlController = {
                 res.status(400).json({ errors });
                 return;
             }
+            const languageRepository = data_source_1.AppDataSource.getRepository(system_language_entity_1.SystemLanguage);
+            const systemLanguage = seoUrlData.languageId
+                ? yield languageRepository.findOne({
+                    where: { id: seoUrlData.languageId, status: true },
+                })
+                : yield languageRepository.findOne({
+                    where: { isDefault: true, status: true },
+                });
+            if (!systemLanguage) {
+                res.status(400).json({ message: "Select an enabled language" });
+                return;
+            }
             const seoUrl = seoUrlRepository.create({
                 query: seoUrlData.query.trim(),
                 keyword: seoUrlData.keyword.trim(),
                 store: cleanScope(seoUrlData.store, "Default"),
-                language: cleanScope(seoUrlData.language, "English"),
+                language: systemLanguage.languageName,
+                languageId: systemLanguage.id,
+                systemLanguage,
             });
             yield seoUrlRepository.save(seoUrl);
             res.status(201).json(seoUrl);
@@ -69,7 +84,9 @@ exports.SeoUrlController = {
                 return;
             }
             const skip = (currentPage - 1) * take;
-            const query = seoUrlRepository.createQueryBuilder("seoUrl");
+            const query = seoUrlRepository
+                .createQueryBuilder("seoUrl")
+                .leftJoinAndSelect("seoUrl.systemLanguage", "systemLanguage");
             if (search && String(search).trim()) {
                 query.andWhere("(seoUrl.query ILIKE :search OR seoUrl.keyword ILIKE :search)", {
                     search: `%${String(search).trim()}%`,
@@ -137,6 +154,7 @@ exports.SeoUrlController = {
                 where: {
                     id: req.params.id,
                 },
+                relations: { systemLanguage: true },
             });
             if (!seoUrl) {
                 res.status(404).json({
@@ -163,6 +181,7 @@ exports.SeoUrlController = {
                 where: {
                     id: req.params.id,
                 },
+                relations: { systemLanguage: true },
             });
             if (!seoUrl) {
                 res.status(404).json({
@@ -186,8 +205,19 @@ exports.SeoUrlController = {
             if (updateData.store !== undefined) {
                 seoUrl.store = updateData.store.trim();
             }
-            if (updateData.language !== undefined) {
-                seoUrl.language = updateData.language.trim();
+            if (updateData.languageId !== undefined) {
+                const systemLanguage = updateData.languageId === seoUrl.languageId
+                    ? seoUrl.systemLanguage
+                    : yield data_source_1.AppDataSource.getRepository(system_language_entity_1.SystemLanguage).findOne({
+                        where: { id: updateData.languageId, status: true },
+                    });
+                if (!systemLanguage) {
+                    res.status(400).json({ message: "Select an enabled language" });
+                    return;
+                }
+                seoUrl.language = systemLanguage.languageName;
+                seoUrl.languageId = systemLanguage.id;
+                seoUrl.systemLanguage = systemLanguage;
             }
             yield seoUrlRepository.save(seoUrl);
             res.status(200).json(seoUrl);
@@ -202,6 +232,18 @@ exports.SeoUrlController = {
             res.status(500).json({
                 message: "Internal server error",
             });
+        }
+    }),
+    getFormOptions: (_req, res) => __awaiter(void 0, void 0, void 0, function* () {
+        try {
+            const languages = yield data_source_1.AppDataSource.getRepository(system_language_entity_1.SystemLanguage).find({
+                order: { sortOrder: "ASC", languageName: "ASC" },
+            });
+            res.json({ languages });
+        }
+        catch (error) {
+            console.error(error);
+            res.status(500).json({ message: "Internal server error" });
         }
     }),
     deleteSeoUrl: (req, res) => __awaiter(void 0, void 0, void 0, function* () {

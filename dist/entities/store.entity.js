@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Store = void 0;
 const typeorm_1 = require("typeorm");
+const system_language_entity_1 = require("./system-language.entity");
 let Store = class Store {
 };
 exports.Store = Store;
@@ -132,6 +133,15 @@ __decorate([
     }),
     __metadata("design:type", String)
 ], Store.prototype, "language", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "uuid" }),
+    __metadata("design:type", String)
+], Store.prototype, "languageId", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => system_language_entity_1.SystemLanguage, { onDelete: "RESTRICT" }),
+    (0, typeorm_1.JoinColumn)({ name: "languageId" }),
+    __metadata("design:type", system_language_entity_1.SystemLanguage)
+], Store.prototype, "systemLanguage", void 0);
 __decorate([
     (0, typeorm_1.Column)({
         type: "varchar",

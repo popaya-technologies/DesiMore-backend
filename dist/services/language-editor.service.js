@@ -19,6 +19,8 @@ const data_source_1 = require("../data-source");
 const language_translation_entity_1 = require("../entities/language-translation.entity");
 const language_editor_dto_1 = require("../dto/language-editor.dto");
 const api_error_1 = require("../utils/api-error");
+const system_language_entity_1 = require("../entities/system-language.entity");
+const system_language_service_1 = require("./system-language.service");
 function validated(type, input) {
     return __awaiter(this, void 0, void 0, function* () {
         if (!input || typeof input !== "object" || Array.isArray(input) || !Object.keys(input).length)
@@ -62,7 +64,8 @@ function translationQuery(query) {
         return Number(value);
     };
     const page = integer(query.page, 1, 1000000), limit = integer(query.limit, 10, 100);
-    const qb = data_source_1.AppDataSource.getRepository(language_translation_entity_1.LanguageTranslation).createQueryBuilder("translation");
+    const qb = data_source_1.AppDataSource.getRepository(language_translation_entity_1.LanguageTranslation)
+        .createQueryBuilder("translation");
     for (const [key, max] of [["store", 100], ["language", 50], ["route", 255], ["key", 255]]) {
         if (query[key] !== undefined) {
             if (typeof query[key] !== "string" || !query[key].trim() || query[key].length > max)
@@ -95,7 +98,7 @@ function translationQuery(query) {
     const sortBy = (_c = query.sortBy) !== null && _c !== void 0 ? _c : "createdAt", sortOrder = (_d = query.sortOrder) !== null && _d !== void 0 ? _d : "DESC";
     if (!["store", "language", "route", "key", "value", "createdAt", "updatedAt"].includes(sortBy) || !["ASC", "DESC"].includes(sortOrder))
         throw new api_error_1.ApiError(400, "Invalid sorting");
-    qb.orderBy('translation."' + sortBy + '"', sortOrder).addOrderBy("translation.id", "ASC");
+    qb.orderBy(`translation.${sortBy}`, sortOrder).addOrderBy("translation.id", "ASC");
     return { qb, page, limit };
 }
 class LanguageEditorService {
@@ -107,15 +110,29 @@ class LanguageEditorService {
             const dto = yield validateTranslation(input, !id);
             const repo = this.db.getRepository(language_translation_entity_1.LanguageTranslation);
             try {
-                if (!id)
-                    return yield repo.save(repo.create(dto));
-                const result = yield repo.update(id, dto);
-                if (!result.affected)
+                const row = id
+                    ? yield repo.findOne({ where: { id }, relations: { systemLanguage: true } })
+                    : repo.create();
+                if (id && !row)
                     throw new api_error_1.ApiError(404, "Translation not found");
-                const row = yield repo.findOneBy({ id });
-                if (!row)
-                    throw new api_error_1.ApiError(404, "Translation not found");
-                return row;
+                const current = row;
+                const systemLanguage = dto.languageId
+                    ? dto.languageId === current.languageId && current.systemLanguage
+                        ? current.systemLanguage
+                        : yield this.db.getRepository(system_language_entity_1.SystemLanguage).findOne({
+                            where: { id: dto.languageId, status: true },
+                        })
+                    : id
+                        ? current.systemLanguage
+                        : yield (0, system_language_service_1.getDefaultSystemLanguage)(this.db.manager);
+                if (!systemLanguage)
+                    throw new api_error_1.ApiError(400, "Select an enabled language");
+                Object.assign(current, dto, {
+                    language: systemLanguage.languageName,
+                    languageId: systemLanguage.id,
+                    systemLanguage,
+                });
+                return yield repo.save(current);
             }
             catch (error) {
                 if (error.code === "23505")

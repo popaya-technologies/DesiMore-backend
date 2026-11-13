@@ -500,22 +500,26 @@ __decorate([
 ], CreateProductDto.prototype, "wholesaleDateAvailable", void 0);
 __decorate([
     (0, class_validator_1.ValidateIf)(optional),
-    (0, class_validator_1.IsIn)(exports.LENGTH_CLASSES),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(100),
     __metadata("design:type", String)
 ], CreateProductDto.prototype, "lengthClass", void 0);
 __decorate([
     (0, class_validator_1.ValidateIf)(optional),
-    (0, class_validator_1.IsIn)(exports.LENGTH_CLASSES),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(100),
     __metadata("design:type", String)
 ], CreateProductDto.prototype, "wholesaleLengthClass", void 0);
 __decorate([
     (0, class_validator_1.ValidateIf)(optional),
-    (0, class_validator_1.IsIn)(exports.WEIGHT_CLASSES),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(100),
     __metadata("design:type", String)
 ], CreateProductDto.prototype, "weightClass", void 0);
 __decorate([
     (0, class_validator_1.ValidateIf)(optional),
-    (0, class_validator_1.IsIn)(exports.WEIGHT_CLASSES),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(100),
     __metadata("design:type", String)
 ], CreateProductDto.prototype, "wholesaleWeightClass", void 0);
 __decorate([
@@ -524,10 +528,20 @@ __decorate([
     __metadata("design:type", String)
 ], CreateProductDto.prototype, "outOfStockStatus", void 0);
 __decorate([
+    (0, class_validator_1.ValidateIf)(optional),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], CreateProductDto.prototype, "stockStatusId", void 0);
+__decorate([
     (0, class_validator_1.ValidateIf)(nullable),
     (0, class_validator_1.IsUUID)(),
     __metadata("design:type", String)
 ], CreateProductDto.prototype, "brandId", void 0);
+__decorate([
+    (0, class_validator_1.ValidateIf)(nullable),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], CreateProductDto.prototype, "taxClassId", void 0);
 __decorate([
     (0, class_validator_1.ValidateIf)(optional),
     (0, class_validator_1.IsArray)(),

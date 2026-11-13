@@ -48,6 +48,8 @@ const data_source_1 = require("../data-source");
 const length_class_entity_1 = require("../entities/length-class.entity");
 const length_class_service_1 = require("../services/length-class.service");
 const api_error_1 = require("../utils/api-error");
+// Like OpenCart, the default class is the base unit: the one whose value is 1.
+const withDefault = (row) => (Object.assign(Object.assign({}, row), { isDefault: Number(row.value) === 1 }));
 const handle = (action) => (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         yield action(req, res);
@@ -73,7 +75,7 @@ exports.LengthClassController = {
         });
         if (!row)
             throw new api_error_1.ApiError(404, "Length class not found");
-        res.json(row);
+        res.json(withDefault(row));
     })),
     list: handle((req, res) => __awaiter(void 0, void 0, void 0, function* () {
         const { qb, page, limit } = (0, length_class_service_1.lengthClassQuery)(req.query);
@@ -82,7 +84,7 @@ exports.LengthClassController = {
             .take(limit)
             .getManyAndCount();
         res.json({
-            data: data.map((row, index) => (Object.assign(Object.assign({}, row), { no: (page - 1) * limit + index + 1 }))),
+            data: data.map((row, index) => (Object.assign(Object.assign({}, withDefault(row)), { no: (page - 1) * limit + index + 1 }))),
             meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
         });
     })),

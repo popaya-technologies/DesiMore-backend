@@ -5,6 +5,7 @@ const currency_controller_1 = require("../controllers/currency.controller");
 const auth_middleware_1 = require("../middlewares/auth.middleware");
 const rbac_middleware_1 = require("../middlewares/rbac.middleware");
 const router = (0, express_1.Router)();
+router.get("/public/default", currency_controller_1.CurrencyController.getDefaultCurrency);
 router.post("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("currency", "create"), currency_controller_1.CurrencyController.createCurrency);
 router.get("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("currency", "read"), currency_controller_1.CurrencyController.getCurrencies);
 router.get("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("currency", "read"), currency_controller_1.CurrencyController.getCurrencyById);

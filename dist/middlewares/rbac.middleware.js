@@ -28,6 +28,7 @@ const checkAnyPermission = (resource, actions) => (req, res, next) => {
 exports.checkAnyPermission = checkAnyPermission;
 const checkPermission = (resource, action) => {
     return (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+        var _a, _b;
         try {
             if (!req.user) {
                 res.status(401).json({ message: "Unauthorized" });
@@ -35,6 +36,18 @@ const checkPermission = (resource, action) => {
             }
             // Super admin bypass
             if (req.user.userRole === "su") {
+                next();
+                return;
+            }
+            if (req.user.accountType === "system-user") {
+                const isReadAction = action === "read" || action === "read-all";
+                const allowed = isReadAction
+                    ? (_a = req.user.accessPermissions) === null || _a === void 0 ? void 0 : _a.includes(resource)
+                    : (_b = req.user.modifyPermissions) === null || _b === void 0 ? void 0 : _b.includes(resource);
+                if (!allowed) {
+                    res.status(403).json({ message: "Forbidden" });
+                    return;
+                }
                 next();
                 return;
             }

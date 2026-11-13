@@ -47,6 +47,11 @@ __decorate([
     (0, class_validator_1.MaxLength)(255),
     __metadata("design:type", String)
 ], CreateSeoUrlDto.prototype, "language", void 0);
+__decorate([
+    (0, class_validator_1.IsUUID)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateSeoUrlDto.prototype, "languageId", void 0);
 class UpdateSeoUrlDto {
 }
 exports.UpdateSeoUrlDto = UpdateSeoUrlDto;
@@ -84,3 +89,8 @@ __decorate([
     (0, class_validator_1.MaxLength)(255),
     __metadata("design:type", String)
 ], UpdateSeoUrlDto.prototype, "language", void 0);
+__decorate([
+    (0, class_validator_1.IsUUID)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], UpdateSeoUrlDto.prototype, "languageId", void 0);

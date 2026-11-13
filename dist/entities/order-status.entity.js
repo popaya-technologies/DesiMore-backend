@@ -27,6 +27,30 @@ __decorate([
     __metadata("design:type", String)
 ], OrderStatus.prototype, "name", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: "varchar", length: 100, unique: true }),
+    __metadata("design:type", String)
+], OrderStatus.prototype, "code", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "varchar", length: 7, default: "#64748b" }),
+    __metadata("design:type", String)
+], OrderStatus.prototype, "color", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "integer", default: 0 }),
+    __metadata("design:type", Number)
+], OrderStatus.prototype, "sortOrder", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "boolean", default: true }),
+    __metadata("design:type", Boolean)
+], OrderStatus.prototype, "isActive", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "boolean", default: false }),
+    __metadata("design:type", Boolean)
+], OrderStatus.prototype, "isSystem", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "boolean", default: false }),
+    __metadata("design:type", Boolean)
+], OrderStatus.prototype, "isDefault", void 0);
+__decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)
 ], OrderStatus.prototype, "createdAt", void 0);

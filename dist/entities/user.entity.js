@@ -159,7 +159,7 @@ __decorate([
     __metadata("design:type", String)
 ], User.prototype, "avatar", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: "varchar", length: 255, nullable: true, select: false }),
+    (0, typeorm_1.Column)({ type: "text", nullable: true, select: false }),
     __metadata("design:type", String)
 ], User.prototype, "refreshToken", void 0);
 __decorate([

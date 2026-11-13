@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UpdateSystemUserGroupDto = exports.CreateSystemUserGroupDto = void 0;
 const class_validator_1 = require("class-validator");
+const system_user_permissions_1 = require("../constants/system-user-permissions");
 class CreateSystemUserGroupDto {
 }
 exports.CreateSystemUserGroupDto = CreateSystemUserGroupDto;
@@ -20,6 +21,18 @@ __decorate([
     (0, class_validator_1.MaxLength)(255),
     __metadata("design:type", String)
 ], CreateSystemUserGroupDto.prototype, "name", void 0);
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ArrayUnique)(),
+    (0, class_validator_1.IsIn)(system_user_permissions_1.SYSTEM_USER_PERMISSION_IDS, { each: true }),
+    __metadata("design:type", Array)
+], CreateSystemUserGroupDto.prototype, "accessPermissions", void 0);
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ArrayUnique)(),
+    (0, class_validator_1.IsIn)(system_user_permissions_1.SYSTEM_USER_PERMISSION_IDS, { each: true }),
+    __metadata("design:type", Array)
+], CreateSystemUserGroupDto.prototype, "modifyPermissions", void 0);
 class UpdateSystemUserGroupDto {
 }
 exports.UpdateSystemUserGroupDto = UpdateSystemUserGroupDto;
@@ -30,3 +43,15 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], UpdateSystemUserGroupDto.prototype, "name", void 0);
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ArrayUnique)(),
+    (0, class_validator_1.IsIn)(system_user_permissions_1.SYSTEM_USER_PERMISSION_IDS, { each: true }),
+    __metadata("design:type", Array)
+], UpdateSystemUserGroupDto.prototype, "accessPermissions", void 0);
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ArrayUnique)(),
+    (0, class_validator_1.IsIn)(system_user_permissions_1.SYSTEM_USER_PERMISSION_IDS, { each: true }),
+    __metadata("design:type", Array)
+], UpdateSystemUserGroupDto.prototype, "modifyPermissions", void 0);

@@ -20,6 +20,28 @@ const tax_class_entity_1 = require("../entities/tax-class.entity");
 const tax_class_dto_1 = require("../dto/tax-class.dto");
 const api_error_1 = require("../utils/api-error");
 const tax_class_dto_2 = require("../dto/tax-class.dto");
+const product_entity_1 = require("../entities/product.entity");
+// Products reference tax classes (RESTRICT). Returns a message naming the classes in
+// use and how many products use each, or null when none are used.
+function inUseMessage(manager, ids) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const rows = yield manager
+            .getRepository(product_entity_1.Product)
+            .createQueryBuilder("product")
+            .innerJoin("product.taxClass", "taxClass")
+            .select("taxClass.title", "title")
+            .addSelect("COUNT(product.id)", "count")
+            .where("product.taxClassId IN (:...ids)", { ids })
+            .groupBy("taxClass.title")
+            .getRawMany();
+        if (!rows.length)
+            return null;
+        const details = rows
+            .map(({ title, count }) => `${title} (${count} product${count === "1" ? "" : "s"})`)
+            .join("; ");
+        return `Cannot delete tax classes that are used by products: ${details}. Change those products' tax class first.`;
+    });
+}
 function validateTaxClass(input, creating) {
     return __awaiter(this, void 0, void 0, function* () {
         var _a, _b;
@@ -110,8 +132,11 @@ class TaxClassService {
                 for (const id of ids) {
                     const row = yield repo.findOne({ where: { id }, lock: { mode: "pessimistic_write" } });
                     if (!row)
-                        throw new api_error_1.ApiError(404, "Tax class not found; no statuses were deleted");
+                        throw new api_error_1.ApiError(404, "Tax class not found; no tax classes were deleted");
                 }
+                const inUse = yield inUseMessage(manager, ids);
+                if (inUse)
+                    throw new api_error_1.ApiError(409, `${inUse} No tax classes were deleted.`);
                 yield repo.delete(ids);
             }));
             return { message: "Tax classes deleted successfully", deletedCount: ids.length };
@@ -159,6 +184,9 @@ class TaxClassService {
     remove(id) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
+                const inUse = yield inUseMessage(this.db.manager, [id]);
+                if (inUse)
+                    throw new api_error_1.ApiError(409, inUse);
                 const result = yield this.db.getRepository(tax_class_entity_1.TaxClass).delete(id);
                 if (!result.affected)
                     throw new api_error_1.ApiError(404, "Tax class not found");

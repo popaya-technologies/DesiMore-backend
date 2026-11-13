@@ -11,30 +11,38 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UpdateCountryDto = exports.CreateCountryDto = void 0;
 const class_validator_1 = require("class-validator");
+// An empty string clears the code; otherwise it must be letters only.
+const ISO2_PATTERN = /^([A-Za-z]{2})?$/;
+const ISO3_PATTERN = /^([A-Za-z]{3})?$/;
 class CreateCountryDto {
 }
 exports.CreateCountryDto = CreateCountryDto;
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsNotEmpty)({ message: "Country name is required" }),
     (0, class_validator_1.MaxLength)(255),
     __metadata("design:type", String)
 ], CreateCountryDto.prototype, "name", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.MaxLength)(2),
+    (0, class_validator_1.Matches)(ISO2_PATTERN, {
+        message: "ISO Code (2) must be exactly 2 letters",
+    }),
     __metadata("design:type", String)
 ], CreateCountryDto.prototype, "isoCode2", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.MaxLength)(3),
+    (0, class_validator_1.Matches)(ISO3_PATTERN, {
+        message: "ISO Code (3) must be exactly 3 letters",
+    }),
     __metadata("design:type", String)
 ], CreateCountryDto.prototype, "isoCode3", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.MaxLength)(5000),
     __metadata("design:type", String)
 ], CreateCountryDto.prototype, "addressFormat", void 0);
 __decorate([
@@ -50,7 +58,7 @@ class UpdateCountryDto {
 exports.UpdateCountryDto = UpdateCountryDto;
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsNotEmpty)({ message: "Country name is required" }),
     (0, class_validator_1.MaxLength)(255),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
@@ -58,18 +66,23 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.MaxLength)(2),
+    (0, class_validator_1.Matches)(ISO2_PATTERN, {
+        message: "ISO Code (2) must be exactly 2 letters",
+    }),
     __metadata("design:type", String)
 ], UpdateCountryDto.prototype, "isoCode2", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.MaxLength)(3),
+    (0, class_validator_1.Matches)(ISO3_PATTERN, {
+        message: "ISO Code (3) must be exactly 3 letters",
+    }),
     __metadata("design:type", String)
 ], UpdateCountryDto.prototype, "isoCode3", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.MaxLength)(5000),
     __metadata("design:type", String)
 ], UpdateCountryDto.prototype, "addressFormat", void 0);
 __decorate([

@@ -14,6 +14,9 @@ const class_validator_1 = require("class-validator");
 const data_source_1 = require("../data-source");
 const system_language_entity_1 = require("../entities/system-language.entity");
 const system_language_dto_1 = require("../dto/system-language.dto");
+const store_entity_1 = require("../entities/store.entity");
+const seo_url_entity_1 = require("../entities/seo-url.entity");
+const language_translation_entity_1 = require("../entities/language-translation.entity");
 class SystemLanguageController {
     static repository() {
         return data_source_1.AppDataSource.getRepository(system_language_entity_1.SystemLanguage);
@@ -26,6 +29,7 @@ class SystemLanguageController {
             locale: language.locale,
             sortOrder: language.sortOrder,
             status: language.status,
+            isDefault: language.isDefault,
             createdAt: language.createdAt,
             updatedAt: language.updatedAt,
         };
@@ -47,27 +51,47 @@ class SystemLanguageController {
                 const languageName = dto.languageName.trim();
                 const code = dto.code.trim();
                 const locale = dto.locale.trim();
-                const existingLanguage = yield repository.findOne({
-                    where: [
-                        { languageName },
-                        { code },
-                        { locale },
-                    ],
-                });
+                if (dto.isDefault && dto.status === false) {
+                    res.status(400).json({
+                        message: "The default language must be enabled",
+                    });
+                    return;
+                }
+                const existingLanguage = yield repository
+                    .createQueryBuilder("language")
+                    .where("LOWER(language.languageName) = LOWER(:languageName)", {
+                    languageName,
+                })
+                    .orWhere("LOWER(language.code) = LOWER(:code)", { code })
+                    .orWhere("LOWER(language.locale) = LOWER(:locale)", { locale })
+                    .getOne();
                 if (existingLanguage) {
                     res.status(409).json({
                         message: "A language with the same name, code, or locale already exists",
                     });
                     return;
                 }
+                const languageCount = yield repository.count();
+                const shouldBeDefault = languageCount === 0 || dto.isDefault === true;
                 const language = repository.create({
                     languageName,
                     code,
                     locale,
                     sortOrder: (_a = dto.sortOrder) !== null && _a !== void 0 ? _a : 0,
                     status: (_b = dto.status) !== null && _b !== void 0 ? _b : true,
+                    isDefault: shouldBeDefault,
                 });
-                const savedLanguage = yield repository.save(language);
+                const savedLanguage = yield data_source_1.AppDataSource.transaction((manager) => __awaiter(this, void 0, void 0, function* () {
+                    if (shouldBeDefault) {
+                        yield manager
+                            .getRepository(system_language_entity_1.SystemLanguage)
+                            .createQueryBuilder()
+                            .update(system_language_entity_1.SystemLanguage)
+                            .set({ isDefault: false })
+                            .execute();
+                    }
+                    return manager.getRepository(system_language_entity_1.SystemLanguage).save(language);
+                }));
                 res.status(201).json(SystemLanguageController.buildResponse(savedLanguage));
             }
             catch (error) {
@@ -122,6 +146,33 @@ class SystemLanguageController {
             }
         });
     }
+    static getEnabledLanguages(_req, res) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const languages = yield SystemLanguageController.repository().find({
+                    where: { status: true },
+                    order: {
+                        sortOrder: "ASC",
+                        languageName: "ASC",
+                    },
+                });
+                res.set("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
+                res.status(200).json(languages.map((language) => ({
+                    id: language.id,
+                    name: language.languageName,
+                    code: language.code,
+                    locale: language.locale,
+                    isDefault: language.isDefault,
+                })));
+            }
+            catch (error) {
+                console.error("Error getting enabled languages:", error);
+                res.status(500).json({
+                    message: "Failed to get enabled languages",
+                });
+            }
+        });
+    }
     static getSystemLanguageById(req, res) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
@@ -172,6 +223,7 @@ class SystemLanguageController {
                     });
                     return;
                 }
+                const previousLanguageName = language.languageName;
                 const languageName = (_a = dto.languageName) === null || _a === void 0 ? void 0 : _a.trim();
                 const code = (_b = dto.code) === null || _b === void 0 ? void 0 : _b.trim();
                 const locale = (_c = dto.locale) === null || _c === void 0 ? void 0 : _c.trim();
@@ -188,15 +240,15 @@ class SystemLanguageController {
                         id: language.id,
                     };
                     if (languageName !== undefined) {
-                        conditions.push("language.languageName = :languageName");
+                        conditions.push("LOWER(language.languageName) = LOWER(:languageName)");
                         parameters.languageName = languageName;
                     }
                     if (code !== undefined) {
-                        conditions.push("language.code = :code");
+                        conditions.push("LOWER(language.code) = LOWER(:code)");
                         parameters.code = code;
                     }
                     if (locale !== undefined) {
-                        conditions.push("language.locale = :locale");
+                        conditions.push("LOWER(language.locale) = LOWER(:locale)");
                         parameters.locale = locale;
                     }
                     duplicateQuery.andWhere(`(${conditions.join(" OR ")})`, parameters);
@@ -221,9 +273,42 @@ class SystemLanguageController {
                     language.sortOrder = dto.sortOrder;
                 }
                 if (dto.status !== undefined) {
+                    if (language.isDefault && !dto.status) {
+                        res.status(400).json({
+                            message: "The default language cannot be disabled",
+                        });
+                        return;
+                    }
                     language.status = dto.status;
                 }
-                const updatedLanguage = yield repository.save(language);
+                if (dto.isDefault === false && language.isDefault) {
+                    res.status(400).json({
+                        message: "Choose another default language before removing this default",
+                    });
+                    return;
+                }
+                if (dto.isDefault === true) {
+                    language.isDefault = true;
+                    language.status = true;
+                }
+                const updatedLanguage = yield data_source_1.AppDataSource.transaction((manager) => __awaiter(this, void 0, void 0, function* () {
+                    if (dto.isDefault === true) {
+                        yield manager
+                            .getRepository(system_language_entity_1.SystemLanguage)
+                            .createQueryBuilder()
+                            .update(system_language_entity_1.SystemLanguage)
+                            .set({ isDefault: false })
+                            .where("id != :id", { id: language.id })
+                            .execute();
+                    }
+                    const savedLanguage = yield manager.getRepository(system_language_entity_1.SystemLanguage).save(language);
+                    if (savedLanguage.languageName !== previousLanguageName) {
+                        yield manager.getRepository(store_entity_1.Store).update({ languageId: savedLanguage.id }, { language: savedLanguage.languageName });
+                        yield manager.getRepository(seo_url_entity_1.SeoUrl).update({ languageId: savedLanguage.id }, { language: savedLanguage.languageName });
+                        yield manager.getRepository(language_translation_entity_1.LanguageTranslation).update({ languageId: savedLanguage.id }, { language: savedLanguage.languageName });
+                    }
+                    return savedLanguage;
+                }));
                 res.status(200).json(SystemLanguageController.buildResponse(updatedLanguage));
             }
             catch (error) {
@@ -246,6 +331,39 @@ class SystemLanguageController {
                 if (!language) {
                     res.status(404).json({
                         message: "System language not found",
+                    });
+                    return;
+                }
+                if (language.isDefault) {
+                    res.status(409).json({
+                        message: "The default language cannot be deleted",
+                    });
+                    return;
+                }
+                const storesUsingLanguage = yield data_source_1.AppDataSource.getRepository(store_entity_1.Store).count({
+                    where: { languageId: language.id },
+                });
+                if (storesUsingLanguage > 0) {
+                    res.status(409).json({
+                        message: `This language is assigned to ${storesUsingLanguage} store${storesUsingLanguage === 1 ? "" : "s"}`,
+                    });
+                    return;
+                }
+                const seoUrlsUsingLanguage = yield data_source_1.AppDataSource.getRepository(seo_url_entity_1.SeoUrl).count({
+                    where: { languageId: language.id },
+                });
+                if (seoUrlsUsingLanguage > 0) {
+                    res.status(409).json({
+                        message: `This language is assigned to ${seoUrlsUsingLanguage} SEO URL${seoUrlsUsingLanguage === 1 ? "" : "s"}`,
+                    });
+                    return;
+                }
+                const translationsUsingLanguage = yield data_source_1.AppDataSource.getRepository(language_translation_entity_1.LanguageTranslation).count({
+                    where: { languageId: language.id },
+                });
+                if (translationsUsingLanguage > 0) {
+                    res.status(409).json({
+                        message: `This language is assigned to ${translationsUsingLanguage} translation${translationsUsingLanguage === 1 ? "" : "s"}`,
                     });
                     return;
                 }

@@ -62,6 +62,10 @@ __decorate([
     __metadata("design:type", Number)
 ], Order.prototype, "tax", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: "jsonb", default: () => "'[]'::jsonb" }),
+    __metadata("design:type", Array)
+], Order.prototype, "taxLines", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: "decimal", precision: 12, scale: 2, default: 0 }),
     __metadata("design:type", Number)
 ], Order.prototype, "shipping", void 0);
@@ -86,7 +90,7 @@ __decorate([
     __metadata("design:type", Number)
 ], Order.prototype, "total", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: "varchar", length: 50, default: OrderStatus.PENDING }),
+    (0, typeorm_1.Column)({ type: "varchar", length: 100, default: OrderStatus.PENDING }),
     __metadata("design:type", String)
 ], Order.prototype, "status", void 0);
 __decorate([

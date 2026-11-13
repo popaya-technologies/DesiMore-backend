@@ -5,6 +5,7 @@ const order_status_controller_1 = require("../controllers/order-status.controlle
 const auth_middleware_1 = require("../middlewares/auth.middleware");
 const rbac_middleware_1 = require("../middlewares/rbac.middleware");
 const router = (0, express_1.Router)();
+router.get("/public", order_status_controller_1.OrderStatusController.getPublicOrderStatuses);
 router.post("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("order-status", "create"), order_status_controller_1.OrderStatusController.createOrderStatus);
 router.get("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("order-status", "read"), order_status_controller_1.OrderStatusController.getOrderStatuses);
 router.get("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("order-status", "read"), order_status_controller_1.OrderStatusController.getOrderStatusById);

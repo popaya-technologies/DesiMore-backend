@@ -5,6 +5,7 @@ const system_language_controller_1 = require("../controllers/system-language.con
 const auth_middleware_1 = require("../middlewares/auth.middleware");
 const rbac_middleware_1 = require("../middlewares/rbac.middleware");
 const router = (0, express_1.Router)();
+router.get("/public/enabled", system_language_controller_1.SystemLanguageController.getEnabledLanguages);
 router.post("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("system-language", "create"), system_language_controller_1.SystemLanguageController.createSystemLanguage);
 router.get("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("system-language", "read"), system_language_controller_1.SystemLanguageController.getSystemLanguages);
 router.get("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("system-language", "read"), system_language_controller_1.SystemLanguageController.getSystemLanguageById);

@@ -19,6 +19,7 @@ const return_status_entity_1 = require("../entities/return-status.entity");
 const return_status_dto_1 = require("../dto/return-status.dto");
 const api_error_1 = require("../utils/api-error");
 const return_status_dto_2 = require("../dto/return-status.dto");
+const return_usage_service_1 = require("./return-usage.service");
 function validateReturnStatus(input, creating) {
     return __awaiter(this, void 0, void 0, function* () {
         if (!input || typeof input !== "object" || Array.isArray(input) || !Object.keys(input).length)
@@ -92,6 +93,9 @@ class ReturnStatusService {
                     const row = yield repo.findOne({ where: { id }, lock: { mode: "pessimistic_write" } });
                     if (!row)
                         throw new api_error_1.ApiError(404, "Return status not found; no statuses were deleted");
+                    const used = yield (0, return_usage_service_1.countReturnsUsing)("returnStatus", row.name, manager);
+                    if (used)
+                        throw new api_error_1.ApiError(409, `${(0, return_usage_service_1.returnUsageMessage)(row.name, used)}. No statuses were deleted.`);
                 }
                 yield repo.delete(ids);
             }));
@@ -126,6 +130,12 @@ class ReturnStatusService {
     remove(id) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
+                const row = yield this.db.getRepository(return_status_entity_1.ReturnStatus).findOne({ where: { id } });
+                if (row) {
+                    const used = yield (0, return_usage_service_1.countReturnsUsing)("returnStatus", row.name);
+                    if (used)
+                        throw new api_error_1.ApiError(409, (0, return_usage_service_1.returnUsageMessage)(row.name, used));
+                }
                 const result = yield this.db.getRepository(return_status_entity_1.ReturnStatus).delete(id);
                 if (!result.affected)
                     throw new api_error_1.ApiError(404, "Return status not found");

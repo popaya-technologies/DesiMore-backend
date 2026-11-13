@@ -54,6 +54,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SystemUser = void 0;
 const typeorm_1 = require("typeorm");
 const bcrypt = __importStar(require("bcryptjs"));
+const system_user_group_entity_1 = require("./system-user-group.entity");
 let SystemUser = class SystemUser {
     constructor() {
         this.passwordModified = false;
@@ -68,10 +69,7 @@ let SystemUser = class SystemUser {
             if (this.email) {
                 this.email = this.email.trim().toLowerCase();
             }
-            // Trim user group and names
-            if (this.userGroup) {
-                this.userGroup = this.userGroup.trim();
-            }
+            // Trim names
             if (this.firstName) {
                 this.firstName = this.firstName.trim();
             }
@@ -114,11 +112,16 @@ __decorate([
     __metadata("design:type", String)
 ], SystemUser.prototype, "username", void 0);
 __decorate([
-    (0, typeorm_1.Column)({
-        type: "varchar",
-        length: 30,
-    }),
+    (0, typeorm_1.Column)({ type: "uuid" }),
     __metadata("design:type", String)
+], SystemUser.prototype, "userGroupId", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => system_user_group_entity_1.SystemUserGroup, (group) => group.systemUsers, {
+        nullable: false,
+        onDelete: "RESTRICT",
+    }),
+    (0, typeorm_1.JoinColumn)({ name: "userGroupId" }),
+    __metadata("design:type", system_user_group_entity_1.SystemUserGroup)
 ], SystemUser.prototype, "userGroup", void 0);
 __decorate([
     (0, typeorm_1.Column)({

@@ -64,9 +64,9 @@ const validateUsShippingAddress = (address) => {
     if (!/^\d{5}(?:-\d{4})?$/.test(address.zipCode.trim()))
         throw new api_error_1.ApiError(400, "Invalid United States ZIP code");
 };
-const quoteResponse = (cart) => {
+const quoteResponse = (cart) => __awaiter(void 0, void 0, void 0, function* () {
     const shippingRequired = (0, shipping_service_1.retailCartRequiresShipping)(cart);
-    const weight = (0, shipping_service_1.calculateRetailShippingWeight)(cart);
+    const weight = (0, shipping_service_1.calculateRetailShippingWeight)(cart, yield (0, shipping_service_1.loadWeightClassValues)());
     if (shippingRequired && weight <= 0)
         throw new api_error_1.ApiError(400, "Shipping weight is unavailable for this cart");
     return {
@@ -76,13 +76,13 @@ const quoteResponse = (cart) => {
         unit: "lb",
         shippingMethods: shippingRequired ? (0, shipping_quote_service_1.getMockShippingQuotes)(weight) : [],
     };
-};
+});
 exports.ShippingController = {
     quote: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         try {
             const dto = yield validated(shipping_dto_1.ShippingQuoteDto, req.body);
             validateUsShippingAddress(dto.shippingAddress);
-            res.json(quoteResponse(yield loadRetailCart(req, dto.cartId)));
+            res.json(yield quoteResponse(yield loadRetailCart(req, dto.cartId)));
         }
         catch (error) {
             (0, api_error_1.respondError)(res, error);
@@ -93,7 +93,7 @@ exports.ShippingController = {
             const dto = yield validated(shipping_dto_1.SelectShippingDto, req.body);
             validateUsShippingAddress(dto.shippingAddress);
             const cart = yield loadRetailCart(req, dto.cartId);
-            const result = quoteResponse(cart);
+            const result = yield quoteResponse(cart);
             res.json(Object.assign(Object.assign({}, result), { selectedShippingMethod: (0, shipping_quote_service_1.getMockShippingQuote)(result.weight, dto.shippingCode) }));
         }
         catch (error) {

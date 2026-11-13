@@ -30,6 +30,11 @@ __decorate([
     __metadata("design:type", String)
 ], CreateTranslationDto.prototype, "language", void 0);
 __decorate([
+    (0, class_validator_1.ValidateIf)(supplied),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], CreateTranslationDto.prototype, "languageId", void 0);
+__decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.Matches)(/\S/),
     (0, class_validator_1.MaxLength)(255),
@@ -63,6 +68,11 @@ __decorate([
     (0, class_validator_1.MaxLength)(50),
     __metadata("design:type", String)
 ], UpdateTranslationDto.prototype, "language", void 0);
+__decorate([
+    (0, class_validator_1.ValidateIf)(supplied),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], UpdateTranslationDto.prototype, "languageId", void 0);
 __decorate([
     (0, class_validator_1.ValidateIf)(supplied),
     (0, class_validator_1.IsString)(),

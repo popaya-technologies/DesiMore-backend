@@ -51,6 +51,10 @@ const XLSX = __importStar(require("xlsx"));
 const product_service_1 = require("../services/product.service");
 const api_error_1 = require("../utils/api-error");
 const product_dto_1 = require("../dto/product.dto");
+const length_class_entity_1 = require("../entities/length-class.entity");
+const stock_status_entity_1 = require("../entities/stock-status.entity");
+const tax_class_entity_1 = require("../entities/tax-class.entity");
+const weight_class_entity_1 = require("../entities/weight-class.entity");
 const productRepository = data_source_1.AppDataSource.getRepository(product_entity_1.Product);
 const categoryRepository = data_source_1.AppDataSource.getRepository(category_entity_1.Category);
 const splitIds = (val) => {
@@ -90,18 +94,48 @@ exports.ProductController = {
         }
     }),
     getFormOptions: (_req, res) => __awaiter(void 0, void 0, void 0, function* () {
-        res.json({
-            lengthClasses: product_dto_1.LENGTH_CLASSES,
-            weightClasses: product_dto_1.WEIGHT_CLASSES,
-            outOfStockStatuses: product_dto_1.STOCK_STATUSES,
-            optionTypes: product_dto_1.OPTION_TYPES,
-            customerGroups: product_dto_1.CUSTOMER_GROUPS,
-            manufacturerEndpoint: "/api/brands",
-            categoryEndpoint: "/api/categories/all",
-            downloadEndpoint: "/api/downloads",
-            wholesalePriceUnit: "box",
-            wholesaleStockUnit: "box",
-        });
+        try {
+            const [stockStatuses, taxClasses, lengthClasses, weightClasses] = yield Promise.all([
+                data_source_1.AppDataSource.getRepository(stock_status_entity_1.StockStatus).find({
+                    order: { name: "ASC" },
+                }),
+                data_source_1.AppDataSource.getRepository(tax_class_entity_1.TaxClass).find({
+                    select: ["id", "title"],
+                    order: { title: "ASC" },
+                }),
+                data_source_1.AppDataSource.getRepository(length_class_entity_1.LengthClass).find({
+                    order: { lengthTitle: "ASC" },
+                }),
+                data_source_1.AppDataSource.getRepository(weight_class_entity_1.WeightClass).find({
+                    order: { weightTitle: "ASC" },
+                }),
+            ]);
+            // Products store a class as its lowercase title (e.g. "pound").
+            res.json({
+                lengthClasses: lengthClasses.map((item) => ({
+                    value: item.lengthTitle.trim().toLowerCase(),
+                    title: item.lengthTitle,
+                    unit: item.lengthUnit,
+                })),
+                weightClasses: weightClasses.map((item) => ({
+                    value: item.weightTitle.trim().toLowerCase(),
+                    title: item.weightTitle,
+                    unit: item.weightUnit,
+                })),
+                stockStatuses,
+                taxClasses,
+                optionTypes: product_dto_1.OPTION_TYPES,
+                customerGroups: product_dto_1.CUSTOMER_GROUPS,
+                manufacturerEndpoint: "/api/brands",
+                categoryEndpoint: "/api/categories/all",
+                downloadEndpoint: "/api/downloads",
+                wholesalePriceUnit: "box",
+                wholesaleStockUnit: "box",
+            });
+        }
+        catch (error) {
+            (0, api_error_1.respondError)(res, error);
+        }
     }),
     // Get All Products (Public)
     getProducts: (req, res) => __awaiter(void 0, void 0, void 0, function* () {

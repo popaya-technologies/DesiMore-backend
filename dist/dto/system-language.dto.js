@@ -43,6 +43,11 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Boolean)
 ], CreateSystemLanguageDto.prototype, "status", void 0);
+__decorate([
+    (0, class_validator_1.IsBoolean)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Boolean)
+], CreateSystemLanguageDto.prototype, "isDefault", void 0);
 class UpdateSystemLanguageDto {
 }
 exports.UpdateSystemLanguageDto = UpdateSystemLanguageDto;
@@ -78,3 +83,8 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Boolean)
 ], UpdateSystemLanguageDto.prototype, "status", void 0);
+__decorate([
+    (0, class_validator_1.IsBoolean)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Boolean)
+], UpdateSystemLanguageDto.prototype, "isDefault", void 0);

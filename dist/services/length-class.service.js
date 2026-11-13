@@ -18,6 +18,7 @@ const data_source_1 = require("../data-source");
 const length_class_entity_1 = require("../entities/length-class.entity");
 const length_class_dto_1 = require("../dto/length-class.dto");
 const api_error_1 = require("../utils/api-error");
+const product_class_usage_service_1 = require("./product-class-usage.service");
 const length_class_dto_2 = require("../dto/length-class.dto");
 function validateLengthClass(input, creating) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -94,6 +95,9 @@ class LengthClassService {
                     const row = yield repo.findOne({ where: { id }, lock: { mode: "pessimistic_write" } });
                     if (!row)
                         throw new api_error_1.ApiError(404, "Length class not found; no length classes were deleted");
+                    const used = yield (0, product_class_usage_service_1.countProductsUsingClass)("length", [row.lengthTitle, row.lengthUnit], manager);
+                    if (used)
+                        throw new api_error_1.ApiError(409, `${(0, product_class_usage_service_1.classUsageMessage)(row.lengthTitle, used)}. No length classes were deleted.`);
                 }
                 yield repo.delete(ids);
             }));
@@ -129,6 +133,12 @@ class LengthClassService {
     remove(id) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
+                const existing = yield this.db.getRepository(length_class_entity_1.LengthClass).findOneBy({ id });
+                if (existing) {
+                    const used = yield (0, product_class_usage_service_1.countProductsUsingClass)("length", [existing.lengthTitle, existing.lengthUnit]);
+                    if (used)
+                        throw new api_error_1.ApiError(409, (0, product_class_usage_service_1.classUsageMessage)(existing.lengthTitle, used));
+                }
                 const result = yield this.db.getRepository(length_class_entity_1.LengthClass).delete(id);
                 if (!result.affected)
                     throw new api_error_1.ApiError(404, "Length class not found");

@@ -16,12 +16,11 @@ class GeoZoneLocationDto {
 }
 exports.GeoZoneLocationDto = GeoZoneLocationDto;
 __decorate([
-    (0, class_validator_1.IsUUID)(),
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsUUID)("all", { message: "Please select a country for every row" }),
     __metadata("design:type", String)
 ], GeoZoneLocationDto.prototype, "countryId", void 0);
 __decorate([
-    (0, class_validator_1.IsUUID)(),
+    (0, class_validator_1.IsUUID)("all", { message: "Please select a valid zone" }),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], GeoZoneLocationDto.prototype, "zoneId", void 0);
@@ -30,13 +29,14 @@ class CreateGeoZoneDto {
 exports.CreateGeoZoneDto = CreateGeoZoneDto;
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsNotEmpty)({ message: "Geo Zone name is required" }),
     (0, class_validator_1.MaxLength)(255),
     __metadata("design:type", String)
 ], CreateGeoZoneDto.prototype, "name", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsNotEmpty)({ message: "Description is required" }),
+    (0, class_validator_1.MaxLength)(5000),
     __metadata("design:type", String)
 ], CreateGeoZoneDto.prototype, "description", void 0);
 __decorate([
@@ -50,14 +50,15 @@ class UpdateGeoZoneDto {
 exports.UpdateGeoZoneDto = UpdateGeoZoneDto;
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsNotEmpty)({ message: "Geo Zone name is required" }),
     (0, class_validator_1.MaxLength)(255),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], UpdateGeoZoneDto.prototype, "name", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsNotEmpty)({ message: "Description is required" }),
+    (0, class_validator_1.MaxLength)(5000),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], UpdateGeoZoneDto.prototype, "description", void 0);

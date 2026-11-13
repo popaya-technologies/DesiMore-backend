@@ -5,6 +5,7 @@ const zone_controller_1 = require("../controllers/zone.controller");
 const auth_middleware_1 = require("../middlewares/auth.middleware");
 const rbac_middleware_1 = require("../middlewares/rbac.middleware");
 const router = (0, express_1.Router)();
+router.get("/public/enabled", zone_controller_1.ZoneController.getEnabledZones);
 router.post("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("zone", "create"), zone_controller_1.ZoneController.createZone);
 router.get("/", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("zone", "read"), zone_controller_1.ZoneController.getZones);
 router.get("/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("zone", "read"), zone_controller_1.ZoneController.getZoneById);

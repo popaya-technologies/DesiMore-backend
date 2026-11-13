@@ -34,6 +34,7 @@ const recipe_dto_1 = require("../dto/recipe.dto");
 const recipe_entity_1 = require("../entities/recipe.entity");
 const recipe_category_entity_1 = require("../entities/recipe-category.entity");
 const seo_url_entity_1 = require("../entities/seo-url.entity");
+const system_language_service_1 = require("./system-language.service");
 const api_error_1 = require("../utils/api-error");
 const cleanText = (value, label) => {
     const result = value.trim();
@@ -133,22 +134,30 @@ class RecipeService {
                     }
                     const saved = yield repo.save(recipe);
                     const seoRepo = manager.getRepository(seo_url_entity_1.SeoUrl);
+                    const defaultLanguage = yield (0, system_language_service_1.getDefaultSystemLanguage)(manager);
                     const query = `recipe_id=${saved.id}`;
                     const mapping = yield seoRepo.findOne({
-                        where: { query, store: "Default", language: "English" },
+                        where: { query, store: "Default", languageId: defaultLanguage.id },
                     });
                     const conflict = yield seoRepo.findOne({
-                        where: { keyword: saved.seoKeyword, store: "Default", language: "English" },
+                        where: { keyword: saved.seoKeyword, store: "Default", languageId: defaultLanguage.id },
                     });
                     if (conflict && conflict.id !== (mapping === null || mapping === void 0 ? void 0 : mapping.id))
                         throw new api_error_1.ApiError(409, "This SEO keyword is already used by another resource");
                     yield seoRepo.save(mapping
-                        ? Object.assign(mapping, { keyword: saved.seoKeyword })
+                        ? Object.assign(mapping, {
+                            keyword: saved.seoKeyword,
+                            language: defaultLanguage.languageName,
+                            languageId: defaultLanguage.id,
+                            systemLanguage: defaultLanguage,
+                        })
                         : seoRepo.create({
                             query,
                             keyword: saved.seoKeyword,
                             store: "Default",
-                            language: "English",
+                            language: defaultLanguage.languageName,
+                            languageId: defaultLanguage.id,
+                            systemLanguage: defaultLanguage,
                         }));
                     return saved;
                 }));
@@ -167,10 +176,11 @@ class RecipeService {
                 const recipe = yield repo.findOne({ where: { id }, lock: { mode: "pessimistic_write" } });
                 if (!recipe)
                     throw new api_error_1.ApiError(404, "Recipe not found");
+                const defaultLanguage = yield (0, system_language_service_1.getDefaultSystemLanguage)(manager);
                 yield manager.getRepository(seo_url_entity_1.SeoUrl).delete({
                     query: `recipe_id=${id}`,
                     store: "Default",
-                    language: "English",
+                    languageId: defaultLanguage.id,
                 });
                 yield repo.remove(recipe);
                 return { message: "Recipe deleted successfully" };

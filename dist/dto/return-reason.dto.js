@@ -16,7 +16,7 @@ class CreateReturnReasonDto {
 exports.CreateReturnReasonDto = CreateReturnReasonDto;
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsNotEmpty)({ message: "Name is required" }),
     (0, class_validator_1.MaxLength)(255),
     __metadata("design:type", String)
 ], CreateReturnReasonDto.prototype, "name", void 0);
@@ -25,7 +25,7 @@ class UpdateReturnReasonDto {
 exports.UpdateReturnReasonDto = UpdateReturnReasonDto;
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsNotEmpty)({ message: "Name is required" }),
     (0, class_validator_1.MaxLength)(255),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)

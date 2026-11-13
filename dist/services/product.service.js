@@ -33,6 +33,9 @@ const data_source_1 = require("../data-source");
 const product_entity_1 = require("../entities/product.entity");
 const category_entity_1 = require("../entities/category.entity");
 const brand_entity_1 = require("../entities/brand.entity");
+const tax_class_entity_1 = require("../entities/tax-class.entity");
+const length_class_entity_1 = require("../entities/length-class.entity");
+const weight_class_entity_1 = require("../entities/weight-class.entity");
 const download_entity_1 = require("../entities/download.entity");
 const attribute_entity_1 = require("../entities/attribute.entity");
 const product_attribute_entity_1 = require("../entities/product-attribute.entity");
@@ -43,6 +46,8 @@ const product_image_entity_1 = require("../entities/product-image.entity");
 const seo_url_entity_1 = require("../entities/seo-url.entity");
 const product_dto_1 = require("../dto/product.dto");
 const api_error_1 = require("../utils/api-error");
+const stock_status_entity_1 = require("../entities/stock-status.entity");
+const system_language_service_1 = require("./system-language.service");
 exports.PRODUCT_RELATIONS = [
     "categories",
     "brand",
@@ -55,6 +60,7 @@ exports.PRODUCT_RELATIONS = [
     "imageDetails",
     "downloads",
     "relatedProducts",
+    "stockStatus",
 ];
 const scalars = [
     "title",
@@ -82,6 +88,7 @@ const scalars = [
     "minimumQuantity",
     "subtractStock",
     "outOfStockStatus",
+    "stockStatusId",
     "requiresShipping",
     "dateAvailable",
     "lengthClass",
@@ -112,32 +119,40 @@ const seoKeywordFromTitle = (title) => title
 exports.seoKeywordFromTitle = seoKeywordFromTitle;
 const syncProductSeoUrl = (manager, product, requestedKeyword) => __awaiter(void 0, void 0, void 0, function* () {
     const repo = manager.getRepository(seo_url_entity_1.SeoUrl);
+    const defaultLanguage = yield (0, system_language_service_1.getDefaultSystemLanguage)(manager);
     const query = productSeoQuery(product.id);
     const existing = yield repo.findOne({
-        where: { query, store: DEFAULT_SEO_STORE, language: DEFAULT_SEO_LANGUAGE },
+        where: { query, store: DEFAULT_SEO_STORE, languageId: defaultLanguage.id },
     });
     let keyword = (requestedKeyword === null || requestedKeyword === void 0 ? void 0 : requestedKeyword.trim()) || (existing === null || existing === void 0 ? void 0 : existing.keyword);
     if (!keyword) {
         const base = (0, exports.seoKeywordFromTitle)(product.title);
         keyword = base;
         for (let suffix = 2; yield repo.findOne({
-            where: { keyword, store: DEFAULT_SEO_STORE, language: DEFAULT_SEO_LANGUAGE },
+            where: { keyword, store: DEFAULT_SEO_STORE, languageId: defaultLanguage.id },
         }); suffix++)
             keyword = `${base.slice(0, 490)}-${suffix}`;
     }
     const conflict = yield repo.findOne({
-        where: { keyword, store: DEFAULT_SEO_STORE, language: DEFAULT_SEO_LANGUAGE },
+        where: { keyword, store: DEFAULT_SEO_STORE, languageId: defaultLanguage.id },
     });
     if (conflict && conflict.id !== (existing === null || existing === void 0 ? void 0 : existing.id))
         throw new api_error_1.ApiError(409, "This SEO keyword already exists for the default English store");
     try {
         return yield repo.save(existing
-            ? Object.assign(existing, { keyword })
+            ? Object.assign(existing, {
+                keyword,
+                language: defaultLanguage.languageName,
+                languageId: defaultLanguage.id,
+                systemLanguage: defaultLanguage,
+            })
             : repo.create({
                 query,
                 keyword,
                 store: DEFAULT_SEO_STORE,
-                language: DEFAULT_SEO_LANGUAGE,
+                language: defaultLanguage.languageName,
+                languageId: defaultLanguage.id,
+                systemLanguage: defaultLanguage,
             }));
     }
     catch (error) {
@@ -148,11 +163,12 @@ const syncProductSeoUrl = (manager, product, requestedKeyword) => __awaiter(void
 });
 const getProductSeoKeyword = (productId) => __awaiter(void 0, void 0, void 0, function* () {
     var _a, _b;
+    const defaultLanguage = yield (0, system_language_service_1.getDefaultSystemLanguage)();
     return (_b = (_a = (yield data_source_1.AppDataSource.getRepository(seo_url_entity_1.SeoUrl).findOne({
         where: {
             query: productSeoQuery(productId),
             store: DEFAULT_SEO_STORE,
-            language: DEFAULT_SEO_LANGUAGE,
+            languageId: defaultLanguage.id,
         },
     }))) === null || _a === void 0 ? void 0 : _a.keyword) !== null && _b !== void 0 ? _b : null;
 });
@@ -160,12 +176,13 @@ exports.getProductSeoKeyword = getProductSeoKeyword;
 const attachProductSeoKeywords = (products) => __awaiter(void 0, void 0, void 0, function* () {
     if (!products.length)
         return [];
+    const defaultLanguage = yield (0, system_language_service_1.getDefaultSystemLanguage)();
     const prefix = "product_id=";
     const rows = yield data_source_1.AppDataSource.getRepository(seo_url_entity_1.SeoUrl).find({
         where: {
             query: (0, typeorm_1.In)(products.map((product) => productSeoQuery(product.id))),
             store: DEFAULT_SEO_STORE,
-            language: DEFAULT_SEO_LANGUAGE,
+            languageId: defaultLanguage.id,
         },
     });
     const byProductId = new Map(rows.map((row) => [row.query.slice(prefix.length), row.keyword]));
@@ -181,10 +198,11 @@ const deleteProductWithSeo = (id) => __awaiter(void 0, void 0, void 0, function*
         const product = yield productRepo.findOne({ where: { id } });
         if (!product)
             throw new api_error_1.ApiError(404, "Product not found");
+        const defaultLanguage = yield (0, system_language_service_1.getDefaultSystemLanguage)(manager);
         yield manager.getRepository(seo_url_entity_1.SeoUrl).delete({
             query: productSeoQuery(id),
             store: DEFAULT_SEO_STORE,
-            language: DEFAULT_SEO_LANGUAGE,
+            languageId: defaultLanguage.id,
         });
         yield productRepo.remove(product);
     }));
@@ -376,6 +394,22 @@ const productResponse = (product, admin = false) => {
     return result;
 };
 exports.productResponse = productResponse;
+// A product's weight / length class must exist in Localisation (matched by title or
+// unit, ignoring case); it is stored as the class's lowercase title, e.g. "pound".
+const resolveMeasureClass = (manager, kind, value) => __awaiter(void 0, void 0, void 0, function* () {
+    const name = value.trim().toLowerCase();
+    const [entity, alias, title, unit] = kind === "weight"
+        ? [weight_class_entity_1.WeightClass, "weightClass", "weightTitle", "weightUnit"]
+        : [length_class_entity_1.LengthClass, "lengthClass", "lengthTitle", "lengthUnit"];
+    const match = yield manager
+        .getRepository(entity)
+        .createQueryBuilder(alias)
+        .where(`(LOWER(${alias}.${title}) = :name OR LOWER(${alias}.${unit}) = :name)`, { name })
+        .getOne();
+    if (!match)
+        throw new api_error_1.ApiError(400, `Unknown ${kind} class "${value}". Add it in Localisation first.`);
+    return match[title].trim().toLowerCase();
+});
 const resolveIds = (manager, entity, ids, label) => __awaiter(void 0, void 0, void 0, function* () {
     if (!ids.length)
         return [];
@@ -407,7 +441,7 @@ const saveProduct = (input_1, id_1, ...args_1) => __awaiter(void 0, [input_1, id
     if (!id && (dto.title === undefined || dto.price === undefined))
         throw new api_error_1.ApiError(400, "title and price are required");
     return data_source_1.AppDataSource.transaction((manager) => __awaiter(void 0, void 0, void 0, function* () {
-        var _a, _b, _c, _d;
+        var _a, _b, _c, _d, _e, _f, _g;
         const repo = manager.getRepository(product_entity_1.Product);
         let product = id
             ? yield repo.findOne({
@@ -420,6 +454,30 @@ const saveProduct = (input_1, id_1, ...args_1) => __awaiter(void 0, [input_1, id
         for (const key of scalars)
             if (dto[key] !== undefined)
                 product[key] = dto[key];
+        for (const [key, kind] of [
+            ["weightClass", "weight"],
+            ["wholesaleWeightClass", "weight"],
+            ["lengthClass", "length"],
+            ["wholesaleLengthClass", "length"],
+        ])
+            if (dto[key] !== undefined)
+                product[key] = yield resolveMeasureClass(manager, kind, dto[key]);
+        if (dto.stockStatusId !== undefined) {
+            product.stockStatus = (yield resolveIds(manager, stock_status_entity_1.StockStatus, [dto.stockStatusId], "stockStatusId"))[0];
+            product.stockStatusId = product.stockStatus.id;
+        }
+        else if (!id && !product.stockStatusId) {
+            const statusRepository = manager.getRepository(stock_status_entity_1.StockStatus);
+            product.stockStatus =
+                (_a = (yield statusRepository
+                    .createQueryBuilder("status")
+                    .where("LOWER(status.name) = LOWER(:name)", { name: "Out Of Stock" })
+                    .getOne())) !== null && _a !== void 0 ? _a : (yield statusRepository.findOne({ order: { name: "ASC" } }));
+            if (!product.stockStatus) {
+                throw new api_error_1.ApiError(400, "Create a stock status before creating products");
+            }
+            product.stockStatusId = product.stockStatus.id;
+        }
         if (dto.summary !== undefined)
             product.summary = (0, exports.cleanRichText)(dto.summary);
         if (dto.unitsPerCarton !== undefined)
@@ -437,6 +495,13 @@ const saveProduct = (input_1, id_1, ...args_1) => __awaiter(void 0, [input_1, id
                 dto.brandId === null
                     ? null
                     : (yield resolveIds(manager, brand_entity_1.Brand, [dto.brandId], "brandId"))[0];
+        if (dto.taxClassId !== undefined) {
+            product.taxClass =
+                dto.taxClassId === null
+                    ? null
+                    : (yield resolveIds(manager, tax_class_entity_1.TaxClass, [dto.taxClassId], "taxClassId"))[0];
+            product.taxClassId = (_c = (_b = product.taxClass) === null || _b === void 0 ? void 0 : _b.id) !== null && _c !== void 0 ? _c : null;
+        }
         if (dto.relatedProductIds !== undefined) {
             if (id && dto.relatedProductIds.includes(id))
                 throw new api_error_1.ApiError(400, "Product cannot be related to itself");
@@ -446,7 +511,7 @@ const saveProduct = (input_1, id_1, ...args_1) => __awaiter(void 0, [input_1, id
             product.downloads = yield resolveIds(manager, download_entity_1.Download, dto.downloadIds, "downloadIds");
         if (dto.package !== undefined) {
             for (const key of ["length", "width", "height"])
-                product[key] = (_b = (_a = dto.package) === null || _a === void 0 ? void 0 : _a[key]) !== null && _b !== void 0 ? _b : null;
+                product[key] = (_e = (_d = dto.package) === null || _d === void 0 ? void 0 : _d[key]) !== null && _e !== void 0 ? _e : null;
         }
         else if (["length", "width", "height"].some((key) => dto[key] !== undefined)) {
             product.package = {
@@ -504,7 +569,7 @@ const saveProduct = (input_1, id_1, ...args_1) => __awaiter(void 0, [input_1, id
                 };
             });
         }
-        const images = (_c = dto.imageDetails) !== null && _c !== void 0 ? _c : (_d = dto.images) === null || _d === void 0 ? void 0 : _d.map((url, i) => ({ url, isMain: i === 0, sortOrder: i }));
+        const images = (_f = dto.imageDetails) !== null && _f !== void 0 ? _f : (_g = dto.images) === null || _g === void 0 ? void 0 : _g.map((url, i) => ({ url, isMain: i === 0, sortOrder: i }));
         if (images !== undefined) {
             if (new Set(images.map((i) => i.url)).size !== images.length)
                 throw new api_error_1.ApiError(400, "Duplicate image URLs");

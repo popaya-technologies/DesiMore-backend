@@ -37,9 +37,9 @@ exports.clearTokens = exports.setTokens = void 0;
 const jwt_1 = require("./jwt");
 const dotenv = __importStar(require("dotenv"));
 dotenv.config();
-const setTokens = (res, userId, email) => {
-    const accessToken = (0, jwt_1.generateAccessToken)({ userId, email });
-    const refreshToken = (0, jwt_1.generateRefreshToken)({ userId, email });
+const setTokens = (res, userId, email, accountType = "user") => {
+    const accessToken = (0, jwt_1.generateAccessToken)({ userId, email, accountType });
+    const refreshToken = (0, jwt_1.generateRefreshToken)({ userId, email, accountType });
     // Set cookies
     res.cookie("accessToken", accessToken, {
         httpOnly: true,

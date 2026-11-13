@@ -10,19 +10,45 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ReturnActionController = void 0;
+const class_transformer_1 = require("class-transformer");
+const class_validator_1 = require("class-validator");
 const data_source_1 = require("../data-source");
+const return_usage_service_1 = require("../services/return-usage.service");
 const return_action_entity_1 = require("../entities/return-action.entity");
+const return_action_dto_1 = require("../dto/return-action.dto");
+const validationErrors = (dto) => __awaiter(void 0, void 0, void 0, function* () {
+    const errors = yield (0, class_validator_1.validate)(dto, {
+        whitelist: true,
+        forbidNonWhitelisted: true,
+    });
+    return errors.flatMap((error) => { var _a; return Object.values((_a = error.constraints) !== null && _a !== void 0 ? _a : {}); });
+});
+// Names are unique regardless of upper/lower case.
+const isNameTaken = (name, excludeId) => __awaiter(void 0, void 0, void 0, function* () {
+    const query = data_source_1.AppDataSource.getRepository(return_action_entity_1.ReturnAction)
+        .createQueryBuilder("returnAction")
+        .select(["returnAction.id"])
+        .where("LOWER(returnAction.name) = LOWER(:name)", { name });
+    if (excludeId)
+        query.andWhere("returnAction.id != :excludeId", { excludeId });
+    return Boolean(yield query.getOne());
+});
 class ReturnActionController {
     static createReturnAction(req, res) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const repository = data_source_1.AppDataSource.getRepository(return_action_entity_1.ReturnAction);
-                const dto = req.body;
+                const dto = (0, class_transformer_1.plainToInstance)(return_action_dto_1.CreateReturnActionDto, req.body);
+                const errors = yield validationErrors(dto);
+                if (errors.length) {
+                    res.status(400).json({
+                        message: errors[0],
+                        errors,
+                    });
+                    return;
+                }
                 const name = dto.name.trim();
-                const existing = yield repository.findOne({
-                    where: { name },
-                });
-                if (existing) {
+                if (yield isNameTaken(name)) {
                     res.status(409).json({
                         message: "Return action already exists",
                     });
@@ -50,11 +76,15 @@ class ReturnActionController {
                     ? req.query.search.trim()
                     : "";
                 const page = Math.max(Number(req.query.page) || 1, 1);
-                const limit = Math.max(Number(req.query.limit) || 10, 1);
+                const limit = Math.min(Math.max(Number(req.query.limit) || 10, 1), 100);
                 const skip = (page - 1) * limit;
+                // Column sorting from the admin list; default is name A-Z.
+                const sortOrder = String(req.query.sortOrder).toUpperCase() === "DESC"
+                    ? "DESC"
+                    : "ASC";
                 const queryBuilder = repository
                     .createQueryBuilder("returnAction")
-                    .orderBy("returnAction.name", "ASC")
+                    .orderBy("returnAction.name", sortOrder)
                     .addOrderBy("returnAction.createdAt", "DESC")
                     .skip(skip)
                     .take(limit);
@@ -111,7 +141,15 @@ class ReturnActionController {
             try {
                 const repository = data_source_1.AppDataSource.getRepository(return_action_entity_1.ReturnAction);
                 const { id } = req.params;
-                const dto = req.body;
+                const dto = (0, class_transformer_1.plainToInstance)(return_action_dto_1.UpdateReturnActionDto, req.body);
+                const errors = yield validationErrors(dto);
+                if (errors.length) {
+                    res.status(400).json({
+                        message: errors[0],
+                        errors,
+                    });
+                    return;
+                }
                 const returnAction = yield repository.findOne({
                     where: { id },
                 });
@@ -123,11 +161,7 @@ class ReturnActionController {
                 }
                 if (dto.name !== undefined) {
                     const name = dto.name.trim();
-                    const existing = yield repository.findOne({
-                        where: { name },
-                    });
-                    if (existing &&
-                        existing.id !== returnAction.id) {
+                    if (yield isNameTaken(name, returnAction.id)) {
                         res.status(409).json({
                             message: "Return action already exists",
                         });
@@ -157,6 +191,13 @@ class ReturnActionController {
                 if (!returnAction) {
                     res.status(404).json({
                         message: "Return action not found",
+                    });
+                    return;
+                }
+                const used = yield (0, return_usage_service_1.countReturnsUsing)("returnAction", returnAction.name);
+                if (used) {
+                    res.status(409).json({
+                        message: (0, return_usage_service_1.returnUsageMessage)(returnAction.name, used),
                     });
                     return;
                 }

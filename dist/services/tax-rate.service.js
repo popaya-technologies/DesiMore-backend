@@ -94,6 +94,32 @@ function taxRateQuery(query) {
     qb.orderBy("taxRate." + sortBy, direction).addOrderBy("taxRate.id", "ASC");
     return { qb, page, limit };
 }
+// Tax class rules reference rates with RESTRICT. Returns a message naming the rates in
+// use and their tax classes (like OpenCart's delete warning), or null when none are used.
+function inUseMessage(manager, ids) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a;
+        const rules = yield manager
+            .getRepository(tax_class_entity_1.TaxClassRule)
+            .createQueryBuilder("rule")
+            .innerJoinAndSelect("rule.taxRate", "taxRate")
+            .innerJoinAndSelect("rule.taxClass", "taxClass")
+            .where("rule.taxRateId IN (:...ids)", { ids })
+            .getMany();
+        if (!rules.length)
+            return null;
+        const classesByRate = new Map();
+        for (const rule of rules) {
+            const classes = (_a = classesByRate.get(rule.taxRate.name)) !== null && _a !== void 0 ? _a : new Set();
+            classes.add(rule.taxClass.title);
+            classesByRate.set(rule.taxRate.name, classes);
+        }
+        const details = [...classesByRate]
+            .map(([rate, classes]) => `${rate} (tax class: ${[...classes].join(", ")})`)
+            .join("; ");
+        return `Cannot delete tax rates that are used by tax classes: ${details}. Remove them from those tax classes first.`;
+    });
+}
 class TaxRateService {
     removeMany(input) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -109,8 +135,11 @@ class TaxRateService {
                 for (const id of ids) {
                     const row = yield repo.findOne({ where: { id }, lock: { mode: "pessimistic_write" } });
                     if (!row)
-                        throw new api_error_1.ApiError(404, "Tax rate not found; no statuses were deleted");
+                        throw new api_error_1.ApiError(404, "Tax rate not found; no tax rates were deleted");
                 }
+                const inUse = yield inUseMessage(manager, ids);
+                if (inUse)
+                    throw new api_error_1.ApiError(409, `${inUse} No tax rates were deleted.`);
                 yield repo.delete(ids);
             }));
             return { message: "Tax rates deleted successfully", deletedCount: ids.length };
@@ -162,6 +191,9 @@ class TaxRateService {
     remove(id) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
+                const inUse = yield inUseMessage(this.db.manager, [id]);
+                if (inUse)
+                    throw new api_error_1.ApiError(409, inUse);
                 const result = yield this.db.getRepository(tax_class_entity_1.TaxRate).delete(id);
                 if (!result.affected)
                     throw new api_error_1.ApiError(404, "Tax rate not found");

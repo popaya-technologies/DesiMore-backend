@@ -61,6 +61,7 @@ const return_reason_routes_1 = __importDefault(require("./routes/return-reason.r
 const country_routes_1 = __importDefault(require("./routes/country.routes"));
 const zone_routes_1 = __importDefault(require("./routes/zone.routes"));
 const shipping_routes_1 = __importDefault(require("./routes/shipping.routes"));
+const tax_routes_1 = __importDefault(require("./routes/tax.routes"));
 const newsletter_routes_1 = __importDefault(require("./routes/newsletter.routes"));
 const geo_zone_routes_1 = __importDefault(require("./routes/geo_zone.routes"));
 const auth_middleware_1 = require("./middlewares/auth.middleware");
@@ -76,8 +77,24 @@ const app = (0, express_1.default)();
 app.use(express_1.default.json({ limit: "2mb" }));
 app.use((0, cookie_parser_1.default)());
 app.use((0, cors_1.default)({
-    origin: "*",
-    credentials: false,
+    origin: (origin, callback) => {
+        var _a;
+        const configuredOrigins = ((_a = process.env.CORS_ORIGINS) !== null && _a !== void 0 ? _a : "")
+            .split(",")
+            .map((value) => value.trim())
+            .filter(Boolean);
+        const allowedOrigins = new Set([
+            "http://localhost:3000",
+            "http://localhost:3001",
+            ...configuredOrigins,
+        ]);
+        if (!origin || allowedOrigins.has(origin)) {
+            callback(null, true);
+            return;
+        }
+        callback(new Error("Origin is not allowed by CORS"));
+    },
+    credentials: true,
 }));
 // Ensure uploads directory exists and serve it publicly
 (0, upload_config_1.ensureUploadDir)();
@@ -152,6 +169,7 @@ app.use("/api/countries", country_routes_1.default);
 app.use("/api/zones", zone_routes_1.default);
 app.use("/api/geo-zones", geo_zone_routes_1.default);
 app.use("/api/shipping", shipping_routes_1.default);
+app.use("/api/tax", tax_routes_1.default);
 app.use("/api/newsletter", newsletter_routes_1.default);
 // Example protected route with RBAC
 app.get("/api/admin/dashboard", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("dashboard", "read"), (req, res) => {

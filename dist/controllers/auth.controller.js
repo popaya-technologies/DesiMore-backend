@@ -23,6 +23,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthController = void 0;
 const data_source_1 = require("../data-source");
 const user_entity_1 = require("../entities/user.entity");
+const system_user_entity_1 = require("../entities/system-user.entity");
 const auth_dto_1 = require("../dto/auth.dto");
 const jwt_1 = require("../utils/jwt");
 const email_1 = require("../utils/email");
@@ -31,6 +32,7 @@ const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
 const rbac_service_1 = require("../services/rbac.service");
 const userRepository = data_source_1.AppDataSource.getRepository(user_entity_1.User);
+const systemUserRepository = data_source_1.AppDataSource.getRepository(system_user_entity_1.SystemUser);
 const profileSelect = [
     "id",
     "firstname",
@@ -121,11 +123,15 @@ exports.AuthController = {
         }
     }),
     login: (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+        var _a, _b, _c, _d, _e, _f, _g, _h;
         // ← ADD THIS
         try {
-            const { email, password } = req.body;
+            const identifier = String((_b = (_a = req.body.email) !== null && _a !== void 0 ? _a : req.body.username) !== null && _b !== void 0 ? _b : "")
+                .trim()
+                .toLowerCase();
+            const password = String((_c = req.body.password) !== null && _c !== void 0 ? _c : "");
             const user = yield userRepository.findOne({
-                where: { email },
+                where: [{ email: identifier }, { username: identifier }],
                 select: [
                     "id",
                     "firstname",
@@ -139,27 +145,53 @@ exports.AuthController = {
                     "userRole",
                 ],
             });
-            if (!user) {
+            if (user && (yield user.comparePassword(password))) {
+                const { refreshToken } = (0, helper_1.setTokens)(res, user.id, user.email, "user");
+                yield userRepository.update(user.id, { refreshToken });
+                res.status(200).json({
+                    id: user.id,
+                    firstname: user.firstname,
+                    lastname: user.lastname,
+                    username: user.username,
+                    email: user.email,
+                    phone: user.phone,
+                    avatar: user.avatar,
+                    userRole: user.userRole,
+                    accountType: "user",
+                });
+                return;
+            }
+            const systemUser = yield systemUserRepository
+                .createQueryBuilder("systemUser")
+                .addSelect("systemUser.password")
+                .leftJoinAndSelect("systemUser.userGroup", "userGroup")
+                .where("LOWER(systemUser.email) = :identifier", { identifier })
+                .orWhere("LOWER(systemUser.username) = :identifier", { identifier })
+                .getOne();
+            if (!systemUser || !(yield systemUser.comparePassword(password))) {
                 res.status(401).json({ message: "Invalid credentials" });
                 return;
             }
-            const isMatch = yield user.comparePassword(password);
-            if (!isMatch) {
-                res.status(401).json({ message: "Invalid credentials" });
+            if (!systemUser.isActive) {
+                res.status(403).json({ message: "This system user account is disabled" });
                 return;
             }
-            const { accessToken, refreshToken } = (0, helper_1.setTokens)(res, user.id, user.email);
-            user.refreshToken = refreshToken;
-            yield userRepository.save(user);
+            (0, helper_1.setTokens)(res, systemUser.id, systemUser.email, "system-user");
             res.status(200).json({
-                id: user.id,
-                firstname: user.firstname,
-                lastname: user.lastname,
-                username: user.username,
-                email: user.email,
-                phone: user.phone,
-                avatar: user.avatar,
-                userRole: user.userRole,
+                id: systemUser.id,
+                firstname: systemUser.firstName,
+                lastname: systemUser.lastName,
+                username: systemUser.username,
+                email: systemUser.email,
+                phone: "",
+                avatar: (_d = systemUser.image) !== null && _d !== void 0 ? _d : "",
+                userRole: "system-user",
+                accountType: "system-user",
+                userGroup: systemUser.userGroup
+                    ? { id: systemUser.userGroup.id, name: systemUser.userGroup.name }
+                    : null,
+                accessPermissions: (_f = (_e = systemUser.userGroup) === null || _e === void 0 ? void 0 : _e.accessPermissions) !== null && _f !== void 0 ? _f : [],
+                modifyPermissions: (_h = (_g = systemUser.userGroup) === null || _g === void 0 ? void 0 : _g.modifyPermissions) !== null && _h !== void 0 ? _h : [],
             });
         }
         catch (error) {
@@ -172,12 +204,11 @@ exports.AuthController = {
             const { refreshToken } = req.cookies;
             if (refreshToken) {
                 const decoded = (0, jwt_1.verifyRefreshToken)(refreshToken);
-                const user = yield userRepository.findOne({
-                    where: { id: decoded.userId },
-                });
+                const user = decoded.accountType === "system-user"
+                    ? null
+                    : yield userRepository.findOne({ where: { id: decoded.userId } });
                 if (user) {
-                    user.refreshToken = null;
-                    yield userRepository.save(user);
+                    yield userRepository.update(user.id, { refreshToken: null });
                 }
             }
             (0, helper_1.clearTokens)(res);
@@ -203,8 +234,21 @@ exports.AuthController = {
                 return;
             }
             const decoded = (0, jwt_1.verifyRefreshToken)(refreshToken);
+            if (decoded.accountType === "system-user") {
+                const systemUser = yield systemUserRepository.findOne({
+                    where: { id: decoded.userId, isActive: true },
+                });
+                if (!systemUser) {
+                    res.status(400).json({ message: "Invalid refresh token" });
+                    return;
+                }
+                const tokens = (0, helper_1.setTokens)(res, systemUser.id, systemUser.email, "system-user");
+                res.status(200).json(tokens);
+                return;
+            }
             const user = yield userRepository.findOne({
                 where: { id: decoded.userId },
+                select: ["id", "email", "refreshToken"],
             });
             if (!user || user.refreshToken !== refreshToken) {
                 res.status(400).json({
@@ -212,9 +256,8 @@ exports.AuthController = {
                 });
                 return;
             }
-            const { accessToken, refreshToken: newRefreshToken } = (0, helper_1.setTokens)(res, user.id, user.email);
-            user.refreshToken = newRefreshToken;
-            yield userRepository.save(user);
+            const { accessToken, refreshToken: newRefreshToken } = (0, helper_1.setTokens)(res, user.id, user.email, "user");
+            yield userRepository.update(user.id, { refreshToken: newRefreshToken });
             res.status(200).json({
                 accessToken,
                 refreshToken: newRefreshToken,
@@ -340,10 +383,36 @@ exports.AuthController = {
         }
     }),
     getMe: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-        var _a;
+        var _a, _b, _c, _d;
         try {
             if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.id)) {
                 res.status(401).json({ message: "Unauthorized" });
+                return;
+            }
+            if (req.user.accountType === "system-user") {
+                const systemUser = yield systemUserRepository.findOne({
+                    where: { id: req.user.id, isActive: true },
+                    relations: { userGroup: true },
+                });
+                if (!systemUser) {
+                    res.status(404).json({ message: "System user not found" });
+                    return;
+                }
+                res.status(200).json({
+                    user: {
+                        id: systemUser.id,
+                        firstname: systemUser.firstName,
+                        lastname: systemUser.lastName,
+                        username: systemUser.username,
+                        email: systemUser.email,
+                        avatar: (_b = systemUser.image) !== null && _b !== void 0 ? _b : "",
+                        userRole: "system-user",
+                        accountType: "system-user",
+                        userGroup: { id: systemUser.userGroup.id, name: systemUser.userGroup.name },
+                        accessPermissions: (_c = systemUser.userGroup.accessPermissions) !== null && _c !== void 0 ? _c : [],
+                        modifyPermissions: (_d = systemUser.userGroup.modifyPermissions) !== null && _d !== void 0 ? _d : [],
+                    },
+                });
                 return;
             }
             const user = yield userRepository.findOne({
@@ -357,7 +426,7 @@ exports.AuthController = {
             const userRoles = yield rbac_service_1.RBACService.getUserRoles(user.id);
             const permissions = yield rbac_service_1.RBACService.getUserPermissions(user.id);
             res.status(200).json({
-                user: Object.assign(Object.assign({}, user), { roles: userRoles.map((userRole) => userRole.role), permissions }),
+                user: Object.assign(Object.assign({}, user), { accountType: "user", roles: userRoles.map((userRole) => userRole.role), permissions }),
             });
         }
         catch (error) {
@@ -370,6 +439,12 @@ exports.AuthController = {
         try {
             if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.id)) {
                 res.status(401).json({ message: "Unauthorized" });
+                return;
+            }
+            if (req.user.accountType === "system-user") {
+                res.status(403).json({
+                    message: "System user profiles must be updated from System Users.",
+                });
                 return;
             }
             const updateDto = (0, class_transformer_1.plainToInstance)(auth_dto_1.UpdateProfileDto, req.body);

@@ -48,6 +48,8 @@ const data_source_1 = require("../data-source");
 const language_translation_entity_1 = require("../entities/language-translation.entity");
 const language_editor_service_1 = require("../services/language-editor.service");
 const api_error_1 = require("../utils/api-error");
+const system_language_entity_1 = require("../entities/system-language.entity");
+const typeorm_1 = require("typeorm");
 const repo = () => data_source_1.AppDataSource.getRepository(language_translation_entity_1.LanguageTranslation);
 const handle = (action) => (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
@@ -58,6 +60,69 @@ const handle = (action) => (req, res) => __awaiter(void 0, void 0, void 0, funct
     }
 });
 exports.LanguageEditorController = {
+    publicTranslations: handle((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+        var _a, _b, _c;
+        const allowedQuery = ["languageId", "store"];
+        if (Object.keys(req.query).some(key => !allowedQuery.includes(key))) {
+            throw new api_error_1.ApiError(400, "Unknown query parameter");
+        }
+        const languageId = String((_a = req.query.languageId) !== null && _a !== void 0 ? _a : "").trim();
+        const store = String((_b = req.query.store) !== null && _b !== void 0 ? _b : "Default").trim();
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(languageId)) {
+            throw new api_error_1.ApiError(400, "A valid languageId is required");
+        }
+        if (!store || store.length > 100 || /[\u0000-\u001f\u007f]/.test(store)) {
+            throw new api_error_1.ApiError(400, "Invalid store");
+        }
+        const languageRepo = data_source_1.AppDataSource.getRepository(system_language_entity_1.SystemLanguage);
+        const selectedLanguage = yield languageRepo.findOne({
+            where: { id: languageId, status: true },
+        });
+        if (!selectedLanguage)
+            throw new api_error_1.ApiError(404, "Enabled language not found");
+        const defaultLanguage = yield languageRepo.findOne({
+            where: { isDefault: true, status: true },
+        });
+        const languageIds = [...new Set([
+                defaultLanguage === null || defaultLanguage === void 0 ? void 0 : defaultLanguage.id,
+                selectedLanguage.id,
+            ].filter((id) => Boolean(id)))];
+        const rows = yield repo().find({
+            where: { store, languageId: (0, typeorm_1.In)(languageIds) },
+            order: { route: "ASC", key: "ASC" },
+        });
+        const translations = {};
+        const addRows = (id) => {
+            if (!id)
+                return;
+            for (const row of rows.filter(item => item.languageId === id)) {
+                const route = row.route.trim().replace(/^\.+|\.+$/g, "");
+                const key = row.key.trim().replace(/^\.+|\.+$/g, "");
+                if (route && key) {
+                    // Admins may enter either `title` or the fully-qualified
+                    // `about.title`. Avoid producing `about.about.title`.
+                    const fullKey = key === route || key.startsWith(`${route}.`)
+                        ? key
+                        : `${route}.${key}`;
+                    translations[fullKey] = row.value;
+                }
+            }
+        };
+        addRows(defaultLanguage === null || defaultLanguage === void 0 ? void 0 : defaultLanguage.id);
+        addRows(selectedLanguage.id);
+        res.set("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+        res.json({
+            language: {
+                id: selectedLanguage.id,
+                name: selectedLanguage.languageName,
+                code: selectedLanguage.code,
+                locale: selectedLanguage.locale,
+                isDefault: selectedLanguage.isDefault,
+            },
+            defaultLanguageId: (_c = defaultLanguage === null || defaultLanguage === void 0 ? void 0 : defaultLanguage.id) !== null && _c !== void 0 ? _c : null,
+            translations,
+        });
+    })),
     create: handle((req, res) => __awaiter(void 0, void 0, void 0, function* () {
         res.status(201).json(yield new language_editor_service_1.LanguageEditorService().save(req.body));
     })),
@@ -70,7 +135,10 @@ exports.LanguageEditorController = {
         res.json({ data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } });
     })),
     get: handle((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-        const row = yield repo().findOneBy({ id: String(req.params.id) });
+        const row = yield repo().findOne({
+            where: { id: String(req.params.id) },
+            relations: { systemLanguage: true },
+        });
         if (!row)
             throw new api_error_1.ApiError(404, "Translation not found");
         res.json(row);
@@ -85,13 +153,19 @@ exports.LanguageEditorController = {
         res.json(yield new language_editor_service_1.LanguageEditorService().deleteMany(req.body));
     })),
     options: handle((_req, res) => __awaiter(void 0, void 0, void 0, function* () {
+        var _a, _b;
         const [stores, languages] = yield Promise.all([
             repo().createQueryBuilder("t").select("t.store", "value").distinct(true).orderBy("t.store", "ASC").getRawMany(),
-            repo().createQueryBuilder("t").select("t.language", "value").distinct(true).orderBy("t.language", "ASC").getRawMany(),
+            data_source_1.AppDataSource.getRepository(system_language_entity_1.SystemLanguage).find({
+                order: { sortOrder: "ASC", languageName: "ASC" },
+            }),
         ]);
         res.json({ stores: [...new Set(["Default", ...stores.map(s => s.value)])],
-            languages: [...new Set(["English", ...languages.map(l => l.value)])],
-            defaults: { store: "Default", language: "English" } });
+            languages,
+            defaults: {
+                store: "Default",
+                languageId: (_b = (_a = languages.find(language => language.isDefault)) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : "",
+            } });
     })),
     export: handle((req, res) => __awaiter(void 0, void 0, void 0, function* () {
         var _a;

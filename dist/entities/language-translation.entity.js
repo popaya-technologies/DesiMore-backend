@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LanguageTranslation = void 0;
 const typeorm_1 = require("typeorm");
+const system_language_entity_1 = require("./system-language.entity");
 let LanguageTranslation = class LanguageTranslation {
 };
 exports.LanguageTranslation = LanguageTranslation;
@@ -26,6 +27,15 @@ __decorate([
     (0, typeorm_1.Column)({ type: "varchar", length: 50, default: "English" }),
     __metadata("design:type", String)
 ], LanguageTranslation.prototype, "language", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "uuid" }),
+    __metadata("design:type", String)
+], LanguageTranslation.prototype, "languageId", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => system_language_entity_1.SystemLanguage, { onDelete: "RESTRICT" }),
+    (0, typeorm_1.JoinColumn)({ name: "languageId" }),
+    __metadata("design:type", system_language_entity_1.SystemLanguage)
+], LanguageTranslation.prototype, "systemLanguage", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: "varchar", length: 255 }),
     __metadata("design:type", String)

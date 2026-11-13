@@ -11,24 +11,26 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UpdateZoneDto = exports.CreateZoneDto = void 0;
 const class_validator_1 = require("class-validator");
+// An empty string clears the code; otherwise letters, numbers and dashes only (e.g. "CA", "MH", "AU-NSW").
+const ZONE_CODE_PATTERN = /^([A-Za-z0-9-]{1,32})?$/;
+const ZONE_CODE_MESSAGE = "Zone code can contain only letters, numbers and dashes (max 32)";
 class CreateZoneDto {
 }
 exports.CreateZoneDto = CreateZoneDto;
 __decorate([
-    (0, class_validator_1.IsUUID)(),
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsUUID)("all", { message: "Please select a country" }),
     __metadata("design:type", String)
 ], CreateZoneDto.prototype, "countryId", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsNotEmpty)({ message: "Zone name is required" }),
     (0, class_validator_1.MaxLength)(255),
     __metadata("design:type", String)
 ], CreateZoneDto.prototype, "name", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.MaxLength)(255),
+    (0, class_validator_1.Matches)(ZONE_CODE_PATTERN, { message: ZONE_CODE_MESSAGE }),
     __metadata("design:type", String)
 ], CreateZoneDto.prototype, "code", void 0);
 __decorate([
@@ -39,13 +41,13 @@ class UpdateZoneDto {
 }
 exports.UpdateZoneDto = UpdateZoneDto;
 __decorate([
-    (0, class_validator_1.IsUUID)(),
+    (0, class_validator_1.IsUUID)("all", { message: "Please select a country" }),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], UpdateZoneDto.prototype, "countryId", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsNotEmpty)({ message: "Zone name is required" }),
     (0, class_validator_1.MaxLength)(255),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
@@ -53,7 +55,7 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.MaxLength)(255),
+    (0, class_validator_1.Matches)(ZONE_CODE_PATTERN, { message: ZONE_CODE_MESSAGE }),
     __metadata("design:type", String)
 ], UpdateZoneDto.prototype, "code", void 0);
 __decorate([

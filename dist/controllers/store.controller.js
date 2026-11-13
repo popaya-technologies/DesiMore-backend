@@ -16,11 +16,12 @@ const store_entity_1 = require("../entities/store.entity");
 const store_dto_1 = require("../dto/store.dto");
 const typeorm_1 = require("typeorm");
 const api_error_1 = require("../utils/api-error");
+const system_language_entity_1 = require("../entities/system-language.entity");
 const storeRepository = data_source_1.AppDataSource.getRepository(store_entity_1.Store);
 exports.StoreController = {
     // Create Store
     createStore: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17;
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16;
         try {
             const storeData = new store_dto_1.CreateStoreDto();
             Object.assign(storeData, req.body);
@@ -34,6 +35,17 @@ exports.StoreController = {
             if (errors.length > 0) {
                 res.status(400).json({ errors });
                 return;
+            }
+            const languageRepository = data_source_1.AppDataSource.getRepository(system_language_entity_1.SystemLanguage);
+            const systemLanguage = storeData.languageId
+                ? yield languageRepository.findOne({
+                    where: { id: storeData.languageId, status: true },
+                })
+                : yield languageRepository.findOne({
+                    where: { isDefault: true, status: true },
+                });
+            if (!systemLanguage) {
+                throw new api_error_1.ApiError(400, "Select an enabled language");
             }
             // Keep only one default store
             if (storeData.isDefault === true) {
@@ -55,25 +67,27 @@ exports.StoreController = {
                 comment: (_r = (_q = storeData.comment) === null || _q === void 0 ? void 0 : _q.trim()) !== null && _r !== void 0 ? _r : "",
                 country: ((_s = storeData.country) === null || _s === void 0 ? void 0 : _s.trim()) || "United States",
                 regionState: ((_t = storeData.regionState) === null || _t === void 0 ? void 0 : _t.trim()) || "New Jersey",
-                language: ((_u = storeData.language) === null || _u === void 0 ? void 0 : _u.trim()) || "English",
-                currency: ((_v = storeData.currency) === null || _v === void 0 ? void 0 : _v.trim()) || "US Dollar",
-                displayPricesWithTax: (_w = storeData.displayPricesWithTax) !== null && _w !== void 0 ? _w : false,
-                useStoreTaxAddress: (_y = (_x = storeData.useStoreTaxAddress) === null || _x === void 0 ? void 0 : _x.trim()) !== null && _y !== void 0 ? _y : "",
-                useCustomerTaxAddress: (_0 = (_z = storeData.useCustomerTaxAddress) === null || _z === void 0 ? void 0 : _z.trim()) !== null && _0 !== void 0 ? _0 : "",
-                customerGroup: ((_1 = storeData.customerGroup) === null || _1 === void 0 ? void 0 : _1.trim()) || "Default",
-                customerGroups: (_2 = storeData.customerGroups) !== null && _2 !== void 0 ? _2 : ["Default"],
-                accountTerms: (_4 = (_3 = storeData.accountTerms) === null || _3 === void 0 ? void 0 : _3.trim()) !== null && _4 !== void 0 ? _4 : "",
-                displayWeightOnCartPage: (_5 = storeData.displayWeightOnCartPage) !== null && _5 !== void 0 ? _5 : false,
-                guestCheckout: (_6 = storeData.guestCheckout) !== null && _6 !== void 0 ? _6 : false,
-                checkoutTerms: (_8 = (_7 = storeData.checkoutTerms) === null || _7 === void 0 ? void 0 : _7.trim()) !== null && _8 !== void 0 ? _8 : "",
-                orderStatus: ((_9 = storeData.orderStatus) === null || _9 === void 0 ? void 0 : _9.trim()) || "Canceled",
-                displayStock: (_10 = storeData.displayStock) !== null && _10 !== void 0 ? _10 : false,
-                stockCheckout: (_11 = storeData.stockCheckout) !== null && _11 !== void 0 ? _11 : false,
-                storeLogo: (_13 = (_12 = storeData.storeLogo) === null || _12 === void 0 ? void 0 : _12.trim()) !== null && _13 !== void 0 ? _13 : "",
-                icon: (_15 = (_14 = storeData.icon) === null || _14 === void 0 ? void 0 : _14.trim()) !== null && _15 !== void 0 ? _15 : "",
+                language: systemLanguage.languageName,
+                languageId: systemLanguage.id,
+                systemLanguage,
+                currency: ((_u = storeData.currency) === null || _u === void 0 ? void 0 : _u.trim()) || "US Dollar",
+                displayPricesWithTax: (_v = storeData.displayPricesWithTax) !== null && _v !== void 0 ? _v : false,
+                useStoreTaxAddress: (_x = (_w = storeData.useStoreTaxAddress) === null || _w === void 0 ? void 0 : _w.trim()) !== null && _x !== void 0 ? _x : "",
+                useCustomerTaxAddress: (_z = (_y = storeData.useCustomerTaxAddress) === null || _y === void 0 ? void 0 : _y.trim()) !== null && _z !== void 0 ? _z : "",
+                customerGroup: ((_0 = storeData.customerGroup) === null || _0 === void 0 ? void 0 : _0.trim()) || "Default",
+                customerGroups: (_1 = storeData.customerGroups) !== null && _1 !== void 0 ? _1 : ["Default"],
+                accountTerms: (_3 = (_2 = storeData.accountTerms) === null || _2 === void 0 ? void 0 : _2.trim()) !== null && _3 !== void 0 ? _3 : "",
+                displayWeightOnCartPage: (_4 = storeData.displayWeightOnCartPage) !== null && _4 !== void 0 ? _4 : false,
+                guestCheckout: (_5 = storeData.guestCheckout) !== null && _5 !== void 0 ? _5 : false,
+                checkoutTerms: (_7 = (_6 = storeData.checkoutTerms) === null || _6 === void 0 ? void 0 : _6.trim()) !== null && _7 !== void 0 ? _7 : "",
+                orderStatus: ((_8 = storeData.orderStatus) === null || _8 === void 0 ? void 0 : _8.trim()) || "Canceled",
+                displayStock: (_9 = storeData.displayStock) !== null && _9 !== void 0 ? _9 : false,
+                stockCheckout: (_10 = storeData.stockCheckout) !== null && _10 !== void 0 ? _10 : false,
+                storeLogo: (_12 = (_11 = storeData.storeLogo) === null || _11 === void 0 ? void 0 : _11.trim()) !== null && _12 !== void 0 ? _12 : "",
+                icon: (_14 = (_13 = storeData.icon) === null || _13 === void 0 ? void 0 : _13.trim()) !== null && _14 !== void 0 ? _14 : "",
                 url: storeData.url.trim(),
-                useSsl: (_16 = storeData.useSsl) !== null && _16 !== void 0 ? _16 : false,
-                isDefault: (_17 = storeData.isDefault) !== null && _17 !== void 0 ? _17 : false,
+                useSsl: (_15 = storeData.useSsl) !== null && _15 !== void 0 ? _15 : false,
+                isDefault: (_16 = storeData.isDefault) !== null && _16 !== void 0 ? _16 : false,
             });
             yield storeRepository.save(store);
             res.status(201).json(store);
@@ -105,6 +119,7 @@ exports.StoreController = {
             if (where.length > 0) {
                 const result = yield storeRepository.findAndCount({
                     where,
+                    relations: { systemLanguage: true },
                     order: {
                         isDefault: "DESC",
                         createdAt: "DESC",
@@ -117,6 +132,7 @@ exports.StoreController = {
             }
             else {
                 const result = yield storeRepository.findAndCount({
+                    relations: { systemLanguage: true },
                     order: {
                         isDefault: "DESC",
                         createdAt: "DESC",
@@ -149,6 +165,7 @@ exports.StoreController = {
                 where: {
                     id: req.params.id,
                 },
+                relations: { systemLanguage: true },
             });
             if (!store) {
                 res.status(404).json({
@@ -164,6 +181,7 @@ exports.StoreController = {
     }),
     // Update Store
     updateStore: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+        var _a, _b;
         try {
             const store = yield storeRepository.findOne({
                 where: {
@@ -188,6 +206,18 @@ exports.StoreController = {
             if (errors.length > 0) {
                 res.status(400).json({ errors });
                 return;
+            }
+            let systemLanguage = store.systemLanguage;
+            if (storeData.languageId !== undefined) {
+                systemLanguage =
+                    storeData.languageId === store.languageId
+                        ? store.systemLanguage
+                        : yield data_source_1.AppDataSource.getRepository(system_language_entity_1.SystemLanguage).findOne({
+                            where: { id: storeData.languageId, status: true },
+                        });
+                if (!systemLanguage) {
+                    throw new api_error_1.ApiError(400, "Select an enabled language");
+                }
             }
             if (storeData.isDefault === true) {
                 yield storeRepository
@@ -232,9 +262,7 @@ exports.StoreController = {
                     ? storeData.country.trim()
                     : store.country, regionState: storeData.regionState !== undefined
                     ? storeData.regionState.trim()
-                    : store.regionState, language: storeData.language !== undefined
-                    ? storeData.language.trim()
-                    : store.language, currency: storeData.currency !== undefined
+                    : store.regionState, language: (_a = systemLanguage === null || systemLanguage === void 0 ? void 0 : systemLanguage.languageName) !== null && _a !== void 0 ? _a : store.language, languageId: (_b = systemLanguage === null || systemLanguage === void 0 ? void 0 : systemLanguage.id) !== null && _b !== void 0 ? _b : store.languageId, systemLanguage, currency: storeData.currency !== undefined
                     ? storeData.currency.trim()
                     : store.currency, useStoreTaxAddress: storeData.useStoreTaxAddress !== undefined
                     ? storeData.useStoreTaxAddress.trim()
@@ -257,6 +285,17 @@ exports.StoreController = {
                     : store.url }));
             yield storeRepository.save(store);
             res.json(store);
+        }
+        catch (error) {
+            (0, api_error_1.respondError)(res, error);
+        }
+    }),
+    getFormOptions: (_req, res) => __awaiter(void 0, void 0, void 0, function* () {
+        try {
+            const languages = yield data_source_1.AppDataSource.getRepository(system_language_entity_1.SystemLanguage).find({
+                order: { sortOrder: "ASC", languageName: "ASC" },
+            });
+            res.json({ languages });
         }
         catch (error) {
             (0, api_error_1.respondError)(res, error);
