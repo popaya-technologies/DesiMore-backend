@@ -9,8 +9,24 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.checkPermission = exports.checkAnyPermission = void 0;
+exports.checkPermission = exports.checkPermissionOnAny = exports.checkAnyPermission = exports.requireStaff = void 0;
 const rbac_service_1 = require("../services/rbac.service");
+// Shopper roles carry some of the same permissions as staff (e.g. order:read for
+// their own orders), so staff-only routes must also reject them explicitly.
+const SHOPPER_ROLES = new Set(["user", "customer", "wholesaler"]);
+const requireStaff = (req, res, next) => {
+    if (!req.user) {
+        res.status(401).json({ message: "Unauthorized" });
+        return;
+    }
+    if (req.user.accountType !== "system-user" &&
+        SHOPPER_ROLES.has(String(req.user.userRole))) {
+        res.status(403).json({ message: "Forbidden" });
+        return;
+    }
+    next();
+};
+exports.requireStaff = requireStaff;
 // Product read permission also belongs to shoppers; editor metadata needs a write permission.
 const checkAnyPermission = (resource, actions) => (req, res, next) => {
     var _a;
@@ -26,6 +42,45 @@ const checkAnyPermission = (resource, actions) => (req, res, next) => {
     res.status(403).json({ message: "Forbidden" });
 };
 exports.checkAnyPermission = checkAnyPermission;
+// Passes when the user holds `action` on at least one of `resources`.
+const checkPermissionOnAny = (resources, action) => {
+    return (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+        try {
+            if (!req.user) {
+                res.status(401).json({ message: "Unauthorized" });
+                return;
+            }
+            if (req.user.userRole === "su") {
+                next();
+                return;
+            }
+            if (req.user.accountType === "system-user") {
+                const isReadAction = action === "read" || action === "read-all";
+                const granted = isReadAction
+                    ? req.user.accessPermissions
+                    : req.user.modifyPermissions;
+                if (resources.some((r) => granted === null || granted === void 0 ? void 0 : granted.includes(r))) {
+                    next();
+                    return;
+                }
+                res.status(403).json({ message: "Forbidden" });
+                return;
+            }
+            for (const resource of resources) {
+                if (yield rbac_service_1.RBACService.hasPermission(req.user.id, resource, action)) {
+                    next();
+                    return;
+                }
+            }
+            res.status(403).json({ message: "Forbidden" });
+        }
+        catch (error) {
+            console.error(error);
+            res.status(500).json({ message: "Internal server error" });
+        }
+    });
+};
+exports.checkPermissionOnAny = checkPermissionOnAny;
 const checkPermission = (resource, action) => {
     return (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
         var _a, _b;

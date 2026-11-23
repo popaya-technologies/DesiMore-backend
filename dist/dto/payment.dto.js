@@ -38,6 +38,7 @@ __decorate([
     __metadata("design:type", String)
 ], ProcessPaymentDto.prototype, "cardCode", void 0);
 __decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
     (0, class_validator_1.Min)(0.01),
     __metadata("design:type", Number)

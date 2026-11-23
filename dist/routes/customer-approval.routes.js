@@ -7,6 +7,8 @@ const rbac_middleware_1 = require("../middlewares/rbac.middleware");
 const customer_approval_controller_1 = require("../controllers/customer-approval.controller");
 const router = (0, express_1.Router)();
 router.use(auth_middleware_1.authenticate);
+// Customer approvals are an admin screen; shoppers must not create or act on them.
+router.use(rbac_middleware_1.requireStaff);
 router.param("id", (_req, res, next, id) => {
     if (!(0, class_validator_1.isUUID)(id)) {
         res.status(400).json({

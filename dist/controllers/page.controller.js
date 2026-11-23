@@ -51,6 +51,22 @@ const api_error_1 = require("../utils/api-error");
 const safeCell = (value) => /^[=+\-@\t\r\n]/.test(value) ? "'" + value : value;
 const repository = () => data_source_1.AppDataSource.getRepository(page_entity_1.Page);
 exports.PageController = {
+    // Public storefront read: only active pages, looked up by exact slug.
+    getPublicBySlug: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+        var _a;
+        try {
+            const slug = String((_a = req.params.slug) !== null && _a !== void 0 ? _a : "").trim();
+            if (!slug || slug.length > 255)
+                throw new api_error_1.ApiError(404, "Page not found");
+            const page = yield repository().findOneBy({ slug, isActive: true });
+            if (!page)
+                throw new api_error_1.ApiError(404, "Page not found");
+            res.json((0, page_service_1.pageResponse)(page));
+        }
+        catch (error) {
+            (0, api_error_1.respondError)(res, error);
+        }
+    }),
     create: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         try {
             const dto = yield (0, page_service_1.validatePageInput)(req.body, true);

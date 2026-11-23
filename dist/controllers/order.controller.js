@@ -215,6 +215,7 @@ exports.OrderController = {
             });
             if (!order) {
                 res.status(404).json({ message: "Order not found" });
+                return;
             }
             res.status(200).json(order);
         }

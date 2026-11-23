@@ -15,7 +15,13 @@ router.post("/request-password-reset", auth_controller_1.AuthController.requestP
 router.post("/reset-password", auth_controller_1.AuthController.resetPassword);
 router.get("/me", auth_middleware_1.authenticate, auth_controller_1.AuthController.getMe);
 router.patch("/me", auth_middleware_1.authenticate, auth_controller_1.AuthController.updateMe);
-router.get("/users", auth_controller_1.AuthController.getAllUsers);
-router.get("/users/:id", auth_controller_1.AuthController.getUserById);
-router.delete("/users/:id", auth_middleware_1.authenticate, (0, rbac_middleware_1.checkPermission)("user", "delete"), auth_controller_1.AuthController.deleteUser);
+// Customer records are staff-only; shoppers read their own profile via /me.
+// The admin Wholesalers page and Orders table also read these records.
+const readCustomerRecords = (0, rbac_middleware_1.checkPermissionOnAny)(["user", "wholesale-order-request", "order"], "read");
+router.get("/users", auth_middleware_1.authenticate, rbac_middleware_1.requireStaff, readCustomerRecords, auth_controller_1.AuthController.getAllUsers);
+router.get("/users/:id", auth_middleware_1.authenticate, rbac_middleware_1.requireStaff, readCustomerRecords, auth_controller_1.AuthController.getUserById);
+router.delete("/users/:id", auth_middleware_1.authenticate, rbac_middleware_1.requireStaff, (0, rbac_middleware_1.checkPermission)("user", "delete"), auth_controller_1.AuthController.deleteUser);
+// Admin Customers screen: create / edit customer accounts.
+router.post("/users", auth_middleware_1.authenticate, rbac_middleware_1.requireStaff, (0, rbac_middleware_1.checkPermission)("user", "create"), auth_controller_1.AuthController.adminCreateCustomer);
+router.put("/users/:id", auth_middleware_1.authenticate, rbac_middleware_1.requireStaff, (0, rbac_middleware_1.checkPermission)("user", "update"), auth_controller_1.AuthController.adminUpdateCustomer);
 exports.default = router;

@@ -134,11 +134,8 @@ exports.PaymentController = {
                 res.status(404).json({ message: "Payment not found" });
                 return;
             }
-            // Check if user owns the payment or is admin
-            if (payment.order.userId !== req.user.id && req.user.userRole !== "su") {
-                res.status(403).json({ message: "Access denied" });
-                return;
-            }
+            // Access is enforced on the route (staff with order:update); owning the
+            // payment no longer grants refund rights.
             const refundedPayment = yield authorize_net_service_1.AuthorizeNetService.refundTransaction(paymentId, refundDto.amount);
             res.status(200).json({
                 success: true,

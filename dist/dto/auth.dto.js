@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UpdateProfileDto = void 0;
+exports.AdminUpdateCustomerDto = exports.AdminCreateCustomerDto = exports.ADMIN_CUSTOMER_ROLES = exports.UpdateProfileDto = void 0;
 const class_validator_1 = require("class-validator");
 class UpdateProfileDto {
 }
@@ -52,3 +52,64 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], UpdateProfileDto.prototype, "avatar", void 0);
+// Admin "Customers" screen: only shopper roles may be created or set here.
+exports.ADMIN_CUSTOMER_ROLES = ["user", "customer"];
+class AdminCreateCustomerDto {
+}
+exports.AdminCreateCustomerDto = AdminCreateCustomerDto;
+__decorate([
+    (0, class_validator_1.IsIn)(exports.ADMIN_CUSTOMER_ROLES, {
+        message: "User Role must be User or Customer",
+    }),
+    __metadata("design:type", String)
+], AdminCreateCustomerDto.prototype, "user_role", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(3),
+    (0, class_validator_1.MaxLength)(50),
+    __metadata("design:type", String)
+], AdminCreateCustomerDto.prototype, "username", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(2),
+    (0, class_validator_1.MaxLength)(50),
+    __metadata("design:type", String)
+], AdminCreateCustomerDto.prototype, "firstname", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(1),
+    (0, class_validator_1.MaxLength)(50),
+    __metadata("design:type", String)
+], AdminCreateCustomerDto.prototype, "lastname", void 0);
+__decorate([
+    (0, class_validator_1.IsEmail)(),
+    (0, class_validator_1.MaxLength)(255),
+    __metadata("design:type", String)
+], AdminCreateCustomerDto.prototype, "email", void 0);
+__decorate([
+    (0, class_validator_1.IsPhoneNumber)(),
+    __metadata("design:type", String)
+], AdminCreateCustomerDto.prototype, "phone", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(8),
+    (0, class_validator_1.MaxLength)(100),
+    __metadata("design:type", String)
+], AdminCreateCustomerDto.prototype, "password", void 0);
+class AdminUpdateCustomerDto extends UpdateProfileDto {
+}
+exports.AdminUpdateCustomerDto = AdminUpdateCustomerDto;
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(exports.ADMIN_CUSTOMER_ROLES, {
+        message: "User Role must be User or Customer",
+    }),
+    __metadata("design:type", String)
+], AdminUpdateCustomerDto.prototype, "user_role", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(8),
+    (0, class_validator_1.MaxLength)(100),
+    __metadata("design:type", String)
+], AdminUpdateCustomerDto.prototype, "password", void 0);

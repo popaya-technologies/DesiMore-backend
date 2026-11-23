@@ -46,7 +46,149 @@ const profileSelect = [
     "createdAt",
     "updatedAt",
 ];
+// Accounts the admin "Customers" screen may edit.
+const ADMIN_EDITABLE_ROLES = new Set(["user", "customer", "wholesaler"]);
+// First readable validation message, without echoing submitted values.
+const firstValidationMessage = (errors) => {
+    var _a, _b;
+    const first = errors[0];
+    if (first && (first.value === undefined || first.value === null)) {
+        return `${first.property} is required`;
+    }
+    const constraints = (_a = first === null || first === void 0 ? void 0 : first.constraints) !== null && _a !== void 0 ? _a : {};
+    return (_b = Object.values(constraints)[0]) !== null && _b !== void 0 ? _b : "Invalid customer data";
+};
+// Case-insensitive duplicate check for username, email and phone.
+const findDuplicateField = (fields, excludeId) => __awaiter(void 0, void 0, void 0, function* () {
+    const checks = [
+        ["username", "Username"],
+        ["email", "Email"],
+        ["phone", "Phone number"],
+    ];
+    for (const [key, label] of checks) {
+        const value = fields[key];
+        if (!value)
+            continue;
+        const qb = userRepository
+            .createQueryBuilder("user")
+            .select(["user.id"])
+            .where(key === "phone"
+            ? "user.phone = :value"
+            : `LOWER(user.${key}) = :value`, { value: key === "phone" ? value : value.toLowerCase() });
+        if (excludeId)
+            qb.andWhere("user.id != :excludeId", { excludeId });
+        if (yield qb.getOne())
+            return `${label} already in use`;
+    }
+    return null;
+});
 exports.AuthController = {
+    // Admin Customers screen: create a shopper account (role User or Customer).
+    adminCreateCustomer: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+        var _a;
+        try {
+            const dto = (0, class_transformer_1.plainToInstance)(auth_dto_1.AdminCreateCustomerDto, (_a = req.body) !== null && _a !== void 0 ? _a : {});
+            const errors = yield (0, class_validator_1.validate)(dto, { whitelist: true });
+            if (errors.length > 0) {
+                res.status(400).json({ message: firstValidationMessage(errors) });
+                return;
+            }
+            const username = dto.username.trim().toLowerCase();
+            const email = dto.email.trim().toLowerCase();
+            const phone = dto.phone.trim();
+            const duplicate = yield findDuplicateField({ username, email, phone });
+            if (duplicate) {
+                res.status(400).json({ message: duplicate });
+                return;
+            }
+            const user = new user_entity_1.User();
+            user.userRole = dto.user_role;
+            user.avatar = "";
+            user.username = username;
+            user.firstname = dto.firstname.trim();
+            user.lastname = dto.lastname.trim();
+            user.email = email;
+            user.phone = phone;
+            user.setPassword(dto.password);
+            yield userRepository.save(user);
+            const created = yield userRepository.findOne({
+                where: { id: user.id },
+                select: profileSelect,
+            });
+            res.status(201).json({ success: true, data: created });
+        }
+        catch (error) {
+            console.error("Error creating customer:", error);
+            res.status(500).json({ message: "Internal server error" });
+        }
+    }),
+    // Admin Customers screen: edit a shopper account; never grants staff roles.
+    adminUpdateCustomer: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+        var _a, _b, _c, _d;
+        try {
+            const body = Object.assign({}, ((_a = req.body) !== null && _a !== void 0 ? _a : {}));
+            // An empty password field in the edit form means "keep the current one".
+            if (body.password === "" || body.password === null)
+                delete body.password;
+            const dto = (0, class_transformer_1.plainToInstance)(auth_dto_1.AdminUpdateCustomerDto, body);
+            const errors = yield (0, class_validator_1.validate)(dto, { whitelist: true });
+            if (errors.length > 0) {
+                res.status(400).json({ message: firstValidationMessage(errors) });
+                return;
+            }
+            const user = yield userRepository.findOne({
+                where: { id: String(req.params.id) },
+            });
+            if (!user) {
+                res.status(404).json({ message: "Customer not found" });
+                return;
+            }
+            if (!ADMIN_EDITABLE_ROLES.has(user.userRole)) {
+                res
+                    .status(403)
+                    .json({ message: "Only customer accounts can be edited here" });
+                return;
+            }
+            const username = (_b = dto.username) === null || _b === void 0 ? void 0 : _b.trim().toLowerCase();
+            const email = (_c = dto.email) === null || _c === void 0 ? void 0 : _c.trim().toLowerCase();
+            const phone = (_d = dto.phone) === null || _d === void 0 ? void 0 : _d.trim();
+            const duplicate = yield findDuplicateField({
+                username: username !== user.username ? username : undefined,
+                email: email !== user.email ? email : undefined,
+                phone: phone !== user.phone ? phone : undefined,
+            }, user.id);
+            if (duplicate) {
+                res.status(400).json({ message: duplicate });
+                return;
+            }
+            if (dto.firstname !== undefined)
+                user.firstname = dto.firstname.trim();
+            if (dto.lastname !== undefined)
+                user.lastname = dto.lastname.trim();
+            if (username)
+                user.username = username;
+            if (email)
+                user.email = email;
+            if (phone)
+                user.phone = phone;
+            // Wholesalers keep their role; User <-> Customer may be switched.
+            if (dto.user_role && user.userRole !== "wholesaler") {
+                user.userRole = dto.user_role;
+            }
+            if (dto.password)
+                user.setPassword(dto.password);
+            yield userRepository.save(user);
+            const updated = yield userRepository.findOne({
+                where: { id: user.id },
+                select: profileSelect,
+            });
+            res.status(200).json({ success: true, data: updated });
+        }
+        catch (error) {
+            console.error("Error updating customer:", error);
+            res.status(500).json({ message: "Internal server error" });
+        }
+    }),
     register: (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         try {
             const { username, firstname, lastname, email, phone, password } = req.body;
@@ -279,9 +421,11 @@ exports.AuthController = {
                 .createQueryBuilder("user")
                 .where("LOWER(user.email) = :email", { email: emailNormalized })
                 .getOne();
+            // Same response as a registered email, so the reply never reveals
+            // which addresses have an account. Nothing is stored or sent.
             if (!user) {
-                res.status(400).json({
-                    message: "If this email exists, we've sent a reset link",
+                res.status(200).json({
+                    message: "Password reset OTP sent to your email",
                 });
                 return;
             }

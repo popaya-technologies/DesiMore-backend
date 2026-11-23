@@ -466,7 +466,9 @@ exports.ProductController = {
             const { slug } = req.params;
             const { limit = "10", page = "1" } = req.query;
             const take = parseInt(limit);
-            const skip = (parseInt(page) - 1) * take;
+            // Pages start at 1; negative or invalid pages fall back to page 1.
+            const currentPage = Math.max(parseInt(page, 10) || 1, 1);
+            const skip = (currentPage - 1) * take;
             const category = yield categoryRepository.findOne({
                 where: { slug },
             });
@@ -489,7 +491,7 @@ exports.ProductController = {
                 data: formattedProducts,
                 meta: {
                     total,
-                    page: parseInt(page),
+                    page: currentPage,
                     limit: take,
                     totalPages: Math.ceil(total / take),
                 },
@@ -505,7 +507,9 @@ exports.ProductController = {
             const { id } = req.params;
             const { limit = "10", page = "1" } = req.query;
             const take = parseInt(limit);
-            const skip = (parseInt(page) - 1) * take;
+            // Pages start at 1; negative or invalid pages fall back to page 1.
+            const currentPage = Math.max(parseInt(page, 10) || 1, 1);
+            const skip = (currentPage - 1) * take;
             const category = yield categoryRepository.findOne({
                 where: { id },
             });
@@ -528,7 +532,7 @@ exports.ProductController = {
                 data: formattedProducts,
                 meta: {
                     total,
-                    page: parseInt(page),
+                    page: currentPage,
                     limit: take,
                     totalPages: Math.ceil(total / take),
                 },
