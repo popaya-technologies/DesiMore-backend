@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { GiftVoucherController } from "../controllers/gift_voucher.controller";
 import { authenticate } from "../middlewares/auth.middleware";
-import { checkPermission } from "../middlewares/rbac.middleware";
+import { checkPermission, requireStaff } from "../middlewares/rbac.middleware";
 
 const router = Router();
 
@@ -14,9 +14,22 @@ router.post(
   GiftVoucherController.createGiftVoucher,
 );
 
-router.get("/", GiftVoucherController.getGiftVouchers);
+// Voucher codes are spendable at checkout, so only staff may list or read them.
+router.get(
+  "/",
+  authenticate,
+  requireStaff,
+  checkPermission("gift_voucher", "read"),
+  GiftVoucherController.getGiftVouchers,
+);
 
-router.get("/:id", GiftVoucherController.getGiftVoucherById);
+router.get(
+  "/:id",
+  authenticate,
+  requireStaff,
+  checkPermission("gift_voucher", "read"),
+  GiftVoucherController.getGiftVoucherById,
+);
 
 router.put(
   "/:id",

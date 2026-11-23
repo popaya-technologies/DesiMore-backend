@@ -12,6 +12,18 @@ import { ApiError, respondError } from "../utils/api-error";
 const safeCell = (value: string) => /^[=+\-@\t\r\n]/.test(value) ? "'" + value : value;
 const repository = () => AppDataSource.getRepository(Page);
 export const PageController = {
+  // Public storefront read: only active pages, looked up by exact slug.
+  getPublicBySlug: async (req: Request, res: Response) => {
+    try {
+      const slug = String(req.params.slug ?? "").trim();
+      if (!slug || slug.length > 255) throw new ApiError(404, "Page not found");
+      const page = await repository().findOneBy({ slug, isActive: true });
+      if (!page) throw new ApiError(404, "Page not found");
+      res.json(pageResponse(page));
+    } catch (error) {
+      respondError(res, error);
+    }
+  },
   create: async (req: Request, res: Response) => {
     try {
       const dto = await validatePageInput(req.body, true);

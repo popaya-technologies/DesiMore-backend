@@ -207,7 +207,9 @@ export class CurrencyController {
       };
       const sortBy =
         typeof req.query.sortBy === "string" &&
-        sortColumns[req.query.sortBy]
+        // Own keys only: names like "constructor" or "__proto__" must not
+        // resolve to built-in object properties.
+        Object.prototype.hasOwnProperty.call(sortColumns, req.query.sortBy)
           ? sortColumns[req.query.sortBy]
           : sortColumns.currencyTitle;
       const sortOrder =

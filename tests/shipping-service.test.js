@@ -76,13 +76,20 @@ const responseRecorder = () => ({
 
 test("quote endpoint returns the four server-calculated methods", async (t) => {
   const original = AppDataSource.getRepository;
-  t.after(() => { AppDataSource.getRepository = original; });
+  const originalManager = AppDataSource.manager;
+  t.after(() => {
+    AppDataSource.getRepository = original;
+    AppDataSource.manager = originalManager;
+  });
   AppDataSource.getRepository = () => ({
     findOne: async () => ({
       id: requestBody.cartId,
       items: [item({ weight: 30 })],
     }),
   });
+  // The quote also loads admin weight classes (added with the weight-class
+  // change). No classes configured -> the built-in pound conversion is used.
+  AppDataSource.manager = { getRepository: () => ({ find: async () => [] }) };
   const res = responseRecorder();
   await ShippingController.quote(
     { body: requestBody, user: { id: "22222222-2222-4222-8222-222222222222", userRole: "customer", roles: [] } },

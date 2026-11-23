@@ -29,9 +29,11 @@ export class ProcessPaymentDto {
   @Matches(/^\d{3,4}$/, { message: "Invalid CVV" })
   cardCode: string;
 
+  // Ignored: a retry always charges the stored order total.
+  @IsOptional()
   @IsNumber()
   @Min(0.01)
-  amount: number;
+  amount?: number;
 }
 
 export class RefundPaymentDto {

@@ -1,12 +1,14 @@
 import { Router } from "express";
 import { isUUID } from "class-validator";
 import { authenticate } from "../middlewares/auth.middleware";
-import { checkPermission } from "../middlewares/rbac.middleware";
+import { checkPermission, requireStaff } from "../middlewares/rbac.middleware";
 import { CustomerApprovalController as controller } from "../controllers/customer-approval.controller";
 
 const router = Router();
 
 router.use(authenticate);
+// Customer approvals are an admin screen; shoppers must not create or act on them.
+router.use(requireStaff);
 
 router.param("id", (_req, res, next, id) => {
   if (!isUUID(id)) {

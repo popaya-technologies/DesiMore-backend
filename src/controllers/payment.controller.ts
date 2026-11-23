@@ -136,11 +136,8 @@ export const PaymentController = {
         return;
       }
 
-      // Check if user owns the payment or is admin
-      if (payment.order.userId !== req.user.id && req.user.userRole !== "su") {
-        res.status(403).json({ message: "Access denied" });
-        return;
-      }
+      // Access is enforced on the route (staff with order:update); owning the
+      // payment no longer grants refund rights.
 
       const refundedPayment = await AuthorizeNetService.refundTransaction(
         paymentId,

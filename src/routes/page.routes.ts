@@ -5,6 +5,9 @@ import { checkPermission } from "../middlewares/rbac.middleware";
 import { PageController } from "../controllers/page.controller";
 
 const router = Router();
+// Public storefront route (Privacy, Returns, Shipping, Our Story); registered
+// before the auth guard below. Admin routes stay protected.
+router.get("/public/:slug", PageController.getPublicBySlug);
 router.use(authenticate);
 router.param("id", (_req, res, next, id) => {
   if (!isUUID(id)) { res.status(400).json({ message: "Invalid page ID" }); return; }

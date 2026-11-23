@@ -2,7 +2,7 @@ import { Router } from "express";
 
 import { ReviewController } from "../controllers/review.controller";
 import { authenticate } from "../middlewares/auth.middleware";
-import { checkPermission } from "../middlewares/rbac.middleware";
+import { checkPermission, requireStaff } from "../middlewares/rbac.middleware";
 
 const router = Router();
 
@@ -21,13 +21,21 @@ router.post(
   ReviewController.createReview,
 );
 
+// The full list includes unapproved reviews, so only staff may read it.
+// Shoppers see approved reviews through /product/:productId above.
 router.get(
   "/",
+  authenticate,
+  requireStaff,
+  checkPermission("review", "read"),
   ReviewController.getReviews,
 );
 
 router.get(
   "/:id",
+  authenticate,
+  requireStaff,
+  checkPermission("review", "read"),
   ReviewController.getReviewById,
 );
 

@@ -510,7 +510,9 @@ export const ProductController = {
       const { limit = "10", page = "1" } = req.query;
 
       const take = parseInt(limit as string);
-      const skip = (parseInt(page as string) - 1) * take;
+      // Pages start at 1; negative or invalid pages fall back to page 1.
+      const currentPage = Math.max(parseInt(page as string, 10) || 1, 1);
+      const skip = (currentPage - 1) * take;
 
       const category = await categoryRepository.findOne({
         where: { slug },
@@ -540,7 +542,7 @@ export const ProductController = {
         data: formattedProducts,
         meta: {
           total,
-          page: parseInt(page as string),
+          page: currentPage,
           limit: take,
           totalPages: Math.ceil(total / take),
         },
@@ -557,7 +559,9 @@ export const ProductController = {
       const { limit = "10", page = "1" } = req.query;
 
       const take = parseInt(limit as string);
-      const skip = (parseInt(page as string) - 1) * take;
+      // Pages start at 1; negative or invalid pages fall back to page 1.
+      const currentPage = Math.max(parseInt(page as string, 10) || 1, 1);
+      const skip = (currentPage - 1) * take;
 
       const category = await categoryRepository.findOne({
         where: { id },
@@ -587,7 +591,7 @@ export const ProductController = {
         data: formattedProducts,
         meta: {
           total,
-          page: parseInt(page as string),
+          page: currentPage,
           limit: take,
           totalPages: Math.ceil(total / take),
         },

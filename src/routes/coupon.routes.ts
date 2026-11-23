@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { CouponController } from "../controllers/coupon.controller";
 import { authenticate } from "../middlewares/auth.middleware";
-import { checkPermission } from "../middlewares/rbac.middleware";
+import { checkPermission, requireStaff } from "../middlewares/rbac.middleware";
 
 const router = Router();
 
@@ -14,9 +14,22 @@ router.post(
   CouponController.createCoupon,
 );
 
-router.get("/", CouponController.getCoupons);
+// Coupon codes are redeemable at checkout, so only staff may list or read them.
+router.get(
+  "/",
+  authenticate,
+  requireStaff,
+  checkPermission("coupon", "read"),
+  CouponController.getCoupons,
+);
 
-router.get("/:id", CouponController.getCouponById);
+router.get(
+  "/:id",
+  authenticate,
+  requireStaff,
+  checkPermission("coupon", "read"),
+  CouponController.getCouponById,
+);
 
 router.put(
   "/:id",
